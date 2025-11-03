@@ -90,21 +90,36 @@ body {
 
 @layer utilities {
   .animate-breathe-circle {
-    animation: breathe-circle 4s ease-in-out infinite;
+    animation: breathe-circle ease-in-out;
+  }
+  .animate-breathe-in {
+    animation: breathe-in ease-out;
+  }
+  .animate-breathe-out {
+    animation: breathe-out ease-in;
+  }
+  .animate-breathe-hold {
+    animation: breathe-hold ease-in-out;
   }
 }
 
 @keyframes breathe-circle {
-  0% {
-    transform: scale(0.9);
-    opacity: 0.7;
-  }
-  50% {
-    transform: scale(1.1);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(0.9);
-    opacity: 0.7;
-  }
+  0% { transform: scale(0.9); opacity: 0.7; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.7; }
+}
+
+@keyframes breathe-in {
+  from { transform: scale(0.8); opacity: 0.7; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes breathe-out {
+  from { transform: scale(1); opacity: 1; }
+  to { transform: scale(0.8); opacity: 0.7; }
+}
+
+@keyframes breathe-hold {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }

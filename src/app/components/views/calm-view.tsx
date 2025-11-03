@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -9,19 +9,19 @@ type BreathMode = 'circle' | 'square' | '4-7-8';
 
 const breathCycles = {
   circle: [
-    { text: 'Inhala...', duration: 4000 },
-    { text: 'Exhala...', duration: 4000 },
+    { text: 'Inhala por', duration: 4000, animation: 'animate-breathe-circle' },
+    { text: 'Exhala por', duration: 4000, animation: '' },
   ],
   square: [
-    { text: 'Inhala (4s)', duration: 4000 },
-    { text: 'Sostén (4s)', duration: 4000 },
-    { text: 'Exhala (4s)', duration: 4000 },
-    { text: 'Sostén (4s)', duration: 4000 },
+    { text: 'Inhala por', duration: 4000, animation: 'animate-breathe-in' },
+    { text: 'Sostén por', duration: 4000, animation: 'animate-breathe-hold' },
+    { text: 'Exhala por', duration: 4000, animation: 'animate-breathe-out' },
+    { text: 'Sostén por', duration: 4000, animation: 'animate-breathe-hold' },
   ],
   '4-7-8': [
-    { text: 'Inhala (4s)', duration: 4000 },
-    { text: 'Sostén (7s)', duration: 7000 },
-    { text: 'Exhala (8s)', duration: 8000 },
+    { text: 'Inhala por', duration: 4000, animation: 'animate-breathe-in' },
+    { text: 'Sostén por', duration: 7000, animation: 'animate-breathe-hold' },
+    { text: 'Exhala por', duration: 8000, animation: 'animate-breathe-out' },
   ],
 };
 
@@ -29,42 +29,67 @@ export function CalmView() {
   const [mode, setMode] = useState<BreathMode>('circle');
   const [breathText, setBreathText] = useState('Prepárate...');
   const [animationClass, setAnimationClass] = useState('');
+  const [isClient, setIsClient] = useState(false);
+
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isClient) return;
+
+    // Clear any existing timers
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    
     setBreathText('Prepárate...');
-    let cycleIndex = 0;
+    setAnimationClass('');
+    let cycleIndex = -1;
     
     const cycle = breathCycles[mode];
 
     const runCycle = () => {
-      const currentStep = cycle[cycleIndex];
-      setBreathText(currentStep.text);
-      
-      // Control animation for circle mode
-      if (mode === 'circle') {
-        if (currentStep.text.startsWith('Inhala')) {
-          setAnimationClass('animate-breathe-circle');
-        } else {
-          // No specific class for exhale, it's the reverse part of the animation
-        }
-      } else {
-        setAnimationClass(''); // Static for other modes
-      }
-      
+      // Clear previous interval if any
+      if (intervalRef.current) clearInterval(intervalRef.current);
+
       cycleIndex = (cycleIndex + 1) % cycle.length;
-      const timeoutId = setTimeout(runCycle, currentStep.duration);
-      return timeoutId;
+      const currentStep = cycle[cycleIndex];
+      
+      const totalSeconds = currentStep.duration / 1000;
+      let count = totalSeconds;
+
+      setBreathText(`${currentStep.text} ${count}...`);
+      setAnimationClass(currentStep.animation);
+      
+      intervalRef.current = setInterval(() => {
+        count--;
+        if (count > 0) {
+          setBreathText(`${currentStep.text} ${count}...`);
+        } else {
+            if (intervalRef.current) clearInterval(intervalRef.current);
+        }
+      }, 1000);
+      
+      timeoutRef.current = setTimeout(runCycle, currentStep.duration);
     };
 
-    const initialTimeout = setTimeout(runCycle, 1500); // Initial delay
+    const initialTimeout = setTimeout(runCycle, 2000); // Initial delay
 
     return () => {
       clearTimeout(initialTimeout);
-      // We need to find a way to clear the dynamically set timeout inside runCycle
-      // A simple way is not to clear it, it will just stop being called.
-      // For more complex scenarios, we'd store timeoutId in a ref.
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [mode]);
+  }, [mode, isClient]);
+
+  const getAnimationDuration = () => {
+    if (mode === 'circle') return '4s';
+    const currentStep = breathCycles[mode].find(step => step.animation === animationClass);
+    return currentStep ? `${currentStep.duration / 1000}s` : '4s';
+  }
 
   return (
     <Card className="w-full h-full shadow-lg flex flex-col items-center justify-center text-center">
@@ -91,6 +116,7 @@ export function CalmView() {
             mode === 'circle' ? 'rounded-full' : 'rounded-xl',
             animationClass
           )}
+          style={{ animationDuration: getAnimationDuration(), animationIterationCount: mode === 'circle' ? 'infinite' : 1 }}
         >
           <p className="text-2xl font-bold text-primary-foreground">{breathText}</p>
         </div>
