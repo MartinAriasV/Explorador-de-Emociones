@@ -41,7 +41,7 @@ const generateProfileAvatarFlow = ai.defineFlow(
   },
   async input => {
     const {media} = await ai.generate({
-      model: 'googleai/gemini-pro-vision',
+      model: 'googleai/imagen-2.0-fast-generate',
       prompt: `Generate an image of profile avatar based on the following interests: ${input.interests}. The avatar should be a square image.`,
     });
 
