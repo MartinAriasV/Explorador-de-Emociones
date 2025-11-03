@@ -38,13 +38,20 @@ export default function EmotionExplorer() {
   const saveEmotion = (emotionData: Omit<Emotion, 'id'> & { id?: string }) => {
     if (emotionData.id) {
       // Editing existing emotion
-      setEmotionsList(emotionsList.map(e => e.id === emotionData.id ? { ...e, ...emotionData } : e));
+      setEmotionsList(emotionsList.map(e => e.id === emotionData.id ? { ...e, ...emotionData } as Emotion : e));
     } else {
       // Adding new emotion
-      const newEmotion = { ...emotionData, id: Date.now().toString() };
+      const newEmotion = { ...emotionData, id: Date.now().toString() } as Emotion;
       setEmotionsList([...emotionsList, newEmotion]);
     }
     setAddingEmotionData(null);
+  };
+  
+  const deleteEmotion = (emotionId: string) => {
+    setEmotionsList(emotionsList.filter(e => e.id !== emotionId));
+    // Also remove diary entries associated with this emotion
+    setDiaryEntries(diaryEntries.filter(entry => entry.emotionId !== emotionId));
+    setAddingEmotionData(null); // Close modal if it was open
   };
 
   const addDiaryEntry = (entryData: Omit<DiaryEntry, 'id'>) => {
@@ -82,7 +89,7 @@ export default function EmotionExplorer() {
       case 'diary':
         return <DiaryView emotionsList={emotionsList} diaryEntries={diaryEntries} addDiaryEntry={addDiaryEntry} setView={setView} />;
       case 'emocionario':
-        return <EmocionarioView emotionsList={emotionsList} addEmotion={saveEmotion} onEditEmotion={handleOpenAddEmotionModal} />;
+        return <EmocionarioView emotionsList={emotionsList} addEmotion={saveEmotion} onEditEmotion={handleOpenAddEmotionModal} onDeleteEmotion={deleteEmotion} />;
       case 'discover':
         return <DiscoverView onAddEmotion={handleOpenAddEmotionModal} />;
       case 'calm':
@@ -116,6 +123,7 @@ export default function EmotionExplorer() {
       <AddEmotionModal
         initialData={addingEmotionData}
         onSave={saveEmotion}
+        onDelete={deleteEmotion}
         onClose={() => setAddingEmotionData(null)}
       />
 

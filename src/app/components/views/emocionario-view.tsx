@@ -7,19 +7,21 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Emotion } from '@/lib/types';
-import { Sparkles, Loader } from 'lucide-react';
+import { Sparkles, Loader, Trash2, Edit } from 'lucide-react';
 import { defineEmotionMeaning } from '@/ai/flows/define-emotion-meaning';
 import { useToast } from '@/hooks/use-toast';
 import { AVATAR_EMOJIS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 interface EmocionarioViewProps {
   emotionsList: Emotion[];
   addEmotion: (emotion: Omit<Emotion, 'id'>) => void;
   onEditEmotion: (emotion: Emotion) => void;
+  onDeleteEmotion: (emotionId: string) => void;
 }
 
-export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion }: EmocionarioViewProps) {
+export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDeleteEmotion }: EmocionarioViewProps) {
   const [name, setName] = useState('');
   const [icon, setIcon] = useState('');
   const [color, setColor] = useState('#47a2a2');
@@ -75,21 +77,23 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion }: Emo
               />
               <div>
                 <label className="text-sm font-medium">Icono (emoji)</label>
-                <div className="grid grid-cols-8 gap-2 mt-2 bg-muted/50 p-2 rounded-lg">
-                  {AVATAR_EMOJIS.map(emoji => (
-                      <button
-                          type="button"
-                          key={emoji}
-                          onClick={() => setIcon(emoji)}
-                          className={cn(
-                              'text-3xl p-1 rounded-lg transition-all',
-                              icon === emoji ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
-                          )}
-                      >
-                          {emoji}
-                      </button>
-                  ))}
-                </div>
+                <ScrollArea className="h-40">
+                  <div className="grid grid-cols-8 gap-2 mt-2 bg-muted/50 p-2 rounded-lg">
+                    {AVATAR_EMOJIS.map(emoji => (
+                        <button
+                            type="button"
+                            key={emoji}
+                            onClick={() => setIcon(emoji)}
+                            className={cn(
+                                'text-3xl p-1 rounded-lg transition-all',
+                                icon === emoji ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
+                            )}
+                        >
+                            {emoji}
+                        </button>
+                    ))}
+                  </div>
+                </ScrollArea>
               </div>
               <div className="flex items-center gap-2">
                 <label htmlFor="emotion-color" className="text-sm font-medium">Color:</label>
@@ -137,13 +141,36 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion }: Emo
                 {emotionsList.map((em) => (
                   <Card 
                     key={em.id} 
-                    onClick={() => onEditEmotion(em)}
-                    className="p-4 text-center border-2 flex flex-col items-center justify-center aspect-square cursor-pointer transition-all hover:shadow-md hover:scale-105" 
+                    className="p-4 text-center border-2 flex flex-col items-center justify-center aspect-square transition-all group" 
                     style={{ borderColor: em.color }}
                   >
                     <p className="text-4xl mb-2">{em.icon}</p>
                     <p className="font-bold truncate" style={{ color: em.color }}>{em.name}</p>
                     <p className="text-xs text-muted-foreground truncate">{em.description}</p>
+                    <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditEmotion(em)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                       <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="icon" className="h-8 w-8">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta acción no se puede deshacer. Esto eliminará permanentemente la emoción y todas las entradas del diario asociadas a ella.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => onDeleteEmotion(em.id)}>Eliminar</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                    </div>
                   </Card>
                 ))}
               </div>
