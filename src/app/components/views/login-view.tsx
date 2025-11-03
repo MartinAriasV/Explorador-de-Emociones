@@ -28,8 +28,21 @@ export default function LoginView() {
         });
     };
 
+    const validateEmail = (email: string) => {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(String(email).toLowerCase());
+    }
+
     const handleEmailSignIn = (e: React.FormEvent) => {
         e.preventDefault();
+        if (!validateEmail(email)) {
+            toast({
+                variant: "destructive",
+                title: "Correo electrónico no válido",
+                description: "Por favor, introduce una dirección de correo electrónico válida.",
+            });
+            return;
+        }
         setIsSubmitting(true);
         initiateEmailSignIn(auth, email, password);
         // The onAuthStateChanged listener will handle success/error.
@@ -39,6 +52,14 @@ export default function LoginView() {
     
     const handleEmailSignUp = (e: React.FormEvent) => {
         e.preventDefault();
+         if (!validateEmail(email)) {
+            toast({
+                variant: "destructive",
+                title: "Correo electrónico no válido",
+                description: "Por favor, introduce una dirección de correo electrónico válida para crear una cuenta.",
+            });
+            return;
+        }
         setIsSubmitting(true);
         initiateEmailSignUp(auth, email, password);
         // The onAuthStateChanged listener will handle success/error.
