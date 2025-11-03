@@ -60,6 +60,14 @@ export default function LoginView() {
             });
             return;
         }
+        if (password.length < 6) {
+            toast({
+                variant: "destructive",
+                title: "Contraseña débil",
+                description: "La contraseña debe tener al menos 6 caracteres.",
+            });
+            return;
+        }
         setIsSubmitting(true);
         initiateEmailSignUp(auth, email, password);
         // The onAuthStateChanged listener will handle success/error.
