@@ -145,8 +145,8 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
                     style={{ borderColor: em.color }}
                   >
                     <p className="text-4xl mb-2">{em.icon}</p>
-                    <p className="font-bold truncate" style={{ color: em.color }}>{em.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{em.description}</p>
+                    <p className="font-bold truncate w-full" style={{ color: em.color }}>{em.name}</p>
+                    <p className="text-xs text-muted-foreground w-full overflow-hidden text-ellipsis whitespace-nowrap">{em.description}</p>
                     <div className="absolute bottom-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditEmotion(em)}>
                         <Edit className="h-4 w-4" />
