@@ -2,15 +2,19 @@
 
 import React from 'react';
 import { Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from '@/components/ui/sidebar';
-import type { UserProfile, View } from '@/lib/types';
-import { BookOpen, Smile, Sparkles, Heart, BarChart, Share2, UserCircle, Menu } from 'lucide-react';
+import type { UserProfile, View, DiaryEntry } from '@/lib/types';
+import { BookOpen, Smile, Sparkles, Heart, BarChart, Share2, UserCircle, Menu, Flame } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useFirebase } from '@/firebase';
+import { calculateDailyStreak } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+
 
 interface AppSidebarProps {
   view: View;
   setView: (view: View) => void;
   userProfile: UserProfile;
+  diaryEntries: DiaryEntry[];
   refs: { [key: string]: React.RefObject<HTMLLIElement> };
 }
 
@@ -24,9 +28,10 @@ const navItems = [
   { id: 'profile', icon: UserCircle, text: 'Mi Perfil', refKey: 'profileRef' },
 ] as const;
 
-export function AppSidebar({ view, setView, userProfile, refs }: AppSidebarProps) {
+export function AppSidebar({ view, setView, userProfile, diaryEntries, refs }: AppSidebarProps) {
   const { setOpenMobile } = useSidebar();
   const { auth } = useFirebase();
+  const dailyStreak = calculateDailyStreak(diaryEntries);
 
   const handleItemClick = (newView: View) => {
     setView(newView);
@@ -46,6 +51,11 @@ export function AppSidebar({ view, setView, userProfile, refs }: AppSidebarProps
            </Avatar>
            <div className="flex flex-col group-data-[collapsible=icon]:hidden">
                 <span className="font-bold text-lg text-primary">{userProfile.name}</span>
+                 <div className="flex items-center gap-1 text-sm text-amber-500">
+                  <Flame className={cn("h-5 w-5", dailyStreak > 0 && "animate-flame")} />
+                  <span className="font-bold">{dailyStreak}</span>
+                  <span>días de racha</span>
+                </div>
            </div>
         </div>
       </SidebarHeader>

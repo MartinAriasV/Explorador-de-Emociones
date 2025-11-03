@@ -98,6 +98,12 @@ body {
   .animate-breathe-hold {
     animation-name: breathe-hold;
   }
+  .animate-flame {
+    animation-name: flame;
+    animation-duration: 1.5s;
+    animation-iteration-count: infinite;
+    animation-timing-function: ease-in-out;
+  }
 }
 
 @keyframes breathe-in {
@@ -113,4 +119,15 @@ body {
 @keyframes breathe-hold {
   0% { transform: scale(1); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes flame {
+  0%, 100% {
+    transform: scale(1) rotate(-1deg);
+    color: #f59e0b; /* amber-500 */
+  }
+  50% {
+    transform: scale(1.1) rotate(1deg);
+    color: #fbbf24; /* amber-400 */
+  }
 }

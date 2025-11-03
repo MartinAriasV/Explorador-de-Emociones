@@ -182,7 +182,7 @@ export default function EmotionExplorer() {
   return (
     <SidebarProvider>
       <div className="flex h-screen w-screen bg-background">
-        <AppSidebar view={view} setView={setView} userProfile={userProfile} refs={tourRefs} />
+        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries} refs={tourRefs} />
         <main className="flex-1 flex flex-col overflow-hidden">
           <header className="p-2 md:hidden flex items-center border-b">
              <MobileMenuButton />
