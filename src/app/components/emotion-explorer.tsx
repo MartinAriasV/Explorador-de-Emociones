@@ -16,8 +16,8 @@ import { WelcomeDialog } from './tour/welcome-dialog';
 import { TourPopup } from './tour/tour-popup';
 import { TOUR_STEPS } from '@/lib/constants';
 import { useFirebase, useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection, doc, setDoc } from 'firebase/firestore';
+import { deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, doc } from 'firebase/firestore';
 import LoginView from './views/login-view';
 import useLocalStorage from '@/hooks/use-local-storage';
 
@@ -130,7 +130,7 @@ export default function EmotionExplorer() {
       case 'diary':
         return <DiaryView 
                   emotionsList={emotionsList || []} 
-                  diaryEntries={diaryEntries} 
+                  diaryEntries={diaryEntries || []} 
                   addDiaryEntry={addDiaryEntry}
                   updateDiaryEntry={updateDiaryEntry}
                   deleteDiaryEntry={deleteDiaryEntry}
@@ -143,15 +143,15 @@ export default function EmotionExplorer() {
       case 'calm':
         return <CalmView />;
       case 'report':
-        return <ReportView diaryEntries={diaryEntries} emotionsList={emotionsList || []} />;
+        return <ReportView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} />;
       case 'share':
-        return <ShareView diaryEntries={diaryEntries} emotionsList={emotionsList || []} userProfile={userProfile} />;
+        return <ShareView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} userProfile={userProfile} />;
       case 'profile':
         return <ProfileView userProfile={userProfile} setUserProfile={setUserProfile} />;
       default:
         return <DiaryView 
                   emotionsList={emotionsList || []} 
-                  diaryEntries={diaryEntries} 
+                  diaryEntries={diaryEntries || []} 
                   addDiaryEntry={addDiaryEntry}
                   updateDiaryEntry={updateDiaryEntry}
                   deleteDiaryEntry={deleteDiaryEntry}
