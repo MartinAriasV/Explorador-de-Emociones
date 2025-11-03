@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface ProfileViewProps {
   userProfile: UserProfile | null;
-  setUserProfile: (profile: UserProfile) => void;
+  setUserProfile: (profile: Omit<UserProfile, 'id'>) => void;
 }
 
 export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
@@ -46,7 +46,7 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
-
+  
   const selectAvatar = (avatar: string, type: 'emoji' | 'generated') => {
     setLocalAvatar(avatar);
     setLocalAvatarType(type);
@@ -80,9 +80,10 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
         <div className="flex-grow flex flex-col min-h-0 space-y-2">
             <label className="text-sm font-medium">Elige tu Avatar</label>
             <ScrollArea className="flex-grow rounded-lg border">
-                <div className="grid grid-cols-8 gap-2 bg-muted/50 p-2">
+                <div className="grid grid-cols-8 gap-2 p-2">
                     {AVATAR_EMOJIS.map((emoji, index) => (
                         <button
+                            type="button"
                             key={`${emoji}-${index}`}
                             onClick={() => selectAvatar(emoji, 'emoji')}
                             className={cn(

@@ -65,7 +65,7 @@ export default function EmotionExplorer() {
     }
   }, [user, userProfile, isProfileLoading, userProfileRef]);
   
-  const setUserProfile = (profile: UserProfile) => {
+  const setUserProfile = (profile: Omit<UserProfile, 'id'>) => {
     if (!userProfileRef) return;
     setDocumentNonBlocking(userProfileRef, profile, { merge: true });
   }
