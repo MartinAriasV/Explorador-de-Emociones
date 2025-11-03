@@ -11,27 +11,28 @@ interface BreathStep {
   text: string;
   duration: number;
   animation: string;
+  colorClass: string;
 }
 
 const breathCycles: Record<BreathMode, BreathStep[]> = {
   circle: [
-    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in' },
-    { text: 'Exhala', duration: 6000, animation: 'animate-breathe-out' },
+    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in', colorClass: 'bg-primary/80' },
+    { text: 'Exhala', duration: 6000, animation: 'animate-breathe-out', colorClass: 'bg-accent/80' },
   ],
   square: [
-    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in' },
-    { text: 'Sostén', duration: 4000, animation: 'animate-breathe-hold' },
-    { text: 'Exhala', duration: 4000, animation: 'animate-breathe-out' },
-    { text: 'Pausa', duration: 2000, animation: 'animate-breathe-hold' },
+    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in', colorClass: 'bg-primary/80' },
+    { text: 'Sostén', duration: 4000, animation: 'animate-breathe-hold', colorClass: 'bg-blue-300/80' },
+    { text: 'Exhala', duration: 4000, animation: 'animate-breathe-out', colorClass: 'bg-accent/80' },
   ],
   '4-7-8': [
-    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in' },
-    { text: 'Sostén', duration: 7000, animation: 'animate-breathe-hold' },
-    { text: 'Exhala', duration: 8000, animation: 'animate-breathe-out' },
+    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in', colorClass: 'bg-primary/80' },
+    { text: 'Sostén', duration: 7000, animation: 'animate-breathe-hold', colorClass: 'bg-blue-300/80' },
+    { text: 'Exhala', duration: 8000, animation: 'animate-breathe-out', colorClass: 'bg-accent/80' },
   ],
 };
 
 const PREP_TIME = 3000;
+const PREP_COLOR = 'bg-purple-300/80';
 
 export function CalmView() {
   const [mode, setMode] = useState<BreathMode>('circle');
@@ -79,8 +80,10 @@ export function CalmView() {
 
         if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
         countdownIntervalRef.current = setInterval(() => {
-          counter++;
-          setCountdown(counter);
+          if(counter < (step.duration / 1000)) {
+            counter++;
+            setCountdown(counter);
+          }
         }, 1000);
         
         stepTimeoutRef.current = setTimeout(() => {
@@ -129,12 +132,12 @@ export function CalmView() {
         <div 
           className={cn(
             "w-60 h-60 flex items-center justify-center transition-all duration-500",
-            isPreparing ? 'bg-accent/80' : 'bg-primary/80',
+            isPreparing ? PREP_COLOR : currentStep?.colorClass,
             mode === 'circle' ? 'rounded-full' : 'rounded-xl'
           )}
           style={!isPreparing ? animationStyle : {}}
         >
-            <div className={cn("text-center", isPreparing ? 'text-accent-foreground' : 'text-primary-foreground')}>
+            <div className={cn("text-center", isPreparing ? 'text-purple-800' : 'text-white')}>
               {isPreparing ? (
                 <>
                   <p className="text-xl">Prepárate para:</p>
