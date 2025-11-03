@@ -79,14 +79,14 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
 
         <div className="flex-grow flex flex-col min-h-0 space-y-2">
             <label className="text-sm font-medium">Elige tu Avatar</label>
-            <ScrollArea className="flex-grow bg-muted/50 p-2 rounded-lg">
-                <div className="grid grid-cols-8 gap-2">
+            <ScrollArea className="flex-grow rounded-lg border">
+                <div className="grid grid-cols-8 gap-2 bg-muted/50 p-2">
                     {AVATAR_EMOJIS.map(emoji => (
                         <button
                             key={emoji}
                             onClick={() => selectAvatar(emoji, 'emoji')}
                             className={cn(
-                                'text-4xl p-2 rounded-lg transition-all',
+                                'text-3xl p-1 rounded-lg transition-all',
                                 localAvatar === emoji && localAvatarType === 'emoji' ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
                             )}
                         >
