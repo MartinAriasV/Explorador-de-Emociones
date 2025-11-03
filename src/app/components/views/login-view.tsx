@@ -21,21 +21,14 @@ export default function LoginView() {
         setIsSubmitting(true);
         try {
             await signInWithPopup(auth, provider);
-            // Successful sign-in is handled by the onAuthStateChanged listener
+            // Successful sign-in is handled by the onAuthStateChanged listener in the FirebaseProvider.
+            // No further action is needed here.
         } catch (error: any) {
-            if (error.code === 'auth/operation-not-allowed') {
-                 toast({
-                    variant: "destructive",
-                    title: "Inicio de sesión con Google deshabilitado",
-                    description: "Por favor, habilita el proveedor de inicio de sesión de Google en tu consola de Firebase.",
-                });
-            } else {
-                toast({
-                    variant: "destructive",
-                    title: "Uh oh! Something went wrong.",
-                    description: error.message || "Could not sign in with Google.",
-                });
-            }
+            toast({
+                variant: "destructive",
+                title: "Uh oh! Something went wrong.",
+                description: error.message || "Could not sign in with Google.",
+            });
         } finally {
             setIsSubmitting(false);
         }
