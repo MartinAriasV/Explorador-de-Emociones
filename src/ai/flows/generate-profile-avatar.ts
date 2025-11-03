@@ -33,16 +33,6 @@ export async function generateProfileAvatar(
   return generateProfileAvatarFlow(input);
 }
 
-const prompt = ai.definePrompt({
-  name: 'generateProfileAvatarPrompt',
-  input: {schema: GenerateProfileAvatarInputSchema},
-  output: {schema: GenerateProfileAvatarOutputSchema},
-  prompt: `You are an AI that generates profile avatars based on user interests. The avatar should be a square image.
-
-  Interests: {{{interests}}}
-  `,
-});
-
 const generateProfileAvatarFlow = ai.defineFlow(
   {
     name: 'generateProfileAvatarFlow',
@@ -51,8 +41,8 @@ const generateProfileAvatarFlow = ai.defineFlow(
   },
   async input => {
     const {media} = await ai.generate({
-      model: 'googleai/imagen-4.0-fast-generate-001',
-      prompt: `Generate an image of profile avatar based on the following interests: ${input.interests}`,
+      model: 'googleai/gemini-pro-vision',
+      prompt: `Generate an image of profile avatar based on the following interests: ${input.interests}. The avatar should be a square image.`,
     });
 
     if (!media || !media.url) {
