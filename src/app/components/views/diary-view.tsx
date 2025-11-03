@@ -15,7 +15,7 @@ import { Edit, Trash2 } from 'lucide-react';
 interface DiaryViewProps {
   emotionsList: Emotion[];
   diaryEntries: DiaryEntry[];
-  addDiaryEntry: (entry: Omit<DiaryEntry, 'id'>) => void;
+  addDiaryEntry: (entry: Omit<DiaryEntry, 'id' | 'userProfileId'>) => void;
   updateDiaryEntry: (entry: DiaryEntry) => void;
   deleteDiaryEntry: (entryId: string) => void;
   setView: (view: View) => void;
@@ -157,7 +157,7 @@ export function DiaryView({ emotionsList, diaryEntries, addDiaryEntry, updateDia
                   {diaryEntries.slice().reverse().map((entry) => {
                     const emotion = getEmotionById(entry.emotionId);
                     return (
-                      <Card key={entry.id} className="p-4 group">
+                      <Card key={entry.id} className="p-4 group relative">
                         <div className="flex items-start gap-3">
                           <span className="text-2xl mt-1">{emotion?.icon}</span>
                           <div className="flex-1">

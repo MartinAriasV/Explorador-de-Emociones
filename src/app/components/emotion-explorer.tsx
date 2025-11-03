@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useRef, createRef } from 'react';
+import React, { useState, useRef, createRef, useEffect } from 'react';
 import type { Emotion, DiaryEntry, UserProfile, View, PredefinedEmotion, TourStepData } from '@/lib/types';
-import useLocalStorage from '@/hooks/use-local-storage';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar, MobileMenuButton } from './app-sidebar';
 import { DiaryView } from './views/diary-view';
@@ -16,12 +15,24 @@ import { AddEmotionModal } from './modals/add-emotion-modal';
 import { WelcomeDialog } from './tour/welcome-dialog';
 import { TourPopup } from './tour/tour-popup';
 import { TOUR_STEPS } from '@/lib/constants';
+import { useFirebase, useUser, useCollection, useFirestore } from '@/firebase';
+import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, doc, setDoc } from 'firebase/firestore';
+import LoginView from './views/login-view';
+import useLocalStorage from '@/hooks/use-local-storage';
 
 export default function EmotionExplorer() {
   const [view, setView] = useState<View>('diary');
+  const { firestore } = useFirebase();
+  const { user, isUserLoading } = useUser();
+
+  const emotionsQuery = user ? collection(firestore, 'users', user.uid, 'emotions') : null;
+  const { data: emotionsList = [] } = useCollection<Emotion>(emotionsQuery);
+  
+  const diaryEntriesQuery = user ? collection(firestore, 'users', user.uid, 'diaryEntries') : null;
+  const { data: diaryEntries = [] } = useCollection<DiaryEntry>(diaryEntriesQuery);
+
   const [userProfile, setUserProfile] = useLocalStorage<UserProfile>('emotion-explorer-profile', { name: 'Usuario', avatar: '😊', avatarType: 'emoji' });
-  const [emotionsList, setEmotionsList] = useLocalStorage<Emotion[]>('emotion-explorer-emotions', []);
-  const [diaryEntries, setDiaryEntries] = useLocalStorage<DiaryEntry[]>('emotion-explorer-entries', []);
   const [addingEmotionData, setAddingEmotionData] = useState<(Omit<PredefinedEmotion, 'example'> & { id?: string }) | null>(null);
 
   // Tour state
@@ -34,39 +45,56 @@ export default function EmotionExplorer() {
     return acc;
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
 
+  useEffect(() => {
+    if (user && user.displayName) {
+      const name = user.displayName || 'Usuario';
+      const avatar = user.photoURL ? user.photoURL : '😊';
+      const avatarType = user.photoURL ? 'generated' : 'emoji';
+      setUserProfile({ name, avatar, avatarType });
+    }
+  }, [user, setUserProfile]);
 
   const saveEmotion = (emotionData: Omit<Emotion, 'id'> & { id?: string }) => {
+    if (!user) return;
+    const emotionsCollection = collection(firestore, 'users', user.uid, 'emotions');
+    
     if (emotionData.id) {
-      // Editing existing emotion
-      setEmotionsList(emotionsList.map(e => e.id === emotionData.id ? { ...e, ...emotionData } as Emotion : e));
+      const emotionDoc = doc(emotionsCollection, emotionData.id);
+      setDocumentNonBlocking(emotionDoc, { ...emotionData, userProfileId: user.uid }, { merge: true });
     } else {
-      // Adding new emotion
-      const newEmotion = { ...emotionData, id: Date.now().toString() } as Emotion;
-      setEmotionsList([...emotionsList, newEmotion]);
+      const newEmotion = { ...emotionData, id: doc(emotionsCollection).id, userProfileId: user.uid };
+      const emotionDoc = doc(emotionsCollection, newEmotion.id);
+      setDocumentNonBlocking(emotionDoc, newEmotion, {});
     }
     setAddingEmotionData(null);
   };
   
   const deleteEmotion = (emotionId: string) => {
-    setEmotionsList(emotionsList.filter(e => e.id !== emotionId));
-    // Also remove diary entries associated with this emotion
-    setDiaryEntries(diaryEntries.filter(entry => entry.emotionId !== emotionId));
+    if (!user) return;
+    const emotionDoc = doc(firestore, 'users', user.uid, 'emotions', emotionId);
+    deleteDocumentNonBlocking(emotionDoc);
     setAddingEmotionData(null); // Close modal if it was open
   };
 
-  const addDiaryEntry = (entryData: Omit<DiaryEntry, 'id'>) => {
-    const newEntry = { ...entryData, id: Date.now().toString() };
-    setDiaryEntries([...diaryEntries, newEntry]);
+  const addDiaryEntry = (entryData: Omit<DiaryEntry, 'id' | 'userProfileId'>) => {
+    if (!user) return;
+    const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
+    const newEntry = { ...entryData, id: doc(diaryCollection).id, userProfileId: user.uid };
+    const entryDoc = doc(diaryCollection, newEntry.id);
+    setDocumentNonBlocking(entryDoc, newEntry, {});
   };
   
   const updateDiaryEntry = (updatedEntry: DiaryEntry) => {
-    setDiaryEntries(diaryEntries.map(entry => entry.id === updatedEntry.id ? updatedEntry : entry));
+    if (!user) return;
+    const entryDoc = doc(firestore, 'users', user.uid, 'diaryEntries', updatedEntry.id);
+    setDocumentNonBlocking(entryDoc, updatedEntry, { merge: true });
   };
   
   const deleteDiaryEntry = (entryId: string) => {
-    setDiaryEntries(diaryEntries.filter(entry => entry.id !== entryId));
+    if (!user) return;
+    const entryDoc = doc(firestore, 'users', user.uid, 'diaryEntries', entryId);
+    deleteDocumentNonBlocking(entryDoc);
   };
-
 
   const handleOpenAddEmotionModal = (emotionData: (Omit<PredefinedEmotion, 'example'> & { id?: string })) => {
     setAddingEmotionData(emotionData);
@@ -127,6 +155,14 @@ export default function EmotionExplorer() {
                 />;
     }
   };
+  
+  if (isUserLoading) {
+    return <div className="flex h-screen w-screen items-center justify-center">Loading...</div>;
+  }
+
+  if (!user) {
+    return <LoginView />;
+  }
 
   return (
     <SidebarProvider>

@@ -16,7 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 interface EmocionarioViewProps {
   emotionsList: Emotion[];
-  addEmotion: (emotion: Omit<Emotion, 'id'>) => void;
+  addEmotion: (emotion: Omit<Emotion, 'id' | 'userProfileId'>) => void;
   onEditEmotion: (emotion: Emotion) => void;
   onDeleteEmotion: (emotionId: string) => void;
 }
@@ -79,10 +79,10 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
                 <label className="text-sm font-medium">Icono (emoji)</label>
                 <ScrollArea className="h-40">
                   <div className="grid grid-cols-8 gap-2 mt-2 bg-muted/50 p-2 rounded-lg">
-                    {AVATAR_EMOJIS.map(emoji => (
+                    {AVATAR_EMOJIS.map((emoji, index) => (
                         <button
                             type="button"
-                            key={emoji}
+                            key={`${emoji}-${index}`}
                             onClick={() => setIcon(emoji)}
                             className={cn(
                                 'text-3xl p-1 rounded-lg transition-all',
@@ -141,7 +141,7 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
                 {emotionsList.map((em) => (
                   <Card 
                     key={em.id} 
-                    className="p-4 text-center border-2 flex flex-col items-center justify-center aspect-square transition-all group" 
+                    className="p-4 text-center border-2 flex flex-col items-center justify-center aspect-square transition-all group relative" 
                     style={{ borderColor: em.color }}
                   >
                     <p className="text-4xl mb-2">{em.icon}</p>

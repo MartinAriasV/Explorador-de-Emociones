@@ -1,5 +1,6 @@
 export type Emotion = {
   id: string;
+  userProfileId: string;
   name: string;
   icon: string;
   color: string;
@@ -8,6 +9,7 @@ export type Emotion = {
 
 export type DiaryEntry = {
   id: string;
+  userProfileId: string;
   date: string;
   emotionId: string;
   text: string;

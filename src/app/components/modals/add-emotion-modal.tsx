@@ -14,7 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface AddEmotionModalProps {
   initialData: (Omit<PredefinedEmotion, 'example'> & { id?: string; color?: string, icon?: string }) | null;
-  onSave: (emotionData: Omit<Emotion, 'id'> & { id?: string }) => void;
+  onSave: (emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string }) => void;
   onDelete: (emotionId: string) => void;
   onClose: () => void;
 }
@@ -77,10 +77,10 @@ export function AddEmotionModal({ initialData, onSave, onClose, onDelete }: AddE
                 <label className="text-sm font-medium">Icono (emoji)</label>
                 <ScrollArea className="h-40">
                   <div className="grid grid-cols-8 gap-2 mt-2 bg-muted/50 p-2 rounded-lg">
-                    {AVATAR_EMOJIS.map(emoji => (
+                    {AVATAR_EMOJIS.map((emoji, index) => (
                         <button
                             type="button"
-                            key={emoji}
+                            key={`${emoji}-${index}`}
                             onClick={() => setIcon(emoji)}
                             className={cn(
                                 'text-3xl p-1 rounded-lg transition-all',
