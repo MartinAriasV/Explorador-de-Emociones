@@ -36,13 +36,18 @@ export function AddEmotionModal({ initialData, onSave, onClose, onDelete }: AddE
 
   const handleSave = () => {
     if (!initialData) return;
-    onSave({
-      id: initialData.id,
-      name,
-      icon,
-      description,
-      color,
-    });
+    const dataToSave: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string } = {
+        name,
+        icon,
+        description,
+        color,
+    };
+
+    if (initialData.id) {
+        dataToSave.id = initialData.id;
+    }
+
+    onSave(dataToSave);
   };
 
   const handleDelete = () => {
