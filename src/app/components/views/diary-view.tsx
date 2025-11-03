@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,43 +8,76 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DiaryEntry, Emotion, View } from '@/lib/types';
-import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { suggestCalmingExercise } from '@/ai/flows/suggest-calming-exercise';
+import { Edit, Trash2 } from 'lucide-react';
 
 interface DiaryViewProps {
   emotionsList: Emotion[];
   diaryEntries: DiaryEntry[];
   addDiaryEntry: (entry: Omit<DiaryEntry, 'id'>) => void;
+  updateDiaryEntry: (entry: DiaryEntry) => void;
+  deleteDiaryEntry: (entryId: string) => void;
   setView: (view: View) => void;
 }
 
-export function DiaryView({ emotionsList, diaryEntries, addDiaryEntry, setView }: DiaryViewProps) {
+export function DiaryView({ emotionsList, diaryEntries, addDiaryEntry, updateDiaryEntry, deleteDiaryEntry, setView }: DiaryViewProps) {
+  const [editingEntry, setEditingEntry] = useState<DiaryEntry | null>(null);
+
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedEmotionId, setSelectedEmotionId] = useState<string>('');
   const [text, setText] = useState('');
+  
   const [aiSuggestion, setAiSuggestion] = useState('');
   const [isSuggestionLoading, setIsSuggestionLoading] = useState(false);
+
+  useEffect(() => {
+    if (editingEntry) {
+      setDate(editingEntry.date);
+      setSelectedEmotionId(editingEntry.emotionId);
+      setText(editingEntry.text);
+    } else {
+      resetForm();
+    }
+  }, [editingEntry]);
+
+  const resetForm = () => {
+    setDate(new Date().toISOString().split('T')[0]);
+    setSelectedEmotionId('');
+    setText('');
+    setEditingEntry(null);
+  };
+
+  const handleEditClick = (entry: DiaryEntry) => {
+    setEditingEntry(entry);
+  };
+
+  const handleCancelEdit = () => {
+    resetForm();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!date || !selectedEmotionId || !text) return;
     
-    addDiaryEntry({ date, emotionId: selectedEmotionId, text });
-    
-    setIsSuggestionLoading(true);
-    try {
-        const result = await suggestCalmingExercise({ emotionalState: text });
-        setAiSuggestion(result.exerciseSuggestion);
-    } catch (error) {
-        console.error("Error fetching AI suggestion:", error);
-        setAiSuggestion("Could not get a suggestion at this time.");
-    } finally {
-        setIsSuggestionLoading(false);
-    }
+    const entryData = { date, emotionId: selectedEmotionId, text };
 
-    // Reset form
-    setText('');
-    setSelectedEmotionId('');
+    if (editingEntry) {
+      updateDiaryEntry({ ...editingEntry, ...entryData });
+    } else {
+      addDiaryEntry(entryData);
+      setIsSuggestionLoading(true);
+      try {
+          const result = await suggestCalmingExercise({ emotionalState: text });
+          setAiSuggestion(result.exerciseSuggestion);
+      } catch (error) {
+          console.error("Error fetching AI suggestion:", error);
+          setAiSuggestion("Could not get a suggestion at this time.");
+      } finally {
+          setIsSuggestionLoading(false);
+      }
+    }
+    resetForm();
   };
 
   const getEmotionById = (id: string) => emotionsList.find(e => e.id === id);
@@ -56,7 +89,9 @@ export function DiaryView({ emotionsList, diaryEntries, addDiaryEntry, setView }
           <ScrollArea className="lg:h-full">
             <div className="p-6 flex flex-col">
               <CardHeader className="p-0 mb-4">
-                <CardTitle className="text-2xl font-bold text-primary">¿Cómo te sientes hoy?</CardTitle>
+                <CardTitle className="text-2xl font-bold text-primary">
+                  {editingEntry ? 'Editando Entrada' : '¿Cómo te sientes hoy?'}
+                </CardTitle>
               </CardHeader>
               {emotionsList.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center py-10">
@@ -98,9 +133,16 @@ export function DiaryView({ emotionsList, diaryEntries, addDiaryEntry, setView }
                     rows={6}
                     required
                   />
-                  <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
-                    Guardar Entrada
-                  </Button>
+                  <div className="flex gap-2">
+                    {editingEntry && (
+                      <Button type="button" variant="outline" onClick={handleCancelEdit} className="w-full">
+                        Cancelar
+                      </Button>
+                    )}
+                    <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
+                      {editingEntry ? 'Guardar Cambios' : 'Guardar Entrada'}
+                    </Button>
+                  </div>
                 </form>
               )}
             </div>
@@ -115,15 +157,39 @@ export function DiaryView({ emotionsList, diaryEntries, addDiaryEntry, setView }
                   {diaryEntries.slice().reverse().map((entry) => {
                     const emotion = getEmotionById(entry.emotionId);
                     return (
-                      <Card key={entry.id} className="p-4">
+                      <Card key={entry.id} className="p-4 group">
                         <div className="flex items-start gap-3">
                           <span className="text-2xl mt-1">{emotion?.icon}</span>
-                          <div>
+                          <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                                 <p className="font-bold" style={{ color: emotion?.color }}>{emotion?.name}</p>
                                 <p className="text-xs text-muted-foreground">{new Date(entry.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric'})}</p>
                             </div>
                             <p className="text-sm text-foreground/80">{entry.text}</p>
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditClick(entry)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="destructive" size="icon" className="h-8 w-8">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. Esto eliminará permanentemente la entrada del diario.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => deleteDiaryEntry(entry.id)}>Eliminar</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         </div>
                       </Card>

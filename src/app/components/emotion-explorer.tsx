@@ -58,6 +58,15 @@ export default function EmotionExplorer() {
     const newEntry = { ...entryData, id: Date.now().toString() };
     setDiaryEntries([...diaryEntries, newEntry]);
   };
+  
+  const updateDiaryEntry = (updatedEntry: DiaryEntry) => {
+    setDiaryEntries(diaryEntries.map(entry => entry.id === updatedEntry.id ? updatedEntry : entry));
+  };
+  
+  const deleteDiaryEntry = (entryId: string) => {
+    setDiaryEntries(diaryEntries.filter(entry => entry.id !== entryId));
+  };
+
 
   const handleOpenAddEmotionModal = (emotionData: (Omit<PredefinedEmotion, 'example'> & { id?: string })) => {
     setAddingEmotionData(emotionData);
@@ -87,7 +96,14 @@ export default function EmotionExplorer() {
   const renderView = () => {
     switch (view) {
       case 'diary':
-        return <DiaryView emotionsList={emotionsList} diaryEntries={diaryEntries} addDiaryEntry={addDiaryEntry} setView={setView} />;
+        return <DiaryView 
+                  emotionsList={emotionsList} 
+                  diaryEntries={diaryEntries} 
+                  addDiaryEntry={addDiaryEntry}
+                  updateDiaryEntry={updateDiaryEntry}
+                  deleteDiaryEntry={deleteDiaryEntry}
+                  setView={setView} 
+                />;
       case 'emocionario':
         return <EmocionarioView emotionsList={emotionsList} addEmotion={saveEmotion} onEditEmotion={handleOpenAddEmotionModal} onDeleteEmotion={deleteEmotion} />;
       case 'discover':
@@ -101,7 +117,14 @@ export default function EmotionExplorer() {
       case 'profile':
         return <ProfileView userProfile={userProfile} setUserProfile={setUserProfile} />;
       default:
-        return <DiaryView emotionsList={emotionsList} diaryEntries={diaryEntries} addDiaryEntry={addDiaryEntry} setView={setView} />;
+        return <DiaryView 
+                  emotionsList={emotionsList} 
+                  diaryEntries={diaryEntries} 
+                  addDiaryEntry={addDiaryEntry}
+                  updateDiaryEntry={updateDiaryEntry}
+                  deleteDiaryEntry={deleteDiaryEntry}
+                  setView={setView} 
+                />;
     }
   };
 
