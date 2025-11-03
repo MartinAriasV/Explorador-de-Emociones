@@ -27,7 +27,7 @@ export default function EmotionExplorer() {
   const { user, isUserLoading } = useUser();
 
   const emotionsQuery = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'emotions') : null, [firestore, user]);
-  const { data: emotionsList = [] } = useCollection<Emotion>(emotionsQuery);
+  const { data: emotionsList, isLoading: isLoadingEmotions } = useCollection<Emotion>(emotionsQuery);
   
   const diaryEntriesQuery = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'diaryEntries') : null, [firestore, user]);
   const { data: diaryEntries = [] } = useCollection<DiaryEntry>(diaryEntriesQuery);
@@ -122,10 +122,14 @@ export default function EmotionExplorer() {
   };
 
   const renderView = () => {
+    if (isLoadingEmotions) {
+      return <div className="flex h-full w-full items-center justify-center">Cargando emociones...</div>;
+    }
+    
     switch (view) {
       case 'diary':
         return <DiaryView 
-                  emotionsList={emotionsList} 
+                  emotionsList={emotionsList || []} 
                   diaryEntries={diaryEntries} 
                   addDiaryEntry={addDiaryEntry}
                   updateDiaryEntry={updateDiaryEntry}
@@ -133,20 +137,20 @@ export default function EmotionExplorer() {
                   setView={setView} 
                 />;
       case 'emocionario':
-        return <EmocionarioView emotionsList={emotionsList} addEmotion={saveEmotion} onEditEmotion={handleOpenAddEmotionModal} onDeleteEmotion={deleteEmotion} />;
+        return <EmocionarioView emotionsList={emotionsList || []} addEmotion={saveEmotion} onEditEmotion={handleOpenAddEmotionModal} onDeleteEmotion={deleteEmotion} />;
       case 'discover':
         return <DiscoverView onAddEmotion={handleOpenAddEmotionModal} />;
       case 'calm':
         return <CalmView />;
       case 'report':
-        return <ReportView diaryEntries={diaryEntries} emotionsList={emotionsList} />;
+        return <ReportView diaryEntries={diaryEntries} emotionsList={emotionsList || []} />;
       case 'share':
-        return <ShareView diaryEntries={diaryEntries} emotionsList={emotionsList} userProfile={userProfile} />;
+        return <ShareView diaryEntries={diaryEntries} emotionsList={emotionsList || []} userProfile={userProfile} />;
       case 'profile':
         return <ProfileView userProfile={userProfile} setUserProfile={setUserProfile} />;
       default:
         return <DiaryView 
-                  emotionsList={emotionsList} 
+                  emotionsList={emotionsList || []} 
                   diaryEntries={diaryEntries} 
                   addDiaryEntry={addDiaryEntry}
                   updateDiaryEntry={updateDiaryEntry}
