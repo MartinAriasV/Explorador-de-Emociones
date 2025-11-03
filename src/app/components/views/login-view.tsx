@@ -21,14 +21,16 @@ export default function LoginView() {
         setIsSubmitting(true);
         try {
             await signInWithPopup(auth, provider);
-            // Successful sign-in is handled by the onAuthStateChanged listener in the FirebaseProvider.
-            // No further action is needed here.
         } catch (error: any) {
-            toast({
-                variant: "destructive",
-                title: "Uh oh! Something went wrong.",
-                description: error.message || "Could not sign in with Google.",
-            });
+            // Firebase often throws an error if the popup is closed by the user.
+            // We can often ignore this error, but we'll log it for debugging.
+            if (error.code !== 'auth/popup-closed-by-user') {
+                toast({
+                    variant: "destructive",
+                    title: "Error de inicio de sesión con Google",
+                    description: error.message || "No se pudo iniciar sesión con Google. Inténtalo de nuevo.",
+                });
+            }
         } finally {
             setIsSubmitting(false);
         }
