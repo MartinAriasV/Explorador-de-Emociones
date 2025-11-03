@@ -17,10 +17,9 @@ import { TourPopup } from './tour/tour-popup';
 import { TOUR_STEPS } from '@/lib/constants';
 import { useFirebase, useUser, useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { deleteDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, setDoc } from 'firebase/firestore';
 import LoginView from './views/login-view';
 import useLocalStorage from '@/hooks/use-local-storage';
-import { setDoc } from 'firebase/firestore';
 import { StreakView } from './views/streak-view';
 
 export default function EmotionExplorer() {
@@ -53,6 +52,7 @@ export default function EmotionExplorer() {
 
   // Effect to create initial user profile in Firestore
   useEffect(() => {
+    // Only proceed if we have a user, the profile is not loading, and no profile exists.
     if (user && !isProfileLoading && !userProfile) {
         const newUserProfile: UserProfile = {
             name: user.displayName || 'Usuario',
@@ -60,8 +60,10 @@ export default function EmotionExplorer() {
             avatarType: user.photoURL ? 'generated' : 'emoji',
         };
         // Use a standard `setDoc` here as it's a one-time setup operation.
-        // The non-blocking version is for frequent user interactions where optimistic UI is desired.
-        setDoc(userProfileRef, newUserProfile).catch(console.error);
+        // It's crucial to ensure the user document exists before other operations.
+        if (userProfileRef) {
+          setDoc(userProfileRef, newUserProfile).catch(console.error);
+        }
     }
   }, [user, userProfile, isProfileLoading, userProfileRef]);
   
@@ -170,7 +172,7 @@ export default function EmotionExplorer() {
     }
   };
   
-  if (isUserLoading || isProfileLoading || isLoadingEmotions || isLoadingEntries) {
+  if (isUserLoading || isLoadingEmotions || isLoadingEntries) {
     return <div className="flex h-screen w-screen items-center justify-center">Cargando...</div>;
   }
 
@@ -178,9 +180,11 @@ export default function EmotionExplorer() {
     return <LoginView />;
   }
   
-  if (!userProfile) {
-    return <div className="flex h-screen w-screen items-center justify-center">Creando perfil...</div>;
+  // While profile is loading for the first time OR if there is no profile yet (and we're about to create it)
+  if (isProfileLoading || !userProfile) {
+    return <div className="flex h-screen w-screen items-center justify-center">Cargando perfil...</div>;
   }
+
 
   return (
     <SidebarProvider>
