@@ -16,9 +16,10 @@ import { cn } from '@/lib/utils';
 interface EmocionarioViewProps {
   emotionsList: Emotion[];
   addEmotion: (emotion: Omit<Emotion, 'id'>) => void;
+  onEditEmotion: (emotion: Emotion) => void;
 }
 
-export function EmocionarioView({ emotionsList, addEmotion }: EmocionarioViewProps) {
+export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion }: EmocionarioViewProps) {
   const [name, setName] = useState('');
   const [icon, setIcon] = useState('');
   const [color, setColor] = useState('#47a2a2');
@@ -134,7 +135,12 @@ export function EmocionarioView({ emotionsList, addEmotion }: EmocionarioViewPro
             {emotionsList.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {emotionsList.map((em) => (
-                  <Card key={em.id} className="p-4 text-center border-2 flex flex-col items-center justify-center aspect-square" style={{ borderColor: em.color }}>
+                  <Card 
+                    key={em.id} 
+                    onClick={() => onEditEmotion(em)}
+                    className="p-4 text-center border-2 flex flex-col items-center justify-center aspect-square cursor-pointer transition-all hover:shadow-md hover:scale-105" 
+                    style={{ borderColor: em.color }}
+                  >
                     <p className="text-4xl mb-2">{em.icon}</p>
                     <p className="font-bold truncate" style={{ color: em.color }}>{em.name}</p>
                     <p className="text-xs text-muted-foreground truncate">{em.description}</p>

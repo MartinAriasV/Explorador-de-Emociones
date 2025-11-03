@@ -22,7 +22,7 @@ export default function EmotionExplorer() {
   const [userProfile, setUserProfile] = useLocalStorage<UserProfile>('emotion-explorer-profile', { name: 'Usuario', avatar: '😊', avatarType: 'emoji' });
   const [emotionsList, setEmotionsList] = useLocalStorage<Emotion[]>('emotion-explorer-emotions', []);
   const [diaryEntries, setDiaryEntries] = useLocalStorage<DiaryEntry[]>('emotion-explorer-entries', []);
-  const [addingEmotionData, setAddingEmotionData] = useState<(Omit<PredefinedEmotion, 'example'>) | null>(null);
+  const [addingEmotionData, setAddingEmotionData] = useState<(Omit<PredefinedEmotion, 'example'> & { id?: string }) | null>(null);
 
   // Tour state
   const [showWelcome, setShowWelcome] = useLocalStorage('emotion-explorer-show-welcome', true);
@@ -35,9 +35,15 @@ export default function EmotionExplorer() {
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
 
 
-  const addEmotion = (emotionData: Omit<Emotion, 'id'>) => {
-    const newEmotion = { ...emotionData, id: Date.now().toString() };
-    setEmotionsList([...emotionsList, newEmotion]);
+  const saveEmotion = (emotionData: Omit<Emotion, 'id'> & { id?: string }) => {
+    if (emotionData.id) {
+      // Editing existing emotion
+      setEmotionsList(emotionsList.map(e => e.id === emotionData.id ? { ...e, ...emotionData } : e));
+    } else {
+      // Adding new emotion
+      const newEmotion = { ...emotionData, id: Date.now().toString() };
+      setEmotionsList([...emotionsList, newEmotion]);
+    }
     setAddingEmotionData(null);
   };
 
@@ -46,7 +52,7 @@ export default function EmotionExplorer() {
     setDiaryEntries([...diaryEntries, newEntry]);
   };
 
-  const handleOpenAddEmotionModal = (emotionData: Omit<PredefinedEmotion, 'example'>) => {
+  const handleOpenAddEmotionModal = (emotionData: (Omit<PredefinedEmotion, 'example'> & { id?: string })) => {
     setAddingEmotionData(emotionData);
   };
 
@@ -76,7 +82,7 @@ export default function EmotionExplorer() {
       case 'diary':
         return <DiaryView emotionsList={emotionsList} diaryEntries={diaryEntries} addDiaryEntry={addDiaryEntry} setView={setView} />;
       case 'emocionario':
-        return <EmocionarioView emotionsList={emotionsList} addEmotion={addEmotion} />;
+        return <EmocionarioView emotionsList={emotionsList} addEmotion={saveEmotion} onEditEmotion={handleOpenAddEmotionModal} />;
       case 'discover':
         return <DiscoverView onAddEmotion={handleOpenAddEmotionModal} />;
       case 'calm':
@@ -109,7 +115,7 @@ export default function EmotionExplorer() {
       
       <AddEmotionModal
         initialData={addingEmotionData}
-        onSave={addEmotion}
+        onSave={saveEmotion}
         onClose={() => setAddingEmotionData(null)}
       />
 
