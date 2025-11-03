@@ -189,7 +189,7 @@ export default function EmotionExplorer() {
         <main className="flex-1 flex flex-col overflow-hidden">
           <header className="p-2 md:hidden flex items-center border-b">
              <MobileMenuButton />
-             <h1 className="text-lg font-bold text-primary ml-2">Emotion Explorer</h1>
+             <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
           </header>
           <div className="flex-1 p-4 md:p-6 overflow-y-auto">
             {renderView()}

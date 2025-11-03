@@ -3,8 +3,8 @@ import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Emotion Explorer',
-  description: 'An application to explore and track your emotions.',
+  title: 'Diario de Emociones',
+  description: 'Una aplicación para explorar y registrar tus emociones.',
 };
 
 export default function RootLayout({

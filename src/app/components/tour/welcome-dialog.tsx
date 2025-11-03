@@ -17,7 +17,7 @@ export function WelcomeDialog({ open, onStartTour, onSkipTour }: WelcomeDialogPr
                 <DialogHeader>
                     <DialogTitle className="flex flex-col items-center text-center gap-2 text-2xl">
                         <Sparkles className="w-10 h-10 text-accent" />
-                        ¡Te damos la bienvenida a Emotion Explorer!
+                        ¡Te damos la bienvenida a Diario de Emociones!
                     </DialogTitle>
                     <DialogDescription className="text-center pt-2">
                         Esta es una herramienta para ayudarte a entender y registrar tus emociones.

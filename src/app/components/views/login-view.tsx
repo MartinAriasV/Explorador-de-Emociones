@@ -99,7 +99,7 @@ export default function LoginView() {
         <div className="flex items-center justify-center h-screen bg-background">
             <Card className="w-full max-w-sm mx-auto">
                 <CardHeader className="text-center">
-                    <CardTitle className="text-2xl font-bold text-primary">Emotion Explorer</CardTitle>
+                    <CardTitle className="text-2xl font-bold text-primary">Diario de Emociones</CardTitle>
                     <CardDescription>Inicia sesión o crea una cuenta para continuar</CardDescription>
                 </CardHeader>
                 <CardContent>
