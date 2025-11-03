@@ -19,11 +19,19 @@ export default function LoginView() {
     const handleGoogleSignIn = () => {
         const provider = new GoogleAuthProvider();
         signInWithPopup(auth, provider).catch((error) => {
-            toast({
-                variant: "destructive",
-                title: "Uh oh! Something went wrong.",
-                description: error.message || "Could not sign in with Google.",
-            });
+            if (error.code === 'auth/operation-not-allowed') {
+                 toast({
+                    variant: "destructive",
+                    title: "Inicio de sesión con Google deshabilitado",
+                    description: "Por favor, habilita el proveedor de inicio de sesión de Google en tu consola de Firebase.",
+                });
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "Uh oh! Something went wrong.",
+                    description: error.message || "Could not sign in with Google.",
+                });
+            }
         });
     };
 
@@ -149,10 +157,10 @@ export default function LoginView() {
                                 </div>
                             </div>
                             <div className="flex gap-2">
-                                <Button type="button" variant="outline" onClick={handleEmailSignIn} disabled={isSubmitting} className="w-full">
+                                <Button type="submit" variant="outline" onClick={handleEmailSignIn} disabled={isSubmitting} className="w-full">
                                     {isSubmitting ? 'Signing In...' : 'Sign In'}
                                 </Button>
-                                <Button type="button" onClick={handleEmailSignUp} disabled={isSubmitting} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                                <Button type="submit" onClick={handleEmailSignUp} disabled={isSubmitting} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
                                     {isSubmitting ? 'Creating...' : 'Create Account'}
                                 </Button>
                             </div>
