@@ -21,6 +21,7 @@ import { collection, doc } from 'firebase/firestore';
 import LoginView from './views/login-view';
 import useLocalStorage from '@/hooks/use-local-storage';
 import { setDoc } from 'firebase/firestore';
+import { StreakView } from './views/streak-view';
 
 export default function EmotionExplorer() {
   const [view, setView] = useState<View>('diary');
@@ -149,6 +150,8 @@ export default function EmotionExplorer() {
         return <DiscoverView onAddEmotion={handleOpenAddEmotionModal} />;
       case 'calm':
         return <CalmView />;
+      case 'streak':
+        return <StreakView diaryEntries={diaryEntries} />;
       case 'report':
         return <ReportView diaryEntries={diaryEntries} emotionsList={emotionsList || []} />;
       case 'share':

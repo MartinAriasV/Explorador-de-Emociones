@@ -12,14 +12,14 @@ export function cn(...inputs: ClassValue[]) {
  * @param date The date to normalize (can be a Date object, string, or number).
  * @returns A number representing the milliseconds since the UTC epoch for that day's midnight.
  */
-function normalizeDate(date: Date | string | number): number {
+export function normalizeDate(date: Date | string | number): number {
   const d = new Date(date);
   // Set to UTC midnight
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
 }
 
 /**
- * Calculates the daily streak of diary entries.
+ * Calculates the daily streak of diary entries, allowing for a one-day grace period (second chance).
  * @param entries An array of diary entries.
  * @returns The number of consecutive days the user has made an entry.
  */
@@ -37,41 +37,49 @@ export function calculateDailyStreak(entries: DiaryEntry[]): number {
 
   // Normalize today's date
   const today = normalizeDate(new Date());
-
-  let streak = 0;
-  let currentDate = today;
-
-  // Check if there's an entry for today. If not, check for yesterday.
-  const mostRecentEntryDate = uniqueDates[0];
-  if (mostRecentEntryDate !== today) {
-    // If the most recent entry was not today or yesterday, the streak is broken
-    if (mostRecentEntryDate !== today - oneDay) {
-      return 0;
-    }
-    // If the most recent entry was yesterday, start checking from yesterday
-    currentDate = today - oneDay;
-  }
   
-  // Find the index of the current date we're checking against
-  let dateIndex = uniqueDates.findIndex(d => d === currentDate);
+  let mostRecentEntryDate = uniqueDates[0];
 
-  // If the date is not found, it means no entry for today/yesterday, so streak is 0
-  if (dateIndex === -1) {
+  // Determine the starting point for streak calculation
+  let startDate: number;
+  const daysSinceLastEntry = (today - mostRecentEntryDate) / oneDay;
+
+  if (daysSinceLastEntry <= 1) {
+    // If last entry was today or yesterday, the streak is active. Start counting from the last entry date.
+    startDate = mostRecentEntryDate;
+  } else {
+    // If it's been more than 1 day, the streak is broken.
     return 0;
   }
 
-  // Iterate backwards from the current date
-  while (dateIndex < uniqueDates.length) {
-    const expectedDate = currentDate - streak * oneDay;
-    const actualDate = uniqueDates[dateIndex];
-    
-    if (actualDate === expectedDate) {
-      streak++;
-      dateIndex++;
-    } else {
-      // Break the loop if a day is missing
+  let streak = 0;
+  let consecutiveDays = 0;
+  let lastDate = startDate + oneDay; // Start checking from the day after the loop's "previous" day
+
+  for (const date of uniqueDates) {
+    const diff = lastDate - date;
+    if (diff === oneDay) {
+      // This is a consecutive day
+      consecutiveDays++;
+    } else if (diff === 2 * oneDay) {
+      // This is a "second chance" day (one day was missed)
+      // We allow it once.
+      consecutiveDays++;
+      // We "use up" the second chance by pretending the missed day was filled.
+      lastDate = date + oneDay; 
+    } else if (diff > 2 * oneDay) {
+      // More than one day was missed, the streak is broken.
       break;
     }
+    // If diff is 0, it's multiple entries on the same day, so we just continue
+    
+    lastDate = date;
+    streak = consecutiveDays;
+  }
+  
+  // The first entry always counts as 1 day of streak.
+  if (streak === 0 && uniqueDates.length > 0) {
+      if(daysSinceLastEntry <= 1) return 1;
   }
 
   return streak;

@@ -21,7 +21,7 @@ export type UserProfile = {
   avatarType: 'emoji' | 'generated';
 };
 
-export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile';
+export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak';
 
 export type PredefinedEmotion = {
   name: string;

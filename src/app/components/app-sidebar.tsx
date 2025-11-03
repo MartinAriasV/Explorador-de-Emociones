@@ -22,6 +22,7 @@ const navItems = [
   { id: 'diary', icon: BookOpen, text: 'Mi Diario', refKey: 'diaryRef' },
   { id: 'emocionario', icon: Smile, text: 'Emocionario', refKey: 'emocionarioRef' },
   { id: 'discover', icon: Sparkles, text: 'Descubrir', refKey: 'discoverRef' },
+  { id: 'streak', icon: Flame, text: 'Racha', refKey: 'streakRef' },
   { id: 'calm', icon: Heart, text: 'Rincón de la Calma', refKey: 'calmRef' },
   { id: 'report', icon: BarChart, text: 'Reporte Visual', refKey: 'reportRef' },
   { id: 'share', icon: Share2, text: 'Compartir Diario', refKey: 'shareRef' },
