@@ -34,7 +34,7 @@ const prompt = ai.definePrompt({
   name: 'suggestCalmingExercisePrompt',
   input: {schema: SuggestCalmingExerciseInputSchema},
   output: {schema: SuggestCalmingExerciseOutputSchema},
-  prompt: `Based on the user's described emotional state: {{{emotionalState}}}, suggest a calming exercise that can help them relax and alleviate their feelings of overwhelm.`,
+  prompt: `Basado en el estado emocional del usuario: {{{emotionalState}}}, sugiere un ejercicio de calma breve y útil que pueda ayudarle a relajarse. La respuesta debe ser en español y no más de 2 o 3 frases.`,
 });
 
 const suggestCalmingExerciseFlow = ai.defineFlow(
