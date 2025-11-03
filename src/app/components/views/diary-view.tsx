@@ -1,0 +1,162 @@
+"use client";
+
+import React, { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { DiaryEntry, Emotion, View } from '@/lib/types';
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { suggestCalmingExercise } from '@/ai/flows/suggest-calming-exercise';
+
+interface DiaryViewProps {
+  emotionsList: Emotion[];
+  diaryEntries: DiaryEntry[];
+  addDiaryEntry: (entry: Omit<DiaryEntry, 'id'>) => void;
+  setView: (view: View) => void;
+}
+
+export function DiaryView({ emotionsList, diaryEntries, addDiaryEntry, setView }: DiaryViewProps) {
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedEmotionId, setSelectedEmotionId] = useState<string>('');
+  const [text, setText] = useState('');
+  const [aiSuggestion, setAiSuggestion] = useState('');
+  const [isSuggestionLoading, setIsSuggestionLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!date || !selectedEmotionId || !text) return;
+    
+    addDiaryEntry({ date, emotionId: selectedEmotionId, text });
+    
+    setIsSuggestionLoading(true);
+    try {
+        const result = await suggestCalmingExercise({ emotionalState: text });
+        setAiSuggestion(result.exerciseSuggestion);
+    } catch (error) {
+        console.error("Error fetching AI suggestion:", error);
+        setAiSuggestion("Could not get a suggestion at this time.");
+    } finally {
+        setIsSuggestionLoading(false);
+    }
+
+    // Reset form
+    setText('');
+    setSelectedEmotionId('');
+  };
+
+  const getEmotionById = (id: string) => emotionsList.find(e => e.id === id);
+
+  return (
+    <>
+      <Card className="w-full h-full shadow-lg overflow-hidden">
+        <div className="grid lg:grid-cols-2 h-full">
+          <div className="p-6 flex flex-col border-b lg:border-r lg:border-b-0">
+            <CardHeader className="p-0 mb-4">
+              <CardTitle className="text-2xl font-bold text-primary">¿Cómo te sientes hoy?</CardTitle>
+            </CardHeader>
+            {emotionsList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <p className="text-lg text-muted-foreground mb-4">¡Tu emocionario está vacío!</p>
+                <p className="mb-4 text-muted-foreground">Añade emociones para empezar a registrar tu diario.</p>
+                <Button onClick={() => setView('emocionario')} className="bg-primary hover:bg-primary/90">
+                  Ir al Emocionario
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <Input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="w-full"
+                  required
+                />
+                <Select value={selectedEmotionId} onValueChange={setSelectedEmotionId} required>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Elige una emoción" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {emotionsList.map((emotion) => (
+                      <SelectItem key={emotion.id} value={emotion.id}>
+                        <div className="flex items-center gap-2">
+                          <span>{emotion.icon}</span>
+                          <span>{emotion.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Textarea
+                  placeholder="¿Qué pasó hoy?"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  className="flex-grow"
+                  rows={6}
+                  required
+                />
+                <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
+                  Guardar Entrada
+                </Button>
+              </form>
+            )}
+          </div>
+          <div className="p-6 flex flex-col h-full">
+            <CardHeader className="p-0 mb-4">
+              <CardTitle className="text-2xl font-bold text-primary">Mis Entradas</CardTitle>
+            </CardHeader>
+            <ScrollArea className="flex-grow max-h-[calc(100vh-250px)] lg:max-h-full pr-4 -mr-4">
+              {diaryEntries.length > 0 ? (
+                <div className="space-y-4">
+                  {diaryEntries.slice().reverse().map((entry) => {
+                    const emotion = getEmotionById(entry.emotionId);
+                    return (
+                      <Card key={entry.id} className="p-4">
+                        <div className="flex items-start gap-3">
+                          <span className="text-2xl mt-1">{emotion?.icon}</span>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <p className="font-bold" style={{ color: emotion?.color }}>{emotion?.name}</p>
+                                <p className="text-xs text-muted-foreground">{new Date(entry.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric'})}</p>
+                            </div>
+                            <p className="text-sm text-foreground/80">{entry.text}</p>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full text-center text-muted-foreground">
+                  <p>Aún no tienes entradas en tu diario.</p>
+                </div>
+              )}
+            </ScrollArea>
+          </div>
+        </div>
+      </Card>
+      
+      <AlertDialog open={!!aiSuggestion || isSuggestionLoading}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {isSuggestionLoading ? "Analizando tu entrada..." : "Una sugerencia para ti"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {isSuggestionLoading ? "Estamos generando una sugerencia de calma personalizada para ti. Un momento..." : aiSuggestion}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {!isSuggestionLoading && (
+              <AlertDialogAction onClick={() => setAiSuggestion('')} className="bg-accent text-accent-foreground hover:bg-accent/90">
+                Entendido
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
