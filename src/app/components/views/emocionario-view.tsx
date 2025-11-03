@@ -56,69 +56,71 @@ export function EmocionarioView({ emotionsList, addEmotion }: EmocionarioViewPro
   return (
     <Card className="w-full h-full shadow-lg overflow-hidden">
       <div className="grid lg:grid-cols-2 h-full">
-        <div className="p-6 flex flex-col border-b lg:border-r lg:border-b-0">
-          <CardHeader className="p-0 mb-4">
-            <CardTitle className="text-2xl font-bold text-primary">Añadir Emoción</CardTitle>
-          </CardHeader>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <Input
-              placeholder="Nombre de la Emoción (ej. Euforia)"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-            <div>
-              <label className="text-sm font-medium">Icono (emoji)</label>
-              <div className="grid grid-cols-8 gap-2 mt-2 bg-muted/50 p-2 rounded-lg">
-                {AVATAR_EMOJIS.map(emoji => (
-                    <button
-                        type="button"
-                        key={emoji}
-                        onClick={() => setIcon(emoji)}
-                        className={cn(
-                            'text-3xl p-1 rounded-lg transition-all',
-                            icon === emoji ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
-                        )}
-                    >
-                        {emoji}
-                    </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <label htmlFor="emotion-color" className="text-sm font-medium">Color:</label>
+        <ScrollArea className="lg:h-full">
+          <div className="p-6 flex flex-col">
+            <CardHeader className="p-0 mb-4">
+              <CardTitle className="text-2xl font-bold text-primary">Añadir Emoción</CardTitle>
+            </CardHeader>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <Input
-                id="emotion-color"
-                type="color"
-                value={color}
-                onChange={(e) => setColor(e.target.value)}
-                className="w-16 h-10 p-1"
+                placeholder="Nombre de la Emoción (ej. Euforia)"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
               />
-            </div>
-            <div className="relative">
-              <Textarea
-                placeholder="¿Qué significa esta emoción para ti?"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={4}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="absolute top-2 right-2 text-primary hover:bg-primary/10"
-                onClick={handleGenerateDescription}
-                disabled={isAiLoading}
-              >
-                {isAiLoading ? <Loader className="animate-spin" /> : <Sparkles />}
+              <div>
+                <label className="text-sm font-medium">Icono (emoji)</label>
+                <div className="grid grid-cols-8 gap-2 mt-2 bg-muted/50 p-2 rounded-lg">
+                  {AVATAR_EMOJIS.map(emoji => (
+                      <button
+                          type="button"
+                          key={emoji}
+                          onClick={() => setIcon(emoji)}
+                          className={cn(
+                              'text-3xl p-1 rounded-lg transition-all',
+                              icon === emoji ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
+                          )}
+                      >
+                          {emoji}
+                      </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <label htmlFor="emotion-color" className="text-sm font-medium">Color:</label>
+                <Input
+                  id="emotion-color"
+                  type="color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  className="w-16 h-10 p-1"
+                />
+              </div>
+              <div className="relative">
+                <Textarea
+                  placeholder="¿Qué significa esta emoción para ti?"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={4}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-2 right-2 text-primary hover:bg-primary/10"
+                  onClick={handleGenerateDescription}
+                  disabled={isAiLoading}
+                >
+                  {isAiLoading ? <Loader className="animate-spin" /> : <Sparkles />}
+                </Button>
+              </div>
+              <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
+                Añadir Emoción
               </Button>
-            </div>
-            <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
-              Añadir Emoción
-            </Button>
-          </form>
-        </div>
-        <div className="p-6 flex flex-col h-full">
+            </form>
+          </div>
+        </ScrollArea>
+        <div className="p-6 flex flex-col h-full border-t lg:border-l lg:border-t-0">
           <CardHeader className="p-0 mb-4">
             <CardTitle className="text-2xl font-bold text-primary">Tu Emocionario</CardTitle>
           </CardHeader>

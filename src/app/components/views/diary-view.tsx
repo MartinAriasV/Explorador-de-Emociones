@@ -53,57 +53,59 @@ export function DiaryView({ emotionsList, diaryEntries, addDiaryEntry, setView }
     <>
       <Card className="w-full h-full shadow-lg overflow-hidden">
         <div className="grid lg:grid-cols-2 h-full">
-          <div className="p-6 flex flex-col border-b lg:border-r lg:border-b-0">
-            <CardHeader className="p-0 mb-4">
-              <CardTitle className="text-2xl font-bold text-primary">¿Cómo te sientes hoy?</CardTitle>
-            </CardHeader>
-            {emotionsList.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-center">
-                <p className="text-lg text-muted-foreground mb-4">¡Tu emocionario está vacío!</p>
-                <p className="mb-4 text-muted-foreground">Añade emociones para empezar a registrar tu diario.</p>
-                <Button onClick={() => setView('emocionario')} className="bg-primary hover:bg-primary/90">
-                  Ir al Emocionario
-                </Button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                <Input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full"
-                  required
-                />
-                <Select value={selectedEmotionId} onValueChange={setSelectedEmotionId} required>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Elige una emoción" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {emotionsList.map((emotion) => (
-                      <SelectItem key={emotion.id} value={emotion.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{emotion.icon}</span>
-                          <span>{emotion.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Textarea
-                  placeholder="¿Qué pasó hoy?"
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  className="flex-grow"
-                  rows={6}
-                  required
-                />
-                <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
-                  Guardar Entrada
-                </Button>
-              </form>
-            )}
-          </div>
-          <div className="p-6 flex flex-col h-full">
+          <ScrollArea className="lg:h-full">
+            <div className="p-6 flex flex-col">
+              <CardHeader className="p-0 mb-4">
+                <CardTitle className="text-2xl font-bold text-primary">¿Cómo te sientes hoy?</CardTitle>
+              </CardHeader>
+              {emotionsList.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center py-10">
+                  <p className="text-lg text-muted-foreground mb-4">¡Tu emocionario está vacío!</p>
+                  <p className="mb-4 text-muted-foreground">Añade emociones para empezar a registrar tu diario.</p>
+                  <Button onClick={() => setView('emocionario')} className="bg-primary hover:bg-primary/90">
+                    Ir al Emocionario
+                  </Button>
+                </div>
+              ) : (
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                  <Input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="w-full"
+                    required
+                  />
+                  <Select value={selectedEmotionId} onValueChange={setSelectedEmotionId} required>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Elige una emoción" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {emotionsList.map((emotion) => (
+                        <SelectItem key={emotion.id} value={emotion.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{emotion.icon}</span>
+                            <span>{emotion.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Textarea
+                    placeholder="¿Qué pasó hoy?"
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    className="flex-grow"
+                    rows={6}
+                    required
+                  />
+                  <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
+                    Guardar Entrada
+                  </Button>
+                </form>
+              )}
+            </div>
+          </ScrollArea>
+          <div className="p-6 flex flex-col h-full border-t lg:border-l lg:border-t-0">
             <CardHeader className="p-0 mb-4">
               <CardTitle className="text-2xl font-bold text-primary">Mis Entradas</CardTitle>
             </CardHeader>
