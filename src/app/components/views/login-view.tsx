@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFirebase } from '@/firebase';
-import { GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
+import { initiateEmailSignIn, initiateEmailSignUp } from '@/firebase/non-blocking-login';
 
 export default function LoginView() {
     const { auth } = useFirebase();
@@ -30,33 +31,18 @@ export default function LoginView() {
     const handleEmailSignIn = (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
-        signInWithEmailAndPassword(auth, email, password)
-            .catch((error) => {
-                toast({
-                    variant: "destructive",
-                    title: "Sign-in failed.",
-                    description: error.message || "Could not sign in with email and password.",
-                });
-            })
-            .finally(() => {
-                setIsSubmitting(false);
-            });
+        initiateEmailSignIn(auth, email, password);
+        // The onAuthStateChanged listener will handle success/error.
+        // We can add a timeout to reset the button state.
+        setTimeout(() => setIsSubmitting(false), 2000);
     };
     
     const handleEmailSignUp = (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
-        createUserWithEmailAndPassword(auth, email, password)
-            .catch((error) => {
-                toast({
-                    variant: "destructive",
-                    title: "Sign-up failed.",
-                    description: error.message || "Could not create an account.",
-                });
-            })
-            .finally(() => {
-                setIsSubmitting(false);
-            });
+        initiateEmailSignUp(auth, email, password);
+        // The onAuthStateChanged listener will handle success/error.
+        setTimeout(() => setIsSubmitting(false), 2000);
     };
 
     return (
