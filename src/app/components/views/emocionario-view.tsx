@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -58,13 +58,13 @@ export function EmocionarioView({ emotionsList, addEmotion }: EmocionarioViewPro
   };
 
   return (
-    <Card className="w-full h-full shadow-lg overflow-hidden">
-      <div className="grid lg:grid-cols-2 h-full">
-        <ScrollArea className="lg:h-full">
-          <div className="p-6 flex flex-col">
-            <CardHeader className="p-0 mb-4">
-              <CardTitle className="text-2xl font-bold text-primary">Añadir Emoción</CardTitle>
-            </CardHeader>
+    <div className="grid lg:grid-cols-2 gap-6 h-full">
+      <Card className="w-full shadow-lg flex flex-col">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-primary">Añadir Emoción</CardTitle>
+          <CardDescription>Crea una nueva emoción para tu diario.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex-grow flex flex-col gap-4 overflow-y-auto">
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <Input
                 placeholder="Nombre de la Emoción (ej. Euforia)"
@@ -118,17 +118,19 @@ export function EmocionarioView({ emotionsList, addEmotion }: EmocionarioViewPro
                   {isAiLoading ? <Loader className="animate-spin" /> : <Sparkles />}
                 </Button>
               </div>
-              <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
+              <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full mt-auto">
                 Añadir Emoción
               </Button>
             </form>
-          </div>
-        </ScrollArea>
-        <div className="p-6 flex flex-col h-full border-t lg:border-l lg:border-t-0">
-          <CardHeader className="p-0 mb-4">
-            <CardTitle className="text-2xl font-bold text-primary">Tu Emocionario</CardTitle>
-          </CardHeader>
-          <ScrollArea className="flex-grow max-h-[calc(100vh-250px)] lg:max-h-full pr-4 -mr-4">
+        </CardContent>
+      </Card>
+      <Card className="w-full shadow-lg flex flex-col">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold text-primary">Tu Emocionario</CardTitle>
+          <CardDescription>Las emociones que has añadido.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex-grow overflow-hidden">
+          <ScrollArea className="h-full pr-4 -mr-4">
             {emotionsList.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {emotionsList.map((em) => (
@@ -145,8 +147,8 @@ export function EmocionarioView({ emotionsList, addEmotion }: EmocionarioViewPro
               </div>
             )}
           </ScrollArea>
-        </div>
-      </div>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
