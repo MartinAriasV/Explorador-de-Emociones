@@ -70,11 +70,11 @@ export function ReportView({ diaryEntries, emotionsList }: ReportViewProps) {
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="flex-grow">
+      <CardContent className="flex-grow flex flex-col">
         <div className="grid grid-cols-7 gap-2 text-center font-semibold text-muted-foreground">
           {weekdays.map(day => <div key={day}>{day}</div>)}
         </div>
-        <div className="grid grid-cols-7 gap-2 mt-2 h-[calc(100%-2rem)]">
+        <div className="grid grid-cols-7 gap-2 mt-2 flex-grow">
           {calendarDays.map((day, index) => {
             if (!day) return <div key={`empty-${index}`} />;
             
