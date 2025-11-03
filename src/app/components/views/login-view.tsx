@@ -21,10 +21,15 @@ export default function LoginView() {
         setIsSubmitting(true);
         try {
             await signInWithPopup(auth, provider);
+            // On success, the onAuthStateChanged listener in the provider will handle the redirect.
         } catch (error: any) {
-            // Firebase often throws an error if the popup is closed by the user.
-            // We can often ignore this error, but we'll log it for debugging.
-            if (error.code !== 'auth/popup-closed-by-user') {
+            if (error.code === 'auth/operation-not-allowed') {
+                 toast({
+                    variant: "destructive",
+                    title: "Inicio de sesión con Google deshabilitado",
+                    description: "Por favor, habilita el proveedor de inicio de sesión de Google en tu consola de Firebase.",
+                });
+            } else if (error.code !== 'auth/popup-closed-by-user') {
                 toast({
                     variant: "destructive",
                     title: "Error de inicio de sesión con Google",
