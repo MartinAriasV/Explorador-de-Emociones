@@ -6,9 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFirebase } from '@/firebase';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
-import { initiateEmailSignIn, initiateEmailSignUp } from '@/firebase/non-blocking-login';
+import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
 
 export default function LoginView() {
     const { auth } = useFirebase();
@@ -33,7 +33,7 @@ export default function LoginView() {
         return re.test(String(email).toLowerCase());
     }
 
-    const handleEmailSignIn = (e: React.FormEvent) => {
+    const handleEmailSignIn = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!validateEmail(email)) {
             toast({
@@ -44,10 +44,26 @@ export default function LoginView() {
             return;
         }
         setIsSubmitting(true);
-        initiateEmailSignIn(auth, email, password);
-        // The onAuthStateChanged listener will handle success/error.
-        // We can add a timeout to reset the button state.
-        setTimeout(() => setIsSubmitting(false), 2000);
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            // Successful sign-in is handled by the onAuthStateChanged listener
+        } catch (error: any) {
+            if (error.code === 'auth/invalid-credential') {
+                toast({
+                    variant: "destructive",
+                    title: "Credenciales no válidas",
+                    description: "El correo electrónico o la contraseña son incorrectos.",
+                });
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "Error al iniciar sesión",
+                    description: error.message || "No se pudo iniciar sesión. Por favor, inténtalo de nuevo.",
+                });
+            }
+        } finally {
+            setIsSubmitting(false);
+        }
     };
     
     const handleEmailSignUp = (e: React.FormEvent) => {
