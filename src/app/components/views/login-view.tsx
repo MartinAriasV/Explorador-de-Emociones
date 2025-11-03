@@ -14,7 +14,7 @@ export default function LoginView() {
     const { toast } = useToast();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [isSigningIn, setIsSigningIn] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleGoogleSignIn = () => {
         const provider = new GoogleAuthProvider();
@@ -29,28 +29,33 @@ export default function LoginView() {
 
     const handleEmailSignIn = (e: React.FormEvent) => {
         e.preventDefault();
-        setIsSigningIn(true);
+        setIsSubmitting(true);
         signInWithEmailAndPassword(auth, email, password)
             .catch((error) => {
-                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-                    createUserWithEmailAndPassword(auth, email, password)
-                        .catch((signUpError) => {
-                             toast({
-                                variant: "destructive",
-                                title: "Uh oh! Something went wrong.",
-                                description: signUpError.message || "Could not create an account.",
-                            });
-                        });
-                } else {
-                    toast({
-                        variant: "destructive",
-                        title: "Uh oh! Something went wrong.",
-                        description: error.message || "Could not sign in.",
-                    });
-                }
+                toast({
+                    variant: "destructive",
+                    title: "Sign-in failed.",
+                    description: error.message || "Could not sign in with email and password.",
+                });
             })
             .finally(() => {
-                setIsSigningIn(false);
+                setIsSubmitting(false);
+            });
+    };
+    
+    const handleEmailSignUp = (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        createUserWithEmailAndPassword(auth, email, password)
+            .catch((error) => {
+                toast({
+                    variant: "destructive",
+                    title: "Sign-up failed.",
+                    description: error.message || "Could not create an account.",
+                });
+            })
+            .finally(() => {
+                setIsSubmitting(false);
             });
     };
 
@@ -85,7 +90,7 @@ export default function LoginView() {
                             </div>
                         </div>
 
-                        <form onSubmit={handleEmailSignIn}>
+                        <form className="space-y-4">
                             <div className="space-y-2">
                                 <div>
                                     <Label htmlFor="email">Email</Label>
@@ -96,9 +101,14 @@ export default function LoginView() {
                                     <Input id="password" type="password" required value={password} onChange={e => setPassword(e.target.value)} />
                                 </div>
                             </div>
-                            <Button type="submit" disabled={isSigningIn} className="w-full mt-4 bg-accent hover:bg-accent/90 text-accent-foreground">
-                                {isSigningIn ? 'Signing In...' : 'Sign In with Email'}
-                            </Button>
+                            <div className="flex gap-2">
+                                <Button type="button" variant="outline" onClick={handleEmailSignIn} disabled={isSubmitting} className="w-full">
+                                    {isSubmitting ? 'Signing In...' : 'Sign In'}
+                                </Button>
+                                <Button type="button" onClick={handleEmailSignUp} disabled={isSubmitting} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                                    {isSubmitting ? 'Creating...' : 'Create Account'}
+                                </Button>
+                            </div>
                         </form>
                     </div>
                 </CardContent>
