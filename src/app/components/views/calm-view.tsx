@@ -22,7 +22,7 @@ const breathCycles: Record<BreathMode, BreathStep[]> = {
     { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in' },
     { text: 'Sostén', duration: 4000, animation: 'animate-breathe-hold' },
     { text: 'Exhala', duration: 4000, animation: 'animate-breathe-out' },
-    { text: 'Sostén', duration: 4000, animation: 'animate-breathe-hold' },
+    { text: 'Pausa', duration: 2000, animation: 'animate-breathe-hold' },
   ],
   '4-7-8': [
     { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in' },
@@ -31,11 +31,14 @@ const breathCycles: Record<BreathMode, BreathStep[]> = {
   ],
 };
 
+const PREP_TIME = 3000;
+
 export function CalmView() {
   const [mode, setMode] = useState<BreathMode>('circle');
   const [currentStep, setCurrentStep] = useState<BreathStep | null>(null);
   const [countdown, setCountdown] = useState(0);
   const [isClient, setIsClient] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(true);
   const stepTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const countdownIntervalRef = useRef<NodeJS.Interval | null>(null);
 
@@ -52,34 +55,45 @@ export function CalmView() {
     };
 
     cleanupTimers();
+    setIsPreparing(true);
     setCurrentStep(null);
-    setCountdown(0);
+    setCountdown(PREP_TIME / 1000);
+
+    const prepInterval = setInterval(() => {
+      setCountdown(prev => (prev > 1 ? prev - 1 : 0));
+    }, 1000);
     
-    let cycleIndex = -1;
-    const cycle = breathCycles[mode];
+    const initialTimeout = setTimeout(() => {
+      clearInterval(prepInterval);
+      setIsPreparing(false);
+      let cycleIndex = -1;
+      const cycle = breathCycles[mode];
 
-    const runCycle = () => {
-      cycleIndex = (cycleIndex + 1) % cycle.length;
-      const step = cycle[cycleIndex];
-      
-      setCurrentStep(step);
-      setCountdown(1); // Start countdown at 1
-      
-      countdownIntervalRef.current = setInterval(() => {
-        setCountdown(prev => prev + 1);
-      }, 1000);
-      
-      stepTimeoutRef.current = setTimeout(() => {
+      const runCycle = () => {
+        cycleIndex = (cycleIndex + 1) % cycle.length;
+        const step = cycle[cycleIndex];
+        
+        setCurrentStep(step);
+        let counter = 1;
+        setCountdown(counter);
+
         if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-        runCycle();
-      }, step.duration);
-    };
-
-    // Initial "get ready" state
-    const initialTimeout = setTimeout(runCycle, 2000);
+        countdownIntervalRef.current = setInterval(() => {
+          counter++;
+          setCountdown(counter);
+        }, 1000);
+        
+        stepTimeoutRef.current = setTimeout(() => {
+          if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+          runCycle();
+        }, step.duration);
+      };
+      runCycle();
+    }, PREP_TIME);
 
     return () => {
       cleanupTimers();
+      clearInterval(prepInterval);
       clearTimeout(initialTimeout);
     };
   }, [mode, isClient]);
@@ -90,6 +104,8 @@ export function CalmView() {
     animationTimingFunction: 'ease-in-out',
     animationFillMode: 'forwards',
   } as React.CSSProperties;
+  
+  const nextActionText = breathCycles[mode][0].text;
 
   return (
     <Card className="w-full h-full shadow-lg flex flex-col items-center justify-center text-center">
@@ -112,18 +128,29 @@ export function CalmView() {
         </div>
         <div 
           className={cn(
-            "w-60 h-60 bg-primary/80 flex items-center justify-center transition-all duration-500",
+            "w-60 h-60 flex items-center justify-center transition-all duration-500",
+            isPreparing ? 'bg-accent/80' : 'bg-primary/80',
             mode === 'circle' ? 'rounded-full' : 'rounded-xl'
           )}
-          style={animationStyle}
+          style={!isPreparing ? animationStyle : {}}
         >
-            <div className="text-center text-primary-foreground">
-                <p className="text-2xl font-bold">
-                    {currentStep ? currentStep.text : "Prepárate..."}
-                </p>
-                {currentStep && (
-                    <p className="text-xl font-mono">{countdown}</p>
-                )}
+            <div className={cn("text-center", isPreparing ? 'text-accent-foreground' : 'text-primary-foreground')}>
+              {isPreparing ? (
+                <>
+                  <p className="text-xl">Prepárate para:</p>
+                  <p className="text-2xl font-bold">{nextActionText}</p>
+                  <p className="text-xl font-mono mt-2">en {countdown}</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-2xl font-bold">
+                      {currentStep ? currentStep.text : "..."}
+                  </p>
+                  {currentStep && (
+                      <p className="text-xl font-mono">{countdown}</p>
+                  )}
+                </>
+              )}
             </div>
         </div>
       </CardContent>
