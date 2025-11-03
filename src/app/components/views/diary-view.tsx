@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -13,7 +14,7 @@ import { suggestCalmingExercise } from '@/ai/flows/suggest-calming-exercise';
 import { Edit, Trash2 } from 'lucide-react';
 
 interface DiaryViewProps {
-  emotionsList: Emotion[];
+  emotionsList: Emotion[] | null;
   diaryEntries: DiaryEntry[];
   addDiaryEntry: (entry: Omit<DiaryEntry, 'id' | 'userProfileId'>) => void;
   updateDiaryEntry: (entry: DiaryEntry) => void;
@@ -21,7 +22,7 @@ interface DiaryViewProps {
   setView: (view: View) => void;
 }
 
-export function DiaryView({ emotionsList, diaryEntries, addDiaryEntry, updateDiaryEntry, deleteDiaryEntry, setView }: DiaryViewProps) {
+export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, updateDiaryEntry, deleteDiaryEntry, setView }: DiaryViewProps) {
   const [editingEntry, setEditingEntry] = useState<DiaryEntry | null>(null);
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -228,3 +229,5 @@ export function DiaryView({ emotionsList, diaryEntries, addDiaryEntry, updateDia
     </>
   );
 }
+
+    
