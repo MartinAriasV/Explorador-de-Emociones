@@ -10,6 +10,8 @@ import { Emotion } from '@/lib/types';
 import { Sparkles, Loader } from 'lucide-react';
 import { defineEmotionMeaning } from '@/ai/flows/define-emotion-meaning';
 import { useToast } from '@/hooks/use-toast';
+import { AVATAR_EMOJIS } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 interface EmocionarioViewProps {
   emotionsList: Emotion[];
@@ -65,13 +67,24 @@ export function EmocionarioView({ emotionsList, addEmotion }: EmocionarioViewPro
               onChange={(e) => setName(e.target.value)}
               required
             />
-            <Input
-              placeholder="Icono (emoji)"
-              value={icon}
-              onChange={(e) => setIcon(e.target.value)}
-              maxLength={2}
-              required
-            />
+            <div>
+              <label className="text-sm font-medium">Icono (emoji)</label>
+              <div className="grid grid-cols-8 gap-2 mt-2 bg-muted/50 p-2 rounded-lg">
+                {AVATAR_EMOJIS.map(emoji => (
+                    <button
+                        type="button"
+                        key={emoji}
+                        onClick={() => setIcon(emoji)}
+                        className={cn(
+                            'text-3xl p-1 rounded-lg transition-all',
+                            icon === emoji ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
+                        )}
+                    >
+                        {emoji}
+                    </button>
+                ))}
+              </div>
+            </div>
             <div className="flex items-center gap-2">
               <label htmlFor="emotion-color" className="text-sm font-medium">Color:</label>
               <Input
