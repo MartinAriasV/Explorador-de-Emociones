@@ -45,7 +45,7 @@ export function ShareView({ diaryEntries, emotionsList, userProfile }: ShareView
     });
 
     if (filteredEntries.length > 0) {
-        filteredEntries.forEach(entry => {
+        filteredEntries.slice().reverse().forEach(entry => {
             const emotion = getEmotionById(entry.emotionId);
             const date = new Date(entry.date).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
             text += `Fecha: ${date}\n`;
@@ -114,7 +114,7 @@ export function ShareView({ diaryEntries, emotionsList, userProfile }: ShareView
         <Textarea
           readOnly
           value={reportText}
-          className="flex-grow bg-muted/50 resize-none"
+          className="flex-grow bg-muted/50 resize-none whitespace-pre-wrap"
           rows={15}
         />
       </CardContent>
