@@ -119,7 +119,7 @@ export function CalmView() {
                 <p className="text-2xl font-bold">
                     {currentStep ? currentStep.text : "Prepárate..."}
                 </p>
-                {currentStep && countdown > 0 && (
+                {currentStep && (
                     <p className="text-xl font-mono">{countdown}</p>
                 )}
             </div>
