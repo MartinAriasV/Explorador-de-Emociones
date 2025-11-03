@@ -16,46 +16,42 @@ export default function LoginView() {
     const [password, setPassword] = useState('');
     const [isSigningIn, setIsSigningIn] = useState(false);
 
-    const handleGoogleSignIn = async () => {
+    const handleGoogleSignIn = () => {
         const provider = new GoogleAuthProvider();
-        try {
-            await signInWithPopup(auth, provider);
-        } catch (error: any) {
+        signInWithPopup(auth, provider).catch((error) => {
             toast({
                 variant: "destructive",
                 title: "Uh oh! Something went wrong.",
                 description: error.message || "Could not sign in with Google.",
             });
-        }
+        });
     };
 
-    const handleEmailSignIn = async (e: React.FormEvent) => {
+    const handleEmailSignIn = (e: React.FormEvent) => {
         e.preventDefault();
         setIsSigningIn(true);
-        try {
-            await signInWithEmailAndPassword(auth, email, password);
-        } catch (error: any) {
-            // If sign-in fails, try to sign up
-            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-                try {
-                    await createUserWithEmailAndPassword(auth, email, password);
-                } catch (signUpError: any) {
+        signInWithEmailAndPassword(auth, email, password)
+            .catch((error) => {
+                if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                    createUserWithEmailAndPassword(auth, email, password)
+                        .catch((signUpError) => {
+                             toast({
+                                variant: "destructive",
+                                title: "Uh oh! Something went wrong.",
+                                description: signUpError.message || "Could not create an account.",
+                            });
+                        });
+                } else {
                     toast({
                         variant: "destructive",
                         title: "Uh oh! Something went wrong.",
-                        description: signUpError.message || "Could not create an account.",
+                        description: error.message || "Could not sign in.",
                     });
                 }
-            } else {
-                toast({
-                    variant: "destructive",
-                    title: "Uh oh! Something went wrong.",
-                    description: error.message || "Could not sign in.",
-                });
-            }
-        } finally {
-            setIsSigningIn(false);
-        }
+            })
+            .finally(() => {
+                setIsSigningIn(false);
+            });
     };
 
     return (
