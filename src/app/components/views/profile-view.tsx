@@ -81,9 +81,9 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
             <label className="text-sm font-medium">Elige tu Avatar</label>
             <ScrollArea className="flex-grow rounded-lg border">
                 <div className="grid grid-cols-8 gap-2 bg-muted/50 p-2">
-                    {AVATAR_EMOJIS.map(emoji => (
+                    {AVATAR_EMOJIS.map((emoji, index) => (
                         <button
-                            key={emoji}
+                            key={`${emoji}-${index}`}
                             onClick={() => selectAvatar(emoji, 'emoji')}
                             className={cn(
                                 'text-3xl p-1 rounded-lg transition-all',

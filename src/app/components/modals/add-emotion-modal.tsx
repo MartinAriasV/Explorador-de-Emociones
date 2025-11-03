@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useToast } from '@/hooks/use-toast';
 
 interface AddEmotionModalProps {
   initialData: (Omit<PredefinedEmotion, 'example'> & { id?: string; color?: string, icon?: string }) | null;
@@ -24,6 +25,7 @@ export function AddEmotionModal({ initialData, onSave, onClose, onDelete }: AddE
   const [description, setDescription] = useState('');
   const [color, setColor] = useState('#47a2a2');
   const [icon, setIcon] = useState('');
+  const { toast } = useToast();
 
   useEffect(() => {
     if (initialData) {
@@ -35,7 +37,16 @@ export function AddEmotionModal({ initialData, onSave, onClose, onDelete }: AddE
   }, [initialData]);
 
   const handleSave = () => {
+    if (!name || !icon) {
+        toast({
+            title: "Faltan campos",
+            description: "Asegúrate de que la emoción tenga un nombre y un icono.",
+            variant: "destructive",
+        });
+        return;
+    }
     if (!initialData) return;
+    
     const dataToSave: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string } = {
         name,
         icon,
