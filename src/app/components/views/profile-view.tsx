@@ -9,6 +9,7 @@ import { AVATAR_EMOJIS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
 import Image from 'next/image';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ProfileViewProps {
   userProfile: UserProfile;
@@ -40,7 +41,7 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-primary">Mi Perfil</CardTitle>
       </CardHeader>
-      <CardContent className="flex-grow space-y-6">
+      <CardContent className="flex-grow space-y-6 flex flex-col">
         <div>
           <label className="text-sm font-medium">Tu Nombre</label>
           <Input
@@ -50,30 +51,32 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
           />
         </div>
 
-        <div>
+        <div className="flex flex-col flex-grow">
             <label className="text-sm font-medium">Elige tu Avatar</label>
-            <div className="grid grid-cols-6 gap-2 mt-2">
-                {AVATAR_EMOJIS.map(emoji => (
-                    <button
-                        key={emoji}
-                        onClick={() => selectAvatar(emoji, 'emoji')}
-                        className={cn(
-                            'text-4xl p-2 rounded-lg transition-all',
-                            localAvatar === emoji && localAvatarType === 'emoji' ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
-                        )}
-                    >
-                        {emoji}
-                    </button>
-                ))}
-                 {generatedAvatar && localAvatarType === 'generated' && (
-                    <button onClick={() => selectAvatar(generatedAvatar, 'generated')} className={cn('relative aspect-square rounded-lg overflow-hidden', localAvatar === generatedAvatar && localAvatarType === 'generated' ? 'ring-2 ring-primary' : 'hover:opacity-80')}>
-                        <Image src={generatedAvatar} alt="Avatar generado por IA" fill sizes="64px"/>
-                    </button>
-                 )}
-            </div>
+            <ScrollArea className="mt-2 flex-grow">
+              <div className="grid grid-cols-8 gap-2 bg-muted/50 p-2 rounded-lg">
+                  {AVATAR_EMOJIS.map(emoji => (
+                      <button
+                          key={emoji}
+                          onClick={() => selectAvatar(emoji, 'emoji')}
+                          className={cn(
+                              'text-4xl p-2 rounded-lg transition-all',
+                              localAvatar === emoji && localAvatarType === 'emoji' ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
+                          )}
+                      >
+                          {emoji}
+                      </button>
+                  ))}
+                  {generatedAvatar && localAvatarType === 'generated' && (
+                      <button onClick={() => selectAvatar(generatedAvatar, 'generated')} className={cn('relative aspect-square rounded-lg overflow-hidden', localAvatar === generatedAvatar && localAvatarType === 'generated' ? 'ring-2 ring-primary' : 'hover:opacity-80')}>
+                          <Image src={generatedAvatar} alt="Avatar generado por IA" fill sizes="64px"/>
+                      </button>
+                  )}
+              </div>
+            </ScrollArea>
         </div>
         
-        <Button onClick={handleSave} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+        <Button onClick={handleSave} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground mt-auto">
           {saved ? <Check className="mr-2 h-4 w-4" /> : null}
           {saved ? '¡Guardado!' : 'Guardar Cambios'}
         </Button>
