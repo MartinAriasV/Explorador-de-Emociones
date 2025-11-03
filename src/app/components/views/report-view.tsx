@@ -45,11 +45,13 @@ export function ReportView({ diaryEntries, emotionsList }: ReportViewProps) {
 
   const getEntriesForDay = (day: number) => {
     return diaryEntries.filter(entry => {
-      const entryDate = new Date(entry.date);
+      // The entry.date is a 'YYYY-MM-DD' string. We need to parse it carefully to avoid timezone issues.
+      // Splitting the string and creating a UTC date ensures consistency.
+      const [year, month, entryDay] = entry.date.split('-').map(Number);
       return (
-        entryDate.getFullYear() === currentDate.getFullYear() &&
-        entryDate.getMonth() === currentDate.getMonth() &&
-        entryDate.getDate() === day
+        year === currentDate.getFullYear() &&
+        (month - 1) === currentDate.getMonth() &&
+        entryDay === day
       );
     });
   };
@@ -81,7 +83,12 @@ export function ReportView({ diaryEntries, emotionsList }: ReportViewProps) {
                 if (!day) return <div key={`empty-${index}`} />;
                 
                 const dayEntries = getEntriesForDay(day);
-                const isToday = new Date().toDateString() === new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
+
+                // Compare year, month, and day for `isToday` to avoid timezone issues.
+                const today = new Date();
+                const isToday = today.getFullYear() === currentDate.getFullYear() &&
+                                today.getMonth() === currentDate.getMonth() &&
+                                today.getDate() === day;
 
                 return (
                 <div
