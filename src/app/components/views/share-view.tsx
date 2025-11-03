@@ -85,7 +85,7 @@ export function ShareView({ diaryEntries, emotionsList, userProfile }: ShareView
         <CardTitle className="text-2xl font-bold text-primary">Compartir Diario</CardTitle>
         <CardDescription>Copia un resumen de tu diario en formato de texto para compartirlo con quien quieras.</CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow flex flex-col gap-4">
+      <CardContent className="flex-grow flex flex-col gap-4 overflow-hidden">
         <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 space-y-2">
                 <Label htmlFor="start-date">Fecha de inicio</Label>
@@ -111,12 +111,14 @@ export function ShareView({ diaryEntries, emotionsList, userProfile }: ShareView
           {copied ? <Check className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}
           {copied ? '¡Reporte Copiado!' : 'Copiar Reporte al Portapapeles'}
         </Button>
-        <Textarea
-          readOnly
-          value={reportText}
-          className="flex-grow bg-muted/50 resize-none whitespace-pre-wrap"
-          rows={15}
-        />
+        <div className="flex-grow relative">
+            <Textarea
+              readOnly
+              value={reportText}
+              className="absolute inset-0 w-full h-full bg-muted/50 resize-none"
+              rows={15}
+            />
+        </div>
       </CardContent>
     </Card>
   );
