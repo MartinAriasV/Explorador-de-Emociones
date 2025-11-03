@@ -15,7 +15,7 @@ import { AddEmotionModal } from './modals/add-emotion-modal';
 import { WelcomeDialog } from './tour/welcome-dialog';
 import { TourPopup } from './tour/tour-popup';
 import { TOUR_STEPS } from '@/lib/constants';
-import { useFirebase, useUser, useCollection, useFirestore } from '@/firebase';
+import { useFirebase, useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc, setDoc } from 'firebase/firestore';
 import LoginView from './views/login-view';
@@ -26,10 +26,10 @@ export default function EmotionExplorer() {
   const { firestore } = useFirebase();
   const { user, isUserLoading } = useUser();
 
-  const emotionsQuery = user ? collection(firestore, 'users', user.uid, 'emotions') : null;
+  const emotionsQuery = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'emotions') : null, [firestore, user]);
   const { data: emotionsList = [] } = useCollection<Emotion>(emotionsQuery);
   
-  const diaryEntriesQuery = user ? collection(firestore, 'users', user.uid, 'diaryEntries') : null;
+  const diaryEntriesQuery = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'diaryEntries') : null, [firestore, user]);
   const { data: diaryEntries = [] } = useCollection<DiaryEntry>(diaryEntriesQuery);
 
   const [userProfile, setUserProfile] = useLocalStorage<UserProfile>('emotion-explorer-profile', { name: 'Usuario', avatar: '😊', avatarType: 'emoji' });
