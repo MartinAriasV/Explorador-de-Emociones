@@ -63,14 +63,16 @@ export function CalmView() {
       const step = cycle[cycleIndex];
       
       setCurrentStep(step);
-      const durationSeconds = step.duration / 1000;
-      setCountdown(durationSeconds);
+      setCountdown(1); // Start countdown at 1
       
       countdownIntervalRef.current = setInterval(() => {
-        setCountdown(prev => (prev > 1 ? prev - 1 : 0));
+        setCountdown(prev => prev + 1);
       }, 1000);
       
-      stepTimeoutRef.current = setTimeout(runCycle, step.duration);
+      stepTimeoutRef.current = setTimeout(() => {
+        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+        runCycle();
+      }, step.duration);
     };
 
     // Initial "get ready" state
