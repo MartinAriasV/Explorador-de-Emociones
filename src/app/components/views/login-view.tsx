@@ -6,9 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFirebase } from '@/firebase';
-import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
-import { initiateEmailSignUp } from '@/firebase/non-blocking-login';
 
 export default function LoginView() {
     const { auth } = useFirebase();
@@ -66,7 +65,7 @@ export default function LoginView() {
         }
     };
     
-    const handleEmailSignUp = (e: React.FormEvent) => {
+    const handleEmailSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
          if (!validateEmail(email)) {
             toast({
@@ -85,9 +84,26 @@ export default function LoginView() {
             return;
         }
         setIsSubmitting(true);
-        initiateEmailSignUp(auth, email, password);
-        // The onAuthStateChanged listener will handle success/error.
-        setTimeout(() => setIsSubmitting(false), 2000);
+        try {
+            await createUserWithEmailAndPassword(auth, email, password);
+            // Success is handled by the onAuthStateChanged listener
+        } catch (error: any) {
+             if (error.code === 'auth/email-already-in-use') {
+                toast({
+                    variant: "destructive",
+                    title: "El correo electrónico ya está en uso",
+                    description: "Esta dirección de correo electrónico ya está registrada. Por favor, inicia sesión.",
+                });
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: "Error al crear la cuenta",
+                    description: error.message || "No se pudo crear la cuenta. Por favor, inténtalo de nuevo.",
+                });
+            }
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
