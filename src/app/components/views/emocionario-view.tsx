@@ -34,7 +34,11 @@ export function EmocionarioView({ emotionsList, addEmotion }: EmocionarioViewPro
     setIsAiLoading(true);
     try {
       const result = await defineEmotionMeaning({ emotion: name });
-      setDescription(`${result.definition} Ejemplo: ${result.example}`);
+      if (result.includeDetails) {
+        setDescription(`${result.definition} Ejemplo: ${result.example}`);
+      } else {
+        setDescription(result.definition);
+      }
     } catch (error) {
       console.error("Error generating description:", error);
       toast({ title: "Error de IA", description: "No se pudo generar una descripción.", variant: "destructive" });
@@ -124,11 +128,11 @@ export function EmocionarioView({ emotionsList, addEmotion }: EmocionarioViewPro
           <CardHeader className="p-0 mb-4">
             <CardTitle className="text-2xl font-bold text-primary">Tu Emocionario</CardTitle>
           </CardHeader>
-          <ScrollArea className="flex-grow max-h-[calc(100vh-250px)] lg:max-h-full">
+          <ScrollArea className="flex-grow max-h-[calc(100vh-250px)] lg:max-h-full pr-4 -mr-4">
             {emotionsList.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {emotionsList.map((em) => (
-                  <Card key={em.id} className="p-4 text-center border-2" style={{ borderColor: em.color }}>
+                  <Card key={em.id} className="p-4 text-center border-2 flex flex-col items-center justify-center aspect-square" style={{ borderColor: em.color }}>
                     <p className="text-4xl mb-2">{em.icon}</p>
                     <p className="font-bold truncate" style={{ color: em.color }}>{em.name}</p>
                     <p className="text-xs text-muted-foreground truncate">{em.description}</p>

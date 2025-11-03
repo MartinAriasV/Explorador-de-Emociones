@@ -35,7 +35,7 @@ const prompt = ai.definePrompt({
 
 Emotion: {{{emotion}}}
 
-Output a JSON object that contains the keys 'definition', 'example', and 'includeDetails'. The 'includeDetails' boolean should be true if the definition and example are helpful and well-formed, and false if including them would make the saved data too verbose.  Make a determination as to whether the plant is healthy or not, and what is wrong with it, and set the isHealthy output field appropriately.`, 
+Output a JSON object that contains the keys 'definition', 'example', and 'includeDetails'. The 'includeDetails' boolean should be true if the definition and example are helpful and well-formed, and false if including them would make the saved data too verbose.`,
 });
 
 const defineEmotionMeaningFlow = ai.defineFlow(
