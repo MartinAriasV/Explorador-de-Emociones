@@ -3,18 +3,26 @@
 import { useState, useEffect } from 'react';
 
 function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
-  const [storedValue, setStoredValue] = useState<T>(() => {
+  const [storedValue, setStoredValue] = useState<T>(initialValue);
+
+  // We need to use a useEffect to read from localStorage.
+  // This ensures that the code only runs on the client, after the initial server render.
+  useEffect(() => {
+    // This check is still good practice.
     if (typeof window === 'undefined') {
-      return initialValue;
+      return;
     }
     try {
       const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
+      // When the component mounts on the client, we update the state with the value from localStorage.
+      setStoredValue(item ? JSON.parse(item) : initialValue);
     } catch (error) {
       console.log(error);
-      return initialValue;
+      setStoredValue(initialValue);
     }
-  });
+  // We only want this to run once on mount, so we pass an empty dependency array.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
 
   const setValue = (value: T | ((val: T) => T)) => {
     try {
@@ -27,17 +35,6 @@ function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val
       console.log(error);
     }
   };
-  
-  useEffect(() => {
-    try {
-      const item = window.localStorage.getItem(key);
-      if (item) {
-        setStoredValue(JSON.parse(item));
-      }
-    } catch (error) {
-      console.log(error);
-    }
-  }, [key]);
 
   return [storedValue, setValue];
 }
