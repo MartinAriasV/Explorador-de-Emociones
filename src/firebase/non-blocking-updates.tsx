@@ -48,6 +48,7 @@ export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
         })
       )
     });
+  // Return the promise in case the caller wants to use the new doc ID, but they should handle the .then() themselves
   return promise;
 }
 

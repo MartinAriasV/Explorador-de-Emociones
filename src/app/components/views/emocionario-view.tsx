@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Emotion } from '@/lib/types';
+import type { Emotion } from '@/lib/types';
 import { Sparkles, Loader, Trash2, Edit } from 'lucide-react';
 import { defineEmotionMeaning } from '@/ai/flows/define-emotion-meaning';
 import { useToast } from '@/hooks/use-toast';

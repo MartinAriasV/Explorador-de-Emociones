@@ -2,9 +2,10 @@
 
 import React from 'react';
 import { Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from '@/components/ui/sidebar';
-import { UserProfile, View } from '@/lib/types';
+import type { UserProfile, View } from '@/lib/types';
 import { BookOpen, Smile, Sparkles, Heart, BarChart, Share2, UserCircle, Menu } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useFirebase } from '@/firebase';
 
 interface AppSidebarProps {
   view: View;
@@ -25,6 +26,7 @@ const navItems = [
 
 export function AppSidebar({ view, setView, userProfile, refs }: AppSidebarProps) {
   const { setOpenMobile } = useSidebar();
+  const { auth } = useFirebase();
 
   const handleItemClick = (newView: View) => {
     setView(newView);
@@ -61,6 +63,13 @@ export function AppSidebar({ view, setView, userProfile, refs }: AppSidebarProps
             </SidebarMenuButton>
           </SidebarMenuItem>
         ))}
+      </SidebarMenu>
+      <SidebarMenu className="p-4 mt-auto">
+        <SidebarMenuItem>
+            <SidebarMenuButton onClick={() => auth.signOut()} className="text-base">
+                <span>Cerrar sesión</span>
+            </SidebarMenuButton>
+        </SidebarMenuItem>
       </SidebarMenu>
     </Sidebar>
   );

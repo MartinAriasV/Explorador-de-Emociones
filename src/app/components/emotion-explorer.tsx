@@ -15,24 +15,29 @@ import { AddEmotionModal } from './modals/add-emotion-modal';
 import { WelcomeDialog } from './tour/welcome-dialog';
 import { TourPopup } from './tour/tour-popup';
 import { TOUR_STEPS } from '@/lib/constants';
-import { useFirebase, useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useFirebase, useUser, useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { deleteDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc } from 'firebase/firestore';
 import LoginView from './views/login-view';
 import useLocalStorage from '@/hooks/use-local-storage';
+import { setDoc } from 'firebase/firestore';
 
 export default function EmotionExplorer() {
   const [view, setView] = useState<View>('diary');
   const { firestore } = useFirebase();
   const { user, isUserLoading } = useUser();
 
+  // --- Firestore Data ---
+  const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+
   const emotionsQuery = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'emotions') : null, [firestore, user]);
   const { data: emotionsList, isLoading: isLoadingEmotions } = useCollection<Emotion>(emotionsQuery);
   
   const diaryEntriesQuery = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'diaryEntries') : null, [firestore, user]);
-  const { data: diaryEntries = [] } = useCollection<DiaryEntry>(diaryEntriesQuery);
+  const { data: diaryEntries = [], isLoading: isLoadingEntries } = useCollection<DiaryEntry>(diaryEntriesQuery);
+  // --------------------
 
-  const [userProfile, setUserProfile] = useLocalStorage<UserProfile>('emotion-explorer-profile', { name: 'Usuario', avatar: '😊', avatarType: 'emoji' });
   const [addingEmotionData, setAddingEmotionData] = useState<(Omit<PredefinedEmotion, 'example'> & { id?: string }) | null>(null);
 
   // Tour state
@@ -45,16 +50,26 @@ export default function EmotionExplorer() {
     return acc;
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
 
+  // Effect to create initial user profile in Firestore
   useEffect(() => {
-    if (user && user.displayName) {
-      const name = user.displayName || 'Usuario';
-      const avatar = user.photoURL ? user.photoURL : '😊';
-      const avatarType = user.photoURL ? 'generated' : 'emoji';
-      setUserProfile({ name, avatar, avatarType });
+    if (user && !isProfileLoading && !userProfile) {
+        const newUserProfile: UserProfile = {
+            name: user.displayName || 'Usuario',
+            avatar: user.photoURL || '😊',
+            avatarType: user.photoURL ? 'generated' : 'emoji',
+        };
+        // Use a standard `setDoc` here as it's a one-time setup operation.
+        // The non-blocking version is for frequent user interactions where optimistic UI is desired.
+        setDoc(userProfileRef, newUserProfile).catch(console.error);
     }
-  }, [user, setUserProfile]);
+  }, [user, userProfile, isProfileLoading, userProfileRef]);
+  
+  const setUserProfile = (profile: UserProfile) => {
+    if (!userProfileRef) return;
+    setDocumentNonBlocking(userProfileRef, profile, { merge: true });
+  }
 
-  const saveEmotion = (emotionData: Omit<Emotion, 'id'> & { id?: string }) => {
+  const saveEmotion = (emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string }) => {
     if (!user) return;
     const emotionsCollection = collection(firestore, 'users', user.uid, 'emotions');
     
@@ -62,9 +77,7 @@ export default function EmotionExplorer() {
       const emotionDoc = doc(emotionsCollection, emotionData.id);
       setDocumentNonBlocking(emotionDoc, { ...emotionData, userProfileId: user.uid }, { merge: true });
     } else {
-      const newEmotion = { ...emotionData, id: doc(emotionsCollection).id, userProfileId: user.uid };
-      const emotionDoc = doc(emotionsCollection, newEmotion.id);
-      setDocumentNonBlocking(emotionDoc, newEmotion, {});
+      addDocumentNonBlocking(emotionsCollection, { ...emotionData, userProfileId: user.uid });
     }
     setAddingEmotionData(null);
   };
@@ -79,9 +92,7 @@ export default function EmotionExplorer() {
   const addDiaryEntry = (entryData: Omit<DiaryEntry, 'id' | 'userProfileId'>) => {
     if (!user) return;
     const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
-    const newEntry = { ...entryData, id: doc(diaryCollection).id, userProfileId: user.uid };
-    const entryDoc = doc(diaryCollection, newEntry.id);
-    setDocumentNonBlocking(entryDoc, newEntry, {});
+    addDocumentNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid });
   };
   
   const updateDiaryEntry = (updatedEntry: DiaryEntry) => {
@@ -122,15 +133,11 @@ export default function EmotionExplorer() {
   };
 
   const renderView = () => {
-    if (isLoadingEmotions) {
-      return <div className="flex h-full w-full items-center justify-center">Cargando emociones...</div>;
-    }
-    
     switch (view) {
       case 'diary':
         return <DiaryView 
-                  emotionsList={emotionsList || []} 
-                  diaryEntries={diaryEntries || []} 
+                  emotionsList={emotionsList} 
+                  diaryEntries={diaryEntries} 
                   addDiaryEntry={addDiaryEntry}
                   updateDiaryEntry={updateDiaryEntry}
                   deleteDiaryEntry={deleteDiaryEntry}
@@ -143,15 +150,15 @@ export default function EmotionExplorer() {
       case 'calm':
         return <CalmView />;
       case 'report':
-        return <ReportView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} />;
+        return <ReportView diaryEntries={diaryEntries} emotionsList={emotionsList || []} />;
       case 'share':
-        return <ShareView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} userProfile={userProfile} />;
+        return <ShareView diaryEntries={diaryEntries} emotionsList={emotionsList || []} userProfile={userProfile} />;
       case 'profile':
         return <ProfileView userProfile={userProfile} setUserProfile={setUserProfile} />;
       default:
         return <DiaryView 
-                  emotionsList={emotionsList || []} 
-                  diaryEntries={diaryEntries || []} 
+                  emotionsList={emotionsList} 
+                  diaryEntries={diaryEntries} 
                   addDiaryEntry={addDiaryEntry}
                   updateDiaryEntry={updateDiaryEntry}
                   deleteDiaryEntry={deleteDiaryEntry}
@@ -160,12 +167,16 @@ export default function EmotionExplorer() {
     }
   };
   
-  if (isUserLoading) {
-    return <div className="flex h-screen w-screen items-center justify-center">Loading...</div>;
+  if (isUserLoading || isProfileLoading || isLoadingEmotions || isLoadingEntries) {
+    return <div className="flex h-screen w-screen items-center justify-center">Cargando...</div>;
   }
 
   if (!user) {
     return <LoginView />;
+  }
+  
+  if (!userProfile) {
+    return <div className="flex h-screen w-screen items-center justify-center">Creando perfil...</div>;
   }
 
   return (

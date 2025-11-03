@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { DiaryEntry, Emotion } from '@/lib/types';
+import type { DiaryEntry, Emotion } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -40,7 +40,7 @@ export function ReportView({ diaryEntries, emotionsList }: ReportViewProps) {
     return days;
   }, [startingDayOfWeek, daysInMonth]);
   
-  const getEmotionById = (id: string) => emotionsList.find(e => e.id === id);
+  const getEmotionById = (id: string) => (emotionsList || []).find(e => e.id === id);
 
   const getEntriesForDay = (day: number) => {
     return diaryEntries.filter(entry => {

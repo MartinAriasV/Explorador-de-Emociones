@@ -1,31 +1,47 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { UserProfile } from '@/lib/types';
+import type { UserProfile } from '@/lib/types';
 import { AVATAR_EMOJIS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
 import Image from 'next/image';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProfileViewProps {
-  userProfile: UserProfile;
+  userProfile: UserProfile | null;
   setUserProfile: (profile: UserProfile) => void;
 }
 
 export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
-  const [localName, setLocalName] = useState(userProfile.name);
-  const [localAvatar, setLocalAvatar] = useState(userProfile.avatar);
-  const [localAvatarType, setLocalAvatarType] = useState(userProfile.avatarType);
+  const [localName, setLocalName] = useState(userProfile?.name || '');
+  const [localAvatar, setLocalAvatar] = useState(userProfile?.avatar || '');
+  const [localAvatarType, setLocalAvatarType] = useState(userProfile?.avatarType || 'emoji');
   const [saved, setSaved] = useState(false);
-  const [generatedAvatar] = useState<string | null>(
-    userProfile.avatarType === 'generated' ? userProfile.avatar : null
-  );
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (userProfile) {
+      setLocalName(userProfile.name);
+      setLocalAvatar(userProfile.avatar);
+      setLocalAvatarType(userProfile.avatarType);
+    }
+  }, [userProfile]);
+
 
   const handleSave = () => {
+    if (!localName || !localAvatar) {
+      toast({
+        title: "Faltan campos",
+        description: "Asegúrate de tener un nombre y un avatar seleccionados.",
+        variant: "destructive",
+      });
+      return;
+    }
     setUserProfile({ name: localName, avatar: localAvatar, avatarType: localAvatarType });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -35,6 +51,16 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
     setLocalAvatar(avatar);
     setLocalAvatarType(type);
   };
+
+  if (!userProfile) {
+    return (
+      <Card className="w-full max-w-2xl mx-auto h-full shadow-lg flex flex-col items-center justify-center">
+        <CardHeader>
+          <CardTitle>Cargando perfil...</CardTitle>
+        </CardHeader>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-2xl mx-auto h-full shadow-lg flex flex-col">
@@ -68,9 +94,9 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
                               {emoji}
                           </button>
                       ))}
-                      {generatedAvatar && localAvatarType === 'generated' && (
-                          <button onClick={() => selectAvatar(generatedAvatar, 'generated')} className={cn('relative aspect-square rounded-lg overflow-hidden', localAvatar === generatedAvatar && localAvatarType === 'generated' ? 'ring-2 ring-primary' : 'hover:opacity-80')}>
-                              <Image src={generatedAvatar} alt="Avatar generado por IA" fill sizes="64px"/>
+                      {userProfile.avatarType === 'generated' && (
+                          <button onClick={() => selectAvatar(userProfile.avatar, 'generated')} className={cn('relative aspect-square rounded-lg overflow-hidden', localAvatar === userProfile.avatar && localAvatarType === 'generated' ? 'ring-2 ring-primary' : 'hover:opacity-80')}>
+                              <Image src={userProfile.avatar} alt="Avatar generado por IA" fill sizes="64px"/>
                           </button>
                       )}
                   </div>

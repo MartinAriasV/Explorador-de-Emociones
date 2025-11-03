@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Clipboard, Check } from 'lucide-react';
-import { DiaryEntry, Emotion, UserProfile } from '@/lib/types';
+import type { DiaryEntry, Emotion, UserProfile } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 interface ShareViewProps {
   diaryEntries: DiaryEntry[];
   emotionsList: Emotion[];
-  userProfile: UserProfile;
+  userProfile: UserProfile | null;
 }
 
 export function ShareView({ diaryEntries, emotionsList, userProfile }: ShareViewProps) {
@@ -22,10 +22,10 @@ export function ShareView({ diaryEntries, emotionsList, userProfile }: ShareView
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   
-  const getEmotionById = (id: string) => emotionsList.find(e => e.id === id);
+  const getEmotionById = (id: string) => (emotionsList || []).find(e => e.id === id);
 
   const reportText = useMemo(() => {
-    let text = `Diario de Emociones de ${userProfile.name}\n`;
+    let text = `Diario de Emociones de ${userProfile?.name || 'Usuario'}\n`;
     if (startDate && endDate) {
       const start = new Date(startDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
       const end = new Date(endDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -58,16 +58,16 @@ export function ShareView({ diaryEntries, emotionsList, userProfile }: ShareView
     }
 
     text += "\n--- Mi Emocionario ---\n\n";
-    emotionsList.forEach(emotion => {
+    (emotionsList || []).forEach(emotion => {
         text += `${emotion.icon} ${emotion.name}: ${emotion.description}\n`;
     });
 
-    if (emotionsList.length === 0) {
+    if (!emotionsList || emotionsList.length === 0) {
         text += "El emocionario está vacío.\n";
     }
 
     return text;
-  }, [diaryEntries, emotionsList, userProfile.name, startDate, endDate]);
+  }, [diaryEntries, emotionsList, userProfile, startDate, endDate]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(reportText).then(() => {

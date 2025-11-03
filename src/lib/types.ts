@@ -17,7 +17,7 @@ export type DiaryEntry = {
 
 export type UserProfile = {
   name: string;
-  avatar: string; // Can be an emoji or a data URI for generated avatar
+  avatar: string; // Can be an emoji or a URL for generated avatar
   avatarType: 'emoji' | 'generated';
 };
 

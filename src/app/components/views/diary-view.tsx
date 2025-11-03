@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -8,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { DiaryEntry, Emotion, View } from '@/lib/types';
+import type { DiaryEntry, Emotion, View } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { suggestCalmingExercise } from '@/ai/flows/suggest-calming-exercise';
 import { Edit, Trash2 } from 'lucide-react';
@@ -81,7 +80,7 @@ export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, upda
     resetForm();
   };
 
-  const getEmotionById = (id: string) => emotionsList.find(e => e.id === id);
+  const getEmotionById = (id: string) => (emotionsList || []).find(e => e.id === id);
 
   return (
     <>
@@ -94,7 +93,7 @@ export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, upda
                   {editingEntry ? 'Editando Entrada' : '¿Cómo te sientes hoy?'}
                 </CardTitle>
               </CardHeader>
-              {emotionsList.length === 0 ? (
+              {!emotionsList || emotionsList.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center py-10">
                   <p className="text-lg text-muted-foreground mb-4">¡Tu emocionario está vacío!</p>
                   <p className="mb-4 text-muted-foreground">Añade emociones para empezar a registrar tu diario.</p>
