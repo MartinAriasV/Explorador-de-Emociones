@@ -89,24 +89,15 @@ body {
 }
 
 @layer utilities {
-  .animate-breathe-circle {
-    animation: breathe-circle ease-in-out;
-  }
   .animate-breathe-in {
-    animation: breathe-in ease-out;
+    animation-name: breathe-in;
   }
   .animate-breathe-out {
-    animation: breathe-out ease-in;
+    animation-name: breathe-out;
   }
   .animate-breathe-hold {
-    animation: breathe-hold ease-in-out;
+    animation-name: breathe-hold;
   }
-}
-
-@keyframes breathe-circle {
-  0% { transform: scale(0.9); opacity: 0.7; }
-  50% { transform: scale(1.1); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0.7; }
 }
 
 @keyframes breathe-in {

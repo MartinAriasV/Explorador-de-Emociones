@@ -7,32 +7,37 @@ import { cn } from '@/lib/utils';
 
 type BreathMode = 'circle' | 'square' | '4-7-8';
 
-const breathCycles = {
+interface BreathStep {
+  text: string;
+  duration: number;
+  animation: string;
+}
+
+const breathCycles: Record<BreathMode, BreathStep[]> = {
   circle: [
-    { text: 'Inhala por', duration: 4000, animation: 'animate-breathe-circle' },
-    { text: 'Exhala por', duration: 4000, animation: '' },
+    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in' },
+    { text: 'Exhala', duration: 6000, animation: 'animate-breathe-out' },
   ],
   square: [
-    { text: 'Inhala por', duration: 4000, animation: 'animate-breathe-in' },
-    { text: 'Sostén por', duration: 4000, animation: 'animate-breathe-hold' },
-    { text: 'Exhala por', duration: 4000, animation: 'animate-breathe-out' },
-    { text: 'Sostén por', duration: 4000, animation: 'animate-breathe-hold' },
+    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in' },
+    { text: 'Sostén', duration: 4000, animation: 'animate-breathe-hold' },
+    { text: 'Exhala', duration: 4000, animation: 'animate-breathe-out' },
+    { text: 'Sostén', duration: 4000, animation: 'animate-breathe-hold' },
   ],
   '4-7-8': [
-    { text: 'Inhala por', duration: 4000, animation: 'animate-breathe-in' },
-    { text: 'Sostén por', duration: 7000, animation: 'animate-breathe-hold' },
-    { text: 'Exhala por', duration: 8000, animation: 'animate-breathe-out' },
+    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in' },
+    { text: 'Sostén', duration: 7000, animation: 'animate-breathe-hold' },
+    { text: 'Exhala', duration: 8000, animation: 'animate-breathe-out' },
   ],
 };
 
 export function CalmView() {
   const [mode, setMode] = useState<BreathMode>('circle');
-  const [breathText, setBreathText] = useState('Prepárate...');
-  const [animationClass, setAnimationClass] = useState('');
+  const [currentStep, setCurrentStep] = useState<BreathStep | null>(null);
+  const [countdown, setCountdown] = useState(0);
   const [isClient, setIsClient] = useState(false);
-
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const stepTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownIntervalRef = useRef<NodeJS.Interval | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -41,55 +46,48 @@ export function CalmView() {
   useEffect(() => {
     if (!isClient) return;
 
-    // Clear any existing timers
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    if (intervalRef.current) clearInterval(intervalRef.current);
+    const cleanupTimers = () => {
+      if (stepTimeoutRef.current) clearTimeout(stepTimeoutRef.current);
+      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+    };
+
+    cleanupTimers();
+    setCurrentStep(null);
+    setCountdown(0);
     
-    setBreathText('Prepárate...');
-    setAnimationClass('');
     let cycleIndex = -1;
-    
     const cycle = breathCycles[mode];
 
     const runCycle = () => {
-      // Clear previous interval if any
-      if (intervalRef.current) clearInterval(intervalRef.current);
-
       cycleIndex = (cycleIndex + 1) % cycle.length;
-      const currentStep = cycle[cycleIndex];
+      const step = cycle[cycleIndex];
       
-      const totalSeconds = currentStep.duration / 1000;
-      let count = totalSeconds;
-
-      setBreathText(`${currentStep.text} ${count}...`);
-      setAnimationClass(currentStep.animation);
+      setCurrentStep(step);
+      const durationSeconds = step.duration / 1000;
+      setCountdown(durationSeconds);
       
-      intervalRef.current = setInterval(() => {
-        count--;
-        if (count > 0) {
-          setBreathText(`${currentStep.text} ${count}...`);
-        } else {
-            if (intervalRef.current) clearInterval(intervalRef.current);
-        }
+      countdownIntervalRef.current = setInterval(() => {
+        setCountdown(prev => (prev > 1 ? prev - 1 : 0));
       }, 1000);
       
-      timeoutRef.current = setTimeout(runCycle, currentStep.duration);
+      stepTimeoutRef.current = setTimeout(runCycle, step.duration);
     };
 
-    const initialTimeout = setTimeout(runCycle, 2000); // Initial delay
+    // Initial "get ready" state
+    const initialTimeout = setTimeout(runCycle, 2000);
 
     return () => {
+      cleanupTimers();
       clearTimeout(initialTimeout);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [mode, isClient]);
 
-  const getAnimationDuration = () => {
-    if (mode === 'circle') return '4s';
-    const currentStep = breathCycles[mode].find(step => step.animation === animationClass);
-    return currentStep ? `${currentStep.duration / 1000}s` : '4s';
-  }
+  const animationStyle = {
+    animationName: currentStep?.animation.replace('animate-',''),
+    animationDuration: currentStep ? `${currentStep.duration}ms` : 'none',
+    animationTimingFunction: 'ease-in-out',
+    animationFillMode: 'forwards',
+  } as React.CSSProperties;
 
   return (
     <Card className="w-full h-full shadow-lg flex flex-col items-center justify-center text-center">
@@ -113,12 +111,18 @@ export function CalmView() {
         <div 
           className={cn(
             "w-60 h-60 bg-primary/80 flex items-center justify-center transition-all duration-500",
-            mode === 'circle' ? 'rounded-full' : 'rounded-xl',
-            animationClass
+            mode === 'circle' ? 'rounded-full' : 'rounded-xl'
           )}
-          style={{ animationDuration: getAnimationDuration(), animationIterationCount: mode === 'circle' ? 'infinite' : 1 }}
+          style={animationStyle}
         >
-          <p className="text-2xl font-bold text-primary-foreground">{breathText}</p>
+            <div className="text-center text-primary-foreground">
+                <p className="text-2xl font-bold">
+                    {currentStep ? currentStep.text : "Prepárate..."}
+                </p>
+                {currentStep && countdown > 0 && (
+                    <p className="text-xl font-mono">{countdown}</p>
+                )}
+            </div>
         </div>
       </CardContent>
     </Card>

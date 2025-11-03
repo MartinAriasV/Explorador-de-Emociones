@@ -88,11 +88,6 @@ export default {
             height: '0',
           },
         },
-        'breathe-circle': {
-          '0%': { transform: 'scale(0.9)', opacity: '0.7' },
-          '50%': { transform: 'scale(1.1)', opacity: '1' },
-          '100%': { transform: 'scale(0.9)', opacity: '0.7' },
-        },
         'breathe-in': {
           from: { transform: 'scale(0.8)', opacity: '0.7' },
           to: { transform: 'scale(1)', opacity: '1' },
@@ -109,10 +104,6 @@ export default {
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
-        'breathe-circle': 'breathe-circle var(--animation-duration, 4s) ease-in-out infinite',
-        'breathe-in': 'breathe-in var(--animation-duration, 4s) ease-out forwards',
-        'breathe-out': 'breathe-out var(--animation-duration, 4s) ease-in forwards',
-        'breathe-hold': 'breathe-hold var(--animation-duration, 4s) ease-in-out forwards',
       },
     },
   },
