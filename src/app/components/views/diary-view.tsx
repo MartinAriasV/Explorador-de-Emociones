@@ -229,5 +229,3 @@ export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, upda
     </>
   );
 }
-
-    
