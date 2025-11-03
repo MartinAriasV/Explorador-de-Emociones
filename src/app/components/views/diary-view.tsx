@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -84,16 +84,16 @@ export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, upda
 
   return (
     <>
-      <Card className="w-full h-full shadow-lg overflow-hidden">
-        <div className="grid lg:grid-cols-2 h-full">
-          <ScrollArea className="lg:h-full">
-            <div className="p-6 flex flex-col">
-              <CardHeader className="p-0 mb-4">
-                <CardTitle className="text-2xl font-bold text-primary">
-                  {editingEntry ? 'Editando Entrada' : '¿Cómo te sientes hoy?'}
-                </CardTitle>
-              </CardHeader>
-              {!emotionsList || emotionsList.length === 0 ? (
+      <div className="grid lg:grid-cols-2 gap-6 h-full">
+        {/* Columna del formulario */}
+        <Card className="w-full shadow-lg flex flex-col">
+           <CardHeader>
+            <CardTitle className="text-2xl font-bold text-primary">
+              {editingEntry ? 'Editando Entrada' : '¿Cómo te sientes hoy?'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex-grow flex flex-col gap-4 overflow-y-auto">
+             {!emotionsList || emotionsList.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center py-10">
                   <p className="text-lg text-muted-foreground mb-4">¡Tu emocionario está vacío!</p>
                   <p className="mb-4 text-muted-foreground">Añade emociones para empezar a registrar tu diario.</p>
@@ -102,7 +102,7 @@ export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, upda
                   </Button>
                 </div>
               ) : (
-                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4 h-full">
                   <Input
                     type="date"
                     value={date}
@@ -133,7 +133,7 @@ export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, upda
                     rows={6}
                     required
                   />
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 mt-auto">
                     {editingEntry && (
                       <Button type="button" variant="outline" onClick={handleCancelEdit} className="w-full">
                         Cancelar
@@ -145,13 +145,16 @@ export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, upda
                   </div>
                 </form>
               )}
-            </div>
-          </ScrollArea>
-          <div className="p-6 flex flex-col h-full border-t lg:border-l lg:border-t-0">
-            <CardHeader className="p-0 mb-4">
-              <CardTitle className="text-2xl font-bold text-primary">Mis Entradas</CardTitle>
-            </CardHeader>
-            <ScrollArea className="flex-grow max-h-[calc(100vh-250px)] lg:max-h-full pr-4 -mr-4">
+          </CardContent>
+        </Card>
+
+        {/* Columna de las entradas */}
+        <Card className="w-full shadow-lg flex flex-col">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-primary">Mis Entradas</CardTitle>
+          </CardHeader>
+          <CardContent className="flex-grow overflow-hidden">
+            <ScrollArea className="h-full pr-4 -mr-4">
               {diaryEntries.length > 0 ? (
                 <div className="space-y-4">
                   {diaryEntries.slice().reverse().map((entry) => {
@@ -202,9 +205,9 @@ export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, upda
                 </div>
               )}
             </ScrollArea>
-          </div>
-        </div>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
       
       <AlertDialog open={!!aiSuggestion || isSuggestionLoading}>
         <AlertDialogContent>
