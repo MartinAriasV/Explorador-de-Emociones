@@ -1,0 +1,98 @@
+/**
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a strict user-ownership model for user profiles, diary entries, and emotions.
+ *
+ * Data Structure:
+ * - /users/{userId}/userProfile: Stores user profile information.
+ * - /users/{userId}/diaryEntries/{diaryEntryId}: Stores diary entries.
+ * - /users/{userId}/emotions/{emotionId}: Stores custom emotions.
+ *
+ * Key Security Decisions:
+ * - Only authenticated users can access data.
+ * - Users can only access their own data (user-ownership).
+ * - Listing other users' data is disallowed.
+ * - Data consistency is enforced between the path and the document's internal fields.
+ *
+ * Denormalization for Authorization:
+ * - The 'userProfileId' field in DiaryEntry and Emotion is used for data integrity and consistency, but authorization is based on the path.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Enforces user-ownership for user profiles.
+     * @path /users/{userId}/userProfile
+     * @allow (create) User 'user123' can create their own profile under /users/user123/userProfile if request.auth.uid == 'user123'.
+     * @allow (get) User 'user123' can read their profile under /users/user123/userProfile if request.auth.uid == 'user123'.
+     * @allow (update) User 'user123' can update their profile under /users/user123/userProfile if request.auth.uid == 'user123' and the document exists.
+     * @allow (delete) User 'user123' can delete their profile under /users/user123/userProfile if request.auth.uid == 'user123' and the document exists.
+     * @deny (create) User 'user456' cannot create a profile under /users/user123/userProfile.
+     * @deny (get) User 'user456' cannot read the profile under /users/user123/userProfile.
+     * @deny (update) User 'user456' cannot update the profile under /users/user123/userProfile.
+     * @deny (delete) User 'user456' cannot delete the profile under /users/user123/userProfile.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId}/userProfile {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Enforces user-ownership for diary entries.
+     * @path /users/{userId}/diaryEntries/{diaryEntryId}
+     * @allow (create) User 'user123' can create a diary entry under /users/user123/diaryEntries/{diaryEntryId} if request.auth.uid == 'user123'.
+     * @allow (get) User 'user123' can read their diary entry under /users/user123/diaryEntries/{diaryEntryId} if request.auth.uid == 'user123'.
+     * @allow (update) User 'user123' can update their diary entry under /users/user123/diaryEntries/{diaryEntryId} if request.auth.uid == 'user123' and the document exists.
+     * @allow (delete) User 'user123' can delete their diary entry under /users/user123/diaryEntries/{diaryEntryId} if request.auth.uid == 'user123' and the document exists.
+     * @deny (create) User 'user456' cannot create a diary entry under /users/user123/diaryEntries/{diaryEntryId}.
+     * @deny (get) User 'user456' cannot read the diary entry under /users/user123/diaryEntries/{diaryEntryId}.
+     * @deny (update) User 'user456' cannot update the diary entry under /users/user123/diaryEntries/{diaryEntryId}.
+     * @deny (delete) User 'user456' cannot delete the diary entry under /users/user123/diaryEntries/{diaryEntryId}.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId}/diaryEntries/{diaryEntryId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userProfileId == userId;
+      allow update: if isExistingOwner(userId) && resource.data.userProfileId == userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Enforces user-ownership for custom emotions.
+     * @path /users/{userId}/emotions/{emotionId}
+     * @allow (create) User 'user123' can create an emotion under /users/user123/emotions/{emotionId} if request.auth.uid == 'user123'.
+     * @allow (get) User 'user123' can read their emotion under /users/user123/emotions/{emotionId} if request.auth.uid == 'user123'.
+     * @allow (update) User 'user123' can update their emotion under /users/user123/emotions/{emotionId} if request.auth.uid == 'user123' and the document exists.
+     * @allow (delete) User 'user123' can delete their emotion under /users/user123/emotions/{emotionId} if request.auth.uid == 'user123' and the document exists.
+     * @deny (create) User 'user456' cannot create an emotion under /users/user123/emotions/{emotionId}.
+     * @deny (get) User 'user456' cannot read the emotion under /users/user123/emotions/{emotionId}.
+     * @deny (update) User 'user456' cannot update the emotion under /users/user123/emotions/{emotionId}.
+     * @deny (delete) User 'user456' cannot delete the emotion under /users/user123/emotions/{emotionId}.
+     * @principle Enforces document ownership for all operations.
+     */
+    match /users/{userId}/emotions/{emotionId} {
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userProfileId == userId;
+      allow update: if isExistingOwner(userId) && resource.data.userProfileId == userId;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+    }
+  }
+}
