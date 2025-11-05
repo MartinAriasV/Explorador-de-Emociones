@@ -33,7 +33,6 @@ export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, upda
 
   useEffect(() => {
     if (editingEntry) {
-        // Dates from Firestore are strings. If it includes time, split it.
         const entryDate = new Date(editingEntry.date).toISOString().split('T')[0];
         setDate(entryDate);
         setSelectedEmotionId(editingEntry.emotionId);
@@ -59,8 +58,6 @@ export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, upda
     e.preventDefault();
     if (!date || !selectedEmotionId || !text) return;
     
-    // Create a new Date object from the input string to ensure it's treated as UTC midnight
-    // Then convert to ISO string. This avoids timezone issues.
     const utcDate = new Date(date + 'T00:00:00Z').toISOString();
 
     const entryData = { date: utcDate, emotionId: selectedEmotionId, text };

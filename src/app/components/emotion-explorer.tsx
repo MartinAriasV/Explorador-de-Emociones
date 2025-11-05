@@ -173,7 +173,7 @@ export default function EmotionExplorer() {
     }
   };
   
-  if (isUserLoading || isLoadingEmotions || isLoadingEntries || isProfileLoading) {
+  if (isUserLoading || isProfileLoading) {
     return <div className="flex h-screen w-screen items-center justify-center">Cargando...</div>;
   }
 
