@@ -74,7 +74,7 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
   const [showQuiz, setShowQuiz] = useState(false);
 
   // Tour state
-  const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(isNewUser);
+  const [isNewUserFlow, setIsNewUserFlow] = useState(isNewUser);
   const [tourStep, setTourStep] = useState(0);
 
   // Refs for the tour
@@ -83,10 +83,9 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
     return acc;
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
 
-
   const checkAndUnlockRewards = (currentProfile: UserProfile, currentDiaryEntries: DiaryEntry[], currentEmotions: Emotion[]) => {
     if (!currentProfile) return;
-
+  
     const previouslyUnlocked = new Set(currentProfile.unlockedAnimalIds || []);
     let newUnlockedIds = [...(currentProfile.unlockedAnimalIds || [])];
     let justUnlockedReward: Reward | null = null;
@@ -96,35 +95,39 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
     const emotionCount = currentEmotions.length;
     
     for (const reward of REWARDS) {
-        if (previouslyUnlocked.has(reward.animal.id)) continue;
-
-        let unlocked = false;
-        switch(reward.type) {
-            case 'streak':
-                unlocked = dailyStreak >= reward.value;
-                break;
-            case 'entry_count':
-                unlocked = entryCount >= reward.value;
-                break;
-            case 'emotion_count':
-                unlocked = emotionCount >= reward.value;
-                break;
-            case 'share':
-                 // This is handled by handleShare
-                break;
-        }
-
-        if (unlocked) {
+      if (previouslyUnlocked.has(reward.animal.id)) continue;
+  
+      let unlocked = false;
+      switch(reward.type) {
+        case 'streak':
+          unlocked = dailyStreak >= reward.value;
+          break;
+        case 'entry_count':
+          unlocked = entryCount >= reward.value;
+          break;
+        case 'emotion_count':
+          unlocked = emotionCount >= reward.value;
+          break;
+        case 'share':
+          // This is handled by handleShare
+          break;
+      }
+  
+      if (unlocked) {
+        if (!newUnlockedIds.includes(reward.animal.id)) {
             newUnlockedIds.push(reward.animal.id);
             if (!justUnlockedReward) {
                 justUnlockedReward = reward;
             }
         }
+      }
     }
-
+  
     if (newUnlockedIds.length > (currentProfile.unlockedAnimalIds?.length || 0)) {
-        setUserProfile({ unlockedAnimalIds: newUnlockedIds });
+      setUserProfile({ unlockedAnimalIds: newUnlockedIds });
+      if (justUnlockedReward) {
         setNewlyUnlockedReward(justUnlockedReward);
+      }
     }
   };
 
@@ -132,9 +135,12 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
     if (!userProfile) return;
     const shareReward = REWARDS.find(r => r.id === 'share-1');
     if (shareReward && !userProfile.unlockedAnimalIds?.includes(shareReward.animal.id)) {
-        const newUnlockedIds = [...(userProfile.unlockedAnimalIds || []), shareReward.animal.id];
+      const currentUnlocked = userProfile.unlockedAnimalIds || [];
+      if (!currentUnlocked.includes(shareReward.animal.id)) {
+        const newUnlockedIds = [...currentUnlocked, shareReward.animal.id];
         setUserProfile({ unlockedAnimalIds: newUnlockedIds });
         setNewlyUnlockedReward(shareReward);
+      }
     }
   };
 
@@ -262,19 +268,21 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
   };
 
   const startTour = () => {
-    setIsWelcomeDialogOpen(false);
+    setIsNewUserFlow(false);
+    const firstStepView = TOUR_STEPS[0].refKey.replace('Ref', '') as View;
+    setView(firstStepView);
     setTourStep(1);
-    setView('diary');
-  };
-
-  const skipTour = () => {
-    setIsWelcomeDialogOpen(false);
-    setTourStep(0);
   };
   
+  const skipTour = () => {
+    setIsNewUserFlow(false);
+    setTourStep(0);
+  };
+
   const nextTourStep = () => {
-    if (tourStep < TOUR_STEPS.length) {
-      const nextView = TOUR_STEPS[tourStep].refKey.replace('Ref', '') as View;
+    const nextStepIndex = tourStep; // Current step is tourStep - 1, next step is tourStep
+    if (nextStepIndex < TOUR_STEPS.length) {
+      const nextView = TOUR_STEPS[nextStepIndex].refKey.replace('Ref', '') as View;
       setView(nextView);
       setTourStep(tourStep + 1);
     } else {
@@ -370,7 +378,7 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
       )}
 
       <WelcomeDialog
-        open={isWelcomeDialogOpen}
+        open={isNewUserFlow}
         onStartTour={startTour}
         onSkipTour={skipTour}
       />
@@ -412,7 +420,7 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button 
-              onClick={() => setTourStep(1)} 
+              onClick={() => startTour()} 
               className="fixed bottom-6 right-6 w-16 h-16 rounded-full bg-accent shadow-lg animate-pulse hover:animate-none"
             >
               <Map className="w-8 h-8" />

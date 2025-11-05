@@ -67,35 +67,29 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
       return;
     }
 
-    // Always open the mobile sidebar if the tour is active on mobile
-    if (isMobile) {
+    if (isMobile && !openMobile) {
       setOpenMobile(true);
     } else {
-        // For desktop, calculate immediately.
-        calculateAndSetPosition();
+      calculateAndSetPosition();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, isMobile, setOpenMobile]);
 
 
   useEffect(() => {
-    // This effect is specifically for mobile to handle the sidebar animation.
     if (!isMobile || step === 0 || !openMobile) return;
 
-    // Use a MutationObserver to wait for the sidebar to be fully in the DOM and visible.
     const observer = new MutationObserver((mutations, obs) => {
         if (calculateAndSetPosition()) {
-            // Once the position is successfully calculated, we don't need to observe anymore.
             obs.disconnect();
         }
     });
 
-    // Start observing the body for child list changes. This will detect when the sidebar <div.dialog> is added.
     observer.observe(document.body, {
         childList: true,
         subtree: true,
     });
     
-    // As a fallback, also try to calculate position after a short delay, in case the element is already there.
     const timeoutId = setTimeout(() => {
         if(calculateAndSetPosition()) {
             observer.disconnect();
@@ -107,8 +101,8 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
         observer.disconnect();
         clearTimeout(timeoutId);
     };
-
-  }, [openMobile, step, isMobile]); // Rerun when the mobile sidebar opens/closes or the step changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openMobile, step, isMobile]);
 
 
   const handleNext = () => {
@@ -132,10 +126,10 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
   const { title, description } = steps[step - 1];
 
   return (
-    <div className="fixed inset-0 z-[60]">
+    <div className="fixed inset-0 z-[60] pointer-events-auto">
       {/* Highlight */}
       <div
-        className="fixed transition-all duration-300 ease-in-out border-2 border-accent rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]"
+        className="fixed transition-all duration-300 ease-in-out border-2 border-accent rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] pointer-events-none"
         style={{
           top: `${position.top - 4}px`,
           left: `${position.left - 4}px`,
@@ -147,7 +141,7 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
       {/* Popup */}
       <div
         ref={popupRef}
-        className={cn("fixed bg-card text-card-foreground p-4 rounded-lg shadow-2xl w-72 transition-all duration-300 ease-in-out", position.width === 0 ? 'opacity-0' : 'opacity-100')}
+        className={cn("fixed bg-card text-card-foreground p-4 rounded-lg shadow-2xl w-72 transition-all duration-300 ease-in-out pointer-events-auto", position.width === 0 ? 'opacity-0' : 'opacity-100')}
         style={{
           top: `${popupPosition.top}px`,
           left: `${popupPosition.left}px`,
