@@ -172,7 +172,7 @@ export default function EmotionExplorer() {
     }
   };
   
-  if (isUserLoading || isLoadingEmotions || isLoadingEntries) {
+  if (isUserLoading || isLoadingEmotions || isLoadingEntries || (user && isProfileLoading && !userProfile)) {
     return <div className="flex h-screen w-screen items-center justify-center">Cargando...</div>;
   }
 
@@ -180,8 +180,7 @@ export default function EmotionExplorer() {
     return <LoginView />;
   }
   
-  // While profile is loading for the first time OR if there is no profile yet (and we're about to create it)
-  if (isProfileLoading && !userProfile) {
+  if (!userProfile) {
     return <div className="flex h-screen w-screen items-center justify-center">Cargando perfil...</div>;
   }
 
@@ -189,7 +188,7 @@ export default function EmotionExplorer() {
   return (
     <SidebarProvider>
       <div className="flex h-screen w-screen bg-background">
-        <AppSidebar view={view} setView={setView} userProfile={userProfile!} diaryEntries={diaryEntries} refs={tourRefs} />
+        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries} refs={tourRefs} />
         <main className="flex-1 flex flex-col overflow-hidden">
           <header className="p-2 md:hidden flex items-center border-b">
              <MobileMenuButton />
