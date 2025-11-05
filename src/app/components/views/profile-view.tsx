@@ -17,26 +17,31 @@ interface ProfileViewProps {
   setUserProfile: (profile: Omit<UserProfile, 'id'>) => void;
 }
 
-const defaultProfile: UserProfile = {
+const defaultProfile: Omit<UserProfile, 'id'> = {
   name: 'Usuario',
   avatar: '😊',
   avatarType: 'emoji',
 };
 
 export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
-  const profileData = userProfile || defaultProfile;
-
-  const [localName, setLocalName] = useState(profileData.name);
-  const [localAvatar, setLocalAvatar] = useState(profileData.avatar);
-  const [localAvatarType, setLocalAvatarType] = useState(profileData.avatarType);
+  // Use local state to manage form fields, initialized from userProfile or defaults
+  const [localName, setLocalName] = useState(userProfile?.name || defaultProfile.name);
+  const [localAvatar, setLocalAvatar] = useState(userProfile?.avatar || defaultProfile.avatar);
+  const [localAvatarType, setLocalAvatarType] = useState(userProfile?.avatarType || defaultProfile.avatarType);
   const [saved, setSaved] = useState(false);
   const { toast } = useToast();
 
+  // Effect to sync local state if the userProfile prop changes from Firestore
   useEffect(() => {
     if (userProfile) {
       setLocalName(userProfile.name);
       setLocalAvatar(userProfile.avatar);
       setLocalAvatarType(userProfile.avatarType);
+    } else {
+      // If profile is null (new user), reset to defaults
+      setLocalName(defaultProfile.name);
+      setLocalAvatar(defaultProfile.avatar);
+      setLocalAvatarType(defaultProfile.avatarType);
     }
   }, [userProfile]);
 
@@ -50,6 +55,7 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
       });
       return;
     }
+    // This function now handles both CREATING and UPDATING the document in Firestore
     setUserProfile({ name: localName, avatar: localAvatar, avatarType: localAvatarType });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -92,9 +98,9 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
                             {emoji}
                         </button>
                     ))}
-                    {profileData.avatarType === 'generated' && profileData.avatar && (
-                        <button onClick={() => selectAvatar(profileData.avatar, 'generated')} className={cn('relative aspect-square rounded-lg overflow-hidden', localAvatar === profileData.avatar && localAvatarType === 'generated' ? 'ring-2 ring-primary' : 'hover:opacity-80')}>
-                            <Image src={profileData.avatar} alt="Avatar generado por IA" fill sizes="64px"/>
+                    {userProfile?.avatarType === 'generated' && userProfile?.avatar && (
+                        <button onClick={() => selectAvatar(userProfile.avatar, 'generated')} className={cn('relative aspect-square rounded-lg overflow-hidden', localAvatar === userProfile.avatar && localAvatarType === 'generated' ? 'ring-2 ring-primary' : 'hover:opacity-80')}>
+                            <Image src={userProfile.avatar} alt="Avatar generado por IA" fill sizes="64px"/>
                         </button>
                     )}
                 </div>

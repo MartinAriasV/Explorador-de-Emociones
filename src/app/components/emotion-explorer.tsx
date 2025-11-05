@@ -50,35 +50,12 @@ export default function EmotionExplorer() {
     return acc;
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
 
-  // This effect ensures a profile document is created for new users.
-  useEffect(() => {
-    // Exit if we're still waiting for user auth or the user is not logged in.
-    if (isUserLoading || !user || !userProfileRef) {
-      return;
-    }
-  
-    // If loading is finished and there's still no profile, create one.
-    if (!isProfileLoading && !userProfile) {
-      const defaultProfile: Omit<UserProfile, 'id'> = {
-        name: 'Usuario',
-        avatar: '😊',
-        avatarType: 'emoji',
-      };
-      setDocumentNonBlocking(userProfileRef, defaultProfile, {});
-    }
-  }, [user, userProfile, isUserLoading, isProfileLoading, userProfileRef]);
-
 
   const setUserProfile = (profile: Omit<UserProfile, 'id'>) => {
     if (!userProfileRef) return;
-    const profileToSave: UserProfile = {
-      name: profile.name,
-      avatar: profile.avatar,
-      avatarType: profile.avatarType,
-    };
     // Use setDoc with merge:true. This will CREATE the document if it doesn't exist,
-    // or UPDATE it if it does.
-    setDocumentNonBlocking(userProfileRef, profileToSave, { merge: true });
+    // or UPDATE it if it does. This is the core of the robust save/create logic.
+    setDocumentNonBlocking(userProfileRef, profile, { merge: true });
   };
 
   const saveEmotion = (emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string }) => {
@@ -212,7 +189,6 @@ export default function EmotionExplorer() {
     return <LoginView />;
   }
   
-  // Wait for the profile to finish its initial load before rendering the main app.
   if (isProfileLoading) {
      return <div className="flex h-screen w-screen items-center justify-center">Cargando perfil...</div>;
   }
