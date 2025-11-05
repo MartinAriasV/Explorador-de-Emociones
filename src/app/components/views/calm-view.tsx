@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -11,28 +10,29 @@ interface BreathStep {
   text: string;
   duration: number;
   animation: string;
-  colorClass: string;
+  gradient: string;
 }
 
 const breathCycles: Record<BreathMode, BreathStep[]> = {
   circle: [
-    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in', colorClass: 'bg-primary/80' },
-    { text: 'Exhala', duration: 6000, animation: 'animate-breathe-out', colorClass: 'bg-accent/80' },
+    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in', gradient: 'from-primary/70 to-blue-300/70' },
+    { text: 'Exhala', duration: 6000, animation: 'animate-breathe-out', gradient: 'from-accent/70 to-pink-300/70' },
   ],
   square: [
-    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in', colorClass: 'bg-primary/80' },
-    { text: 'Sostén', duration: 4000, animation: 'animate-breathe-hold', colorClass: 'bg-blue-300/80' },
-    { text: 'Exhala', duration: 4000, animation: 'animate-breathe-out', colorClass: 'bg-accent/80' },
+    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in', gradient: 'from-primary/70 to-blue-300/70' },
+    { text: 'Sostén', duration: 4000, animation: 'animate-breathe-hold', gradient: 'from-purple-400/70 to-indigo-400/70' },
+    { text: 'Exhala', duration: 4000, animation: 'animate-breathe-out', gradient: 'from-accent/70 to-pink-300/70' },
+    { text: 'Sostén', duration: 4000, animation: 'animate-breathe-hold', gradient: 'from-purple-400/70 to-indigo-400/70' },
   ],
   '4-7-8': [
-    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in', colorClass: 'bg-primary/80' },
-    { text: 'Sostén', duration: 7000, animation: 'animate-breathe-hold', colorClass: 'bg-blue-300/80' },
-    { text: 'Exhala', duration: 8000, animation: 'animate-breathe-out', colorClass: 'bg-accent/80' },
+    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in', gradient: 'from-primary/70 to-blue-300/70' },
+    { text: 'Sostén', duration: 7000, animation: 'animate-breathe-hold', gradient: 'from-purple-400/70 to-indigo-400/70' },
+    { text: 'Exhala', duration: 8000, animation: 'animate-breathe-out', gradient: 'from-accent/70 to-pink-300/70' },
   ],
 };
 
 const PREP_TIME = 3000;
-const PREP_COLOR = 'bg-purple-300/80';
+const PREP_GRADIENT = 'from-gray-400/70 to-gray-500/70';
 
 export function CalmView() {
   const [mode, setMode] = useState<BreathMode>('circle');
@@ -104,59 +104,59 @@ export function CalmView() {
   const animationStyle = {
     animationName: currentStep?.animation.replace('animate-',''),
     animationDuration: currentStep ? `${currentStep.duration}ms` : 'none',
-    animationTimingFunction: 'ease-in-out',
+    animationTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
     animationFillMode: 'forwards',
   } as React.CSSProperties;
   
   const nextActionText = breathCycles[mode][0].text;
 
   return (
-    <Card className="w-full h-full shadow-lg flex flex-col items-center justify-center text-center">
-      <CardHeader>
-        <CardTitle className="text-3xl font-bold text-primary">Rincón de la Calma</CardTitle>
-        <CardDescription>Elige un ejercicio de respiración y sigue al guía visual.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col items-center gap-8">
-        <div className="flex gap-2 p-1 bg-primary/10 rounded-lg">
-          {(['circle', 'square', '4-7-8'] as BreathMode[]).map((m) => (
-            <Button
-              key={m}
-              onClick={() => setMode(m)}
-              variant={mode === m ? 'default' : 'ghost'}
-              className={cn(mode === m ? 'bg-primary' : 'text-primary', 'capitalize')}
-            >
-              {m === 'circle' ? 'Círculo' : m === 'square' ? 'Cuadrada' : '4-7-8'}
-            </Button>
-          ))}
-        </div>
-        <div 
-          className={cn(
-            "w-60 h-60 flex items-center justify-center transition-all duration-500",
-            isPreparing ? PREP_COLOR : currentStep?.colorClass,
-            mode === 'circle' ? 'rounded-full' : 'rounded-xl'
-          )}
-          style={!isPreparing ? animationStyle : {}}
-        >
-            <div className={cn("text-center", isPreparing ? 'text-purple-800' : 'text-white')}>
-              {isPreparing ? (
-                <>
-                  <p className="text-xl">Prepárate para:</p>
-                  <p className="text-2xl font-bold">{nextActionText}</p>
-                  <p className="text-xl font-mono mt-2">en {countdown}</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-2xl font-bold">
-                      {currentStep ? currentStep.text : "..."}
-                  </p>
-                  {currentStep && (
-                      <p className="text-xl font-mono">{countdown}</p>
-                  )}
-                </>
-              )}
-            </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="w-full h-full flex flex-col items-center justify-center text-center p-4">
+      <div className="mb-8">
+        <h1 className="text-3xl md:text-4xl font-bold text-primary">Rincón de la Calma</h1>
+        <p className="text-muted-foreground mt-2">Elige un ejercicio de respiración y sigue al guía visual.</p>
+      </div>
+
+      <div className="flex gap-2 p-1 bg-primary/10 rounded-full mb-12">
+        {(['circle', 'square', '4-7-8'] as BreathMode[]).map((m) => (
+          <Button
+            key={m}
+            onClick={() => setMode(m)}
+            variant={mode === m ? 'default' : 'ghost'}
+            className={cn(mode === m ? 'bg-primary' : 'text-primary', 'capitalize rounded-full')}
+          >
+            {m === 'circle' ? 'Círculo' : m === 'square' ? 'Cuadrada' : '4-7-8'}
+          </Button>
+        ))}
+      </div>
+
+      <div 
+        className={cn(
+          "w-64 h-64 md:w-80 md:h-80 flex items-center justify-center bg-gradient-to-br transition-all duration-1000",
+          isPreparing ? PREP_GRADIENT : currentStep?.gradient,
+          mode === 'circle' ? 'rounded-full' : 'rounded-3xl',
+          'shadow-2xl shadow-primary/20'
+        )}
+        style={!isPreparing ? animationStyle : {}}
+      >
+          <div className="text-center text-white/90">
+            {isPreparing ? (
+              <>
+                <p className="text-xl">Prepárate...</p>
+                <p className="text-5xl font-bold font-mono mt-2">{countdown}</p>
+              </>
+            ) : (
+              <>
+                <p className="text-4xl font-semibold">
+                    {currentStep ? currentStep.text : "..."}
+                </p>
+                {currentStep && (
+                    <p className="text-2xl font-mono mt-2">{countdown}</p>
+                )}
+              </>
+            )}
+          </div>
+      </div>
+    </div>
   );
 }
