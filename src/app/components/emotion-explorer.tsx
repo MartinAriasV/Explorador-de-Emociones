@@ -86,7 +86,6 @@ export default function EmotionExplorer() {
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
 
   useEffect(() => {
-    // This effect handles the creation of a profile for a new user.
     if (!isUserLoading && user && !isProfileLoading && !userProfile) {
       const newProfile: UserProfile = {
         id: user.uid,
@@ -97,9 +96,7 @@ export default function EmotionExplorer() {
         emotionCount: 0,
       };
       
-      // Create the profile document in Firestore.
       setDoc(userProfileRef!, newProfile, { merge: true }).then(() => {
-        // Only after the profile is successfully created, we trigger the new user flow.
         setIsNewUserFlow(true);
       });
     }
@@ -135,12 +132,10 @@ export default function EmotionExplorer() {
     if (rewardsToUnlock.length > 0) {
       const newUnlockedIds = [...unlockedIds, ...rewardsToUnlock.map(r => r.animal.id)];
       setUserProfile({ unlockedAnimalIds: newUnlockedIds });
-      // Show popup for the first unlocked reward in the batch
       setNewlyUnlockedReward(rewardsToUnlock[0]);
     }
   };
 
-  // Special handler for "share" reward
   const handleShare = () => {
     if (!userProfile) return;
     const shareReward = REWARDS.find(r => r.id === 'share-1');
@@ -166,7 +161,6 @@ export default function EmotionExplorer() {
       : addDocumentNonBlocking(emotionsCollection, { ...emotionData, userProfileId: user.uid });
     
     promise.then(() => {
-        // Use a snapshot of the current state to check for rewards
         const currentEmotions = emotionsList || [];
         const newEmotionsList = emotionData.id 
             ? currentEmotions.map(e => e.id === emotionData.id ? {...e, ...emotionData} : e)
@@ -441,5 +435,3 @@ export default function EmotionExplorer() {
     </SidebarProvider>
   );
 }
-
-    
