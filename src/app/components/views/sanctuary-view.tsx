@@ -65,15 +65,15 @@ function AnimalCard({ animal, isUnlocked }: { animal: SpiritAnimal; isUnlocked: 
           <DialogTitle className="text-2xl text-primary">{isUnlocked ? animal.name : 'Animal Bloqueado'}</DialogTitle>
           <DialogDescription>
             {isUnlocked ? (
-                <>
-                    <p className="font-bold text-lg text-primary">{animal.emotion}</p>
-                    <p className="text-sm text-muted-foreground mt-1">{animal.description}</p>
-                </>
+                <div className="space-y-1">
+                    <span className="block font-bold text-lg text-primary">{animal.emotion}</span>
+                    <span className="block text-sm text-muted-foreground mt-1">{animal.description}</span>
+                </div>
             ) : (
-                <>
-                    <p className="font-bold text-lg text-primary">¿Cómo desbloquear?</p>
-                    <p className="text-sm text-muted-foreground mt-1">{animal.unlockHint}</p>
-                </>
+                <div className="space-y-1">
+                    <span className="block font-bold text-lg text-primary">¿Cómo desbloquear?</span>
+                    <span className="block text-sm text-muted-foreground mt-1">{animal.unlockHint}</span>
+                </div>
             )}
           </DialogDescription>
         </DialogHeader>
