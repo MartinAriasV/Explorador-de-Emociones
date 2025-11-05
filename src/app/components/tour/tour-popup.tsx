@@ -74,7 +74,7 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
         // For desktop, calculate immediately.
         calculateAndSetPosition();
     }
-  }, [step, isMobile]);
+  }, [step, isMobile, setOpenMobile]);
 
 
   useEffect(() => {
@@ -132,7 +132,7 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
   const { title, description } = steps[step - 1];
 
   return (
-    <div className="fixed inset-0 z-40">
+    <div className="fixed inset-0 z-[60]">
       {/* Highlight */}
       <div
         className="fixed transition-all duration-300 ease-in-out border-2 border-accent rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]"
@@ -147,7 +147,7 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
       {/* Popup */}
       <div
         ref={popupRef}
-        className={cn("fixed bg-card text-card-foreground p-4 rounded-lg shadow-2xl w-72 z-50 transition-all duration-300 ease-in-out", position.width === 0 ? 'opacity-0' : 'opacity-100')}
+        className={cn("fixed bg-card text-card-foreground p-4 rounded-lg shadow-2xl w-72 transition-all duration-300 ease-in-out", position.width === 0 ? 'opacity-0' : 'opacity-100')}
         style={{
           top: `${popupPosition.top}px`,
           left: `${popupPosition.left}px`,
