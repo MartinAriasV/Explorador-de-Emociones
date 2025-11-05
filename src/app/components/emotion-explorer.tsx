@@ -56,19 +56,6 @@ export default function EmotionExplorer() {
     return acc;
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
 
-
-  // Effect to create a default profile for new users
-  useEffect(() => {
-    // Only run if we have a user, a valid ref, and loading is complete
-    if (user && userProfileRef && !isProfileLoading) {
-      // If the profile document doesn't exist, create it.
-      if (!userProfile) {
-        console.log("User profile does not exist, creating one.");
-        setDocumentNonBlocking(userProfileRef, defaultProfile, { merge: true });
-      }
-    }
-  }, [user, userProfileRef, isProfileLoading, userProfile]);
-
   const setUserProfile = (profile: Omit<UserProfile, 'id'>) => {
     if (!userProfileRef) return;
     // Use setDoc with merge:true. This will CREATE the document if it doesn't exist,
@@ -205,24 +192,19 @@ export default function EmotionExplorer() {
     );
   };
   
-  if (isUserLoading) {
-    return <div className="flex h-screen w-screen items-center justify-center">Cargando...</div>;
+  if (isUserLoading || isProfileLoading) {
+    return (
+        <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-lg text-primary">Cargando...</p>
+        </div>
+    );
   }
 
   if (!user) {
     return <LoginView />;
   }
   
-  if (isProfileLoading) {
-    return (
-        <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
-            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-lg text-primary">Cargando perfil...</p>
-        </div>
-    );
-  }
-
-
   return (
     <SidebarProvider>
       <div className="flex h-screen w-screen bg-background">
