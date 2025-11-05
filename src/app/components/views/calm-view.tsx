@@ -25,9 +25,9 @@ const breathCycles: Record<BreathMode, BreathStep[]> = {
     { text: 'Sostén', duration: 4000, animation: 'animate-breathe-hold', gradient: 'from-purple-400/70 to-indigo-400/70' },
   ],
   '4-7-8': [
-    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in', gradient: 'from-primary/70 to-blue-300/70' },
+    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in-triangle', gradient: 'from-primary/70 to-blue-300/70' },
     { text: 'Sostén', duration: 7000, animation: 'animate-breathe-hold', gradient: 'from-purple-400/70 to-indigo-400/70' },
-    { text: 'Exhala', duration: 8000, animation: 'animate-breathe-out', gradient: 'from-accent/70 to-pink-300/70' },
+    { text: 'Exhala', duration: 8000, animation: 'animate-breathe-out-triangle', gradient: 'from-accent/70 to-pink-300/70' },
   ],
 };
 
@@ -129,17 +129,20 @@ export function CalmView() {
           </Button>
         ))}
       </div>
-
-      <div 
-        className={cn(
-          "w-64 h-64 md:w-80 md:h-80 flex items-center justify-center bg-gradient-to-br transition-all duration-1000",
-          isPreparing ? PREP_GRADIENT : currentStep?.gradient,
-          mode === 'circle' ? 'rounded-full' : 'rounded-3xl',
-          'shadow-2xl shadow-primary/20'
-        )}
-        style={!isPreparing ? animationStyle : {}}
-      >
-          <div className="text-center text-white/90">
+      <div className="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center">
+        <div 
+          className={cn(
+            "w-full h-full bg-gradient-to-br transition-all duration-1000",
+            isPreparing ? PREP_GRADIENT : currentStep?.gradient,
+            mode === 'circle' && 'rounded-full',
+            mode === 'square' && 'rounded-3xl',
+            mode === '4-7-8' && '[clip-path:polygon(50%_0%,0%_100%,100%_100%)]',
+            'shadow-2xl shadow-primary/20'
+          )}
+          style={!isPreparing ? animationStyle : {}}
+        >
+        </div>
+         <div className="absolute text-center text-white/90">
             {isPreparing ? (
               <>
                 <p className="text-xl">Prepárate...</p>

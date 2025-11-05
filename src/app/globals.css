@@ -105,6 +105,12 @@ body {
   .animate-breathe-out {
     animation-name: breathe-out;
   }
+  .animate-breathe-in-triangle {
+    animation-name: breathe-in-triangle;
+  }
+  .animate-breathe-out-triangle {
+    animation-name: breathe-out-triangle;
+  }
   .animate-breathe-hold {
     animation-name: breathe-hold;
   }
@@ -141,6 +147,17 @@ body {
   from { transform: scale(1); opacity: 1; }
   to { transform: scale(0.8); opacity: 0.7; }
 }
+
+@keyframes breathe-in-triangle {
+  from { transform: scale(0.9); opacity: 0.7; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes breathe-out-triangle {
+  from { transform: scale(1); opacity: 1; }
+  to { transform: scale(0.9); opacity: 0.7; }
+}
+
 
 @keyframes breathe-hold {
   0% { transform: scale(1); opacity: 1; }

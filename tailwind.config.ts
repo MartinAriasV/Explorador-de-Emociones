@@ -114,6 +114,14 @@ export default {
             transform: 'translateY(0)',
           },
         },
+        'breathe-in-triangle': {
+          from: { transform: 'scale(0.9)', opacity: '0.7' },
+          to: { transform: 'scale(1)', opacity: '1' },
+        },
+        'breathe-out-triangle': {
+          from: { transform: 'scale(1)', opacity: '1' },
+          to: { transform: 'scale(0.9)', opacity: '0.7' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
