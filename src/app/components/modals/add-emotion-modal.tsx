@@ -77,7 +77,7 @@ export function AddEmotionModal({ initialData, onSave, onClose, onDelete }: AddE
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3 text-2xl">
             <span className="text-3xl">{icon || initialData.icon}</span>
-            {isEditing ? `Editar "${name}"` : `Añadir "${name}"`}
+            {isEditing ? `Editar "${initialData.name}"` : `Añadir "${name}"`}
           </DialogTitle>
           <DialogDescription>
             {isEditing ? 'Modifica los detalles de tu emoción.' : 'Personaliza esta emoción antes de añadirla a tu emocionario.'}
