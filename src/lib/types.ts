@@ -51,7 +51,7 @@ export type SpiritAnimal = {
 
 export type Reward = {
   id: string;
-  type: 'streak' | 'entry_count' | 'emotion_count';
+  type: 'streak' | 'entry_count' | 'emotion_count' | 'share' | 'special';
   value: number;
   animal: SpiritAnimal;
 };

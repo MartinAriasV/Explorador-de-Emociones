@@ -52,16 +52,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
         emotion: 'Entusiasmo',
         description: 'Representa la alegría, la energía y la capacidad de encontrar la dulzura en cada día.',
         rarity: 'Común',
-        unlockHint: 'Se consigue al iniciar tu viaje. ¡Registra tu primera emoción!',
-    },
-    {
-        id: 'patient-turtle',
-        name: 'Tortuga Paciente',
-        icon: '🐢',
-        emotion: 'Calma',
-        description: 'Simboliza la perseverancia, la estabilidad y la sabiduría de ir a tu propio ritmo.',
-        rarity: 'Común',
-        unlockHint: 'Se desbloquea al registrar 25 entradas en tu diario.',
+        unlockHint: 'Se consigue al registrar tu primera emoción en el diario.',
     },
     {
         id: 'social-butterfly',
@@ -82,13 +73,13 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
         unlockHint: 'Se consigue al mantener una racha de 3 días.',
     },
     {
-        id: 'empathetic-elephant',
-        name: 'Elefante Empático',
-        icon: '🐘',
-        emotion: 'Empatía',
-        description: 'Representa la memoria, la fuerza de los lazos afectivos y un profundo entendimiento de los demás.',
+        id: 'patient-turtle',
+        name: 'Tortuga Paciente',
+        icon: '🐢',
+        emotion: 'Calma',
+        description: 'Simboliza la perseverancia, la estabilidad y la sabiduría de ir a tu propio ritmo.',
         rarity: 'Poco Común',
-        unlockHint: 'Se desbloquea al alcanzar 50 entradas en tu diario.',
+        unlockHint: 'Se desbloquea al registrar 25 entradas en tu diario.',
     },
     {
         id: 'loyal-dog',
@@ -100,6 +91,15 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
         unlockHint: 'Se obtiene al añadir más de 10 emociones a tu emocionario.',
     },
     {
+        id: 'empathetic-elephant',
+        name: 'Elefante Empático',
+        icon: '🐘',
+        emotion: 'Empatía',
+        description: 'Representa la memoria, la fuerza de los lazos afectivos y un profundo entendimiento de los demás.',
+        rarity: 'Raro',
+        unlockHint: 'Se desbloquea al alcanzar 50 entradas en tu diario.',
+    },
+    {
         id: 'loyal-wolf',
         name: 'Lobo Leal',
         icon: '🐺',
@@ -109,15 +109,6 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
         unlockHint: 'Se consigue al mantener una racha de 7 días.',
     },
     {
-        id: 'brave-eagle',
-        name: 'Águila Valiente',
-        icon: '🦅',
-        emotion: 'Valentía',
-        description: 'Simboliza la libertad, la visión clara y el coraje para volar por encima de los desafíos.',
-        rarity: 'Raro',
-        unlockHint: 'Se desbloquea al alcanzar 100 entradas en el diario.',
-    },
-    {
         id: 'proud-lion',
         name: 'León Orgulloso',
         icon: '🦁',
@@ -125,6 +116,15 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
         description: 'Representa la fuerza, el liderazgo y la satisfacción de alcanzar metas importantes.',
         rarity: 'Raro',
         unlockHint: 'Se obtiene al mantener una racha de 14 días.',
+    },
+     {
+        id: 'brave-eagle',
+        name: 'Águila Valiente',
+        icon: '🦅',
+        emotion: 'Valentía',
+        description: 'Simboliza la libertad, la visión clara y el coraje para volar por encima de los desafíos.',
+        rarity: 'Épico',
+        unlockHint: 'Se desbloquea al alcanzar 100 entradas en el diario.',
     },
     {
         id: 'wise-owl',
@@ -169,6 +169,9 @@ export const REWARDS: Reward[] = [
     { id: 'entry-100', type: 'entry_count', value: 100, animal: SPIRIT_ANIMALS.find(a => a.id === 'brave-eagle')! },
     // Emotion count based rewards
     { id: 'emotion-10', type: 'emotion_count', value: 10, animal: SPIRIT_ANIMALS.find(a => a.id === 'loyal-dog')! },
+    // Special rewards
+    { id: 'share-1', type: 'share', value: 1, animal: SPIRIT_ANIMALS.find(a => a.id === 'social-butterfly')! },
+    { id: 'phoenix-reward', type: 'special', value: 1, animal: SPIRIT_ANIMALS.find(a => a.id === 'resilient-phoenix')! },
 ];
 
 export const QUIZ_QUESTIONS: QuizQuestion[] = [

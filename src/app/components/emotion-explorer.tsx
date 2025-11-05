@@ -71,7 +71,6 @@ export default function EmotionExplorer() {
 
   const [addingEmotionData, setAddingEmotionData] = useState<Partial<Emotion> & { id?: string } | null>(null);
   const [newlyUnlockedReward, setNewlyUnlockedReward] = useState<Reward | null>(null);
-  const [sharedOnce, setSharedOnce] = useLocalStorage('emotion-explorer-shared-once', false);
   
   // Quiz state
   const [quizDate, setQuizDate] = useState<Date | null>(null);
@@ -93,6 +92,8 @@ export default function EmotionExplorer() {
         ...defaultProfile,
         id: user.uid,
         name: user.email?.split('@')[0] || defaultProfile.name,
+        unlockedAnimalIds: [],
+        emotionCount: 0,
       };
       setDocumentNonBlocking(userProfileRef!, newProfile, { merge: true }).then(() => {
         setShowWelcome(true);
@@ -101,13 +102,13 @@ export default function EmotionExplorer() {
   }, [isUserLoading, user, isProfileLoading, userProfile, userProfileRef, setShowWelcome]);
 
 
-  const checkAndUnlockRewards = () => {
-    if (isProfileLoading || !userProfile || !diaryEntries || !emotionsList) return;
+  const checkAndUnlockRewards = (currentProfile: UserProfile, currentDiaryEntries: DiaryEntry[], currentEmotions: Emotion[]) => {
+    if (!currentProfile) return;
 
-    const dailyStreak = calculateDailyStreak(diaryEntries);
-    const entryCount = diaryEntries.length;
-    const emotionCount = emotionsList.length;
-    const unlockedIds = userProfile.unlockedAnimalIds || [];
+    const dailyStreak = calculateDailyStreak(currentDiaryEntries);
+    const entryCount = currentDiaryEntries.length;
+    const emotionCount = currentEmotions.length;
+    const unlockedIds = currentProfile.unlockedAnimalIds || [];
     
     const rewardsToUnlock = REWARDS.filter(reward => {
         if (unlockedIds.includes(reward.animal.id)) return false;
@@ -119,7 +120,9 @@ export default function EmotionExplorer() {
                 return entryCount >= reward.value;
             case 'emotion_count':
                 return emotionCount >= reward.value;
-            // The 'share' type is handled separately
+            case 'share':
+                 // This is handled by a separate function
+                return false;
             default:
                 return false;
         }
@@ -133,22 +136,14 @@ export default function EmotionExplorer() {
     }
   };
 
-  useEffect(() => {
-    // This effect runs once when data is loaded to check for rewards.
-    // It doesn't trigger popups, just updates the profile if needed.
-    checkAndUnlockRewards();
-  }, [isProfileLoading, userProfile, diaryEntries, emotionsList]);
-
   // Special handler for "share" reward
   const handleShare = () => {
-    if (!sharedOnce) {
-        const shareReward = REWARDS.find(r => r.id === 'share-1');
-        if (shareReward && !userProfile?.unlockedAnimalIds?.includes(shareReward.animal.id)) {
-            const newUnlockedIds = [...(userProfile?.unlockedAnimalIds || []), shareReward.animal.id];
-            setUserProfile({ unlockedAnimalIds: newUnlockedIds });
-            setNewlyUnlockedReward(shareReward);
-        }
-        setSharedOnce(true);
+    if (!userProfile) return;
+    const shareReward = REWARDS.find(r => r.id === 'share-1');
+    if (shareReward && !userProfile.unlockedAnimalIds?.includes(shareReward.animal.id)) {
+        const newUnlockedIds = [...(userProfile.unlockedAnimalIds || []), shareReward.animal.id];
+        setUserProfile({ unlockedAnimalIds: newUnlockedIds });
+        setNewlyUnlockedReward(shareReward);
     }
   };
 
@@ -159,14 +154,24 @@ export default function EmotionExplorer() {
   };
 
   const saveEmotion = (emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string }) => {
-    if (!user) return;
+    if (!user || !userProfile || !diaryEntries || !emotionsList) return;
     const emotionsCollection = collection(firestore, 'users', user.uid, 'emotions');
     
     const promise = emotionData.id
       ? setDocumentNonBlocking(doc(emotionsCollection, emotionData.id), { ...emotionData, userProfileId: user.uid }, { merge: true })
       : addDocumentNonBlocking(emotionsCollection, { ...emotionData, userProfileId: user.uid });
     
-    promise.then(() => checkAndUnlockRewards());
+    promise.then(() => {
+        if (emotionData.id) {
+            // If editing, emotionsList will be updated by useCollection.
+            // We can pass the existing lists.
+            checkAndUnlockRewards(userProfile, diaryEntries, emotionsList);
+        } else {
+            // If adding, create a mock new list for immediate check.
+            const newEmotion = { ...emotionData, id: 'temp', userProfileId: user.uid };
+            checkAndUnlockRewards(userProfile, diaryEntries, [...emotionsList, newEmotion as Emotion]);
+        }
+    });
     setAddingEmotionData(null);
   };
   
@@ -197,10 +202,14 @@ export default function EmotionExplorer() {
   };
 
   const addDiaryEntry = (entryData: Omit<DiaryEntry, 'id' | 'userProfileId'>) => {
-    if (!user) return;
+    if (!user || !userProfile || !emotionsList || !diaryEntries) return;
     const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
     addDocumentNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid })
-      .then(() => checkAndUnlockRewards());
+      .then(() => {
+        // Create mock new entry for immediate check
+        const newEntry = { ...entryData, id: 'temp', userProfileId: user.uid };
+        checkAndUnlockRewards(userProfile, [...diaryEntries, newEntry as DiaryEntry], emotionsList);
+      });
   };
   
   const updateDiaryEntry = (updatedEntry: DiaryEntry) => {
@@ -280,7 +289,7 @@ export default function EmotionExplorer() {
       setView(nextView);
       setTourStep(tourStep + 1);
     } else {
-      setTourStep(0);
+      setTourStep(0); // End tour
     }
   };
   
@@ -329,7 +338,7 @@ export default function EmotionExplorer() {
     );
   };
   
-  if (isUserLoading || (user && isProfileLoading && !userProfile)) {
+  if (isUserLoading || (user && isProfileLoading)) {
     return (
         <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -372,7 +381,7 @@ export default function EmotionExplorer() {
       )}
 
       <WelcomeDialog
-        open={showWelcome && tourStep === 0}
+        open={showWelcome && tourStep === 0 && !isProfileLoading && !!userProfile}
         onStartTour={startTour}
         onSkipTour={skipTour}
       />
