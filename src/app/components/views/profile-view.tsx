@@ -17,10 +17,18 @@ interface ProfileViewProps {
   setUserProfile: (profile: Omit<UserProfile, 'id'>) => void;
 }
 
+const defaultProfile: UserProfile = {
+  name: 'Usuario',
+  avatar: '😊',
+  avatarType: 'emoji',
+};
+
 export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
-  const [localName, setLocalName] = useState(userProfile?.name || '');
-  const [localAvatar, setLocalAvatar] = useState(userProfile?.avatar || '');
-  const [localAvatarType, setLocalAvatarType] = useState(userProfile?.avatarType || 'emoji');
+  const profileData = userProfile || defaultProfile;
+
+  const [localName, setLocalName] = useState(profileData.name);
+  const [localAvatar, setLocalAvatar] = useState(profileData.avatar);
+  const [localAvatarType, setLocalAvatarType] = useState(profileData.avatarType);
   const [saved, setSaved] = useState(false);
   const { toast } = useToast();
 
@@ -51,16 +59,6 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
     setLocalAvatar(avatar);
     setLocalAvatarType(type);
   };
-
-  if (!userProfile) {
-    return (
-      <Card className="w-full max-w-2xl mx-auto h-full shadow-lg flex flex-col items-center justify-center">
-        <CardHeader>
-          <CardTitle>Cargando perfil...</CardTitle>
-        </CardHeader>
-      </Card>
-    );
-  }
 
   return (
     <Card className="w-full max-w-2xl mx-auto h-full shadow-lg flex flex-col">
@@ -94,9 +92,9 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
                             {emoji}
                         </button>
                     ))}
-                    {userProfile.avatarType === 'generated' && userProfile.avatar && (
-                        <button onClick={() => selectAvatar(userProfile.avatar, 'generated')} className={cn('relative aspect-square rounded-lg overflow-hidden', localAvatar === userProfile.avatar && localAvatarType === 'generated' ? 'ring-2 ring-primary' : 'hover:opacity-80')}>
-                            <Image src={userProfile.avatar} alt="Avatar generado por IA" fill sizes="64px"/>
+                    {profileData.avatarType === 'generated' && profileData.avatar && (
+                        <button onClick={() => selectAvatar(profileData.avatar, 'generated')} className={cn('relative aspect-square rounded-lg overflow-hidden', localAvatar === profileData.avatar && localAvatarType === 'generated' ? 'ring-2 ring-primary' : 'hover:opacity-80')}>
+                            <Image src={profileData.avatar} alt="Avatar generado por IA" fill sizes="64px"/>
                         </button>
                     )}
                 </div>

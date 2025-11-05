@@ -50,23 +50,26 @@ export default function EmotionExplorer() {
     return acc;
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
 
-  // Effect to create initial user profile in Firestore
+  // This effect handles the initial creation of a user profile document in Firestore.
+  // It only runs when a user is authenticated, the profile loading is complete,
+  // and it's confirmed that no profile document exists.
   useEffect(() => {
-    // This effect should only run when we have a user, the profile loading is complete,
-    // and there is definitively no userProfile document.
     if (user && userProfileRef && !isProfileLoading && !userProfile) {
       const newUserProfile: UserProfile = {
         name: user.displayName || 'Usuario',
         avatar: user.photoURL || '😊',
         avatarType: user.photoURL ? 'generated' : 'emoji',
       };
-      // This is a non-blocking write.
+      // This is a non-blocking write. It ensures that if the user navigates away
+      // or closes the app, the creation request is still sent.
       setDocumentNonBlocking(userProfileRef, newUserProfile, { merge: false });
     }
   }, [user, userProfile, isProfileLoading, userProfileRef]);
   
   const setUserProfile = (profile: Omit<UserProfile, 'id'>) => {
     if (!userProfileRef) return;
+    // Use `setDoc` with merge to either create or update the document.
+    // This is a non-blocking write.
     setDocumentNonBlocking(userProfileRef, profile, { merge: true });
   }
 
@@ -157,7 +160,7 @@ export default function EmotionExplorer() {
       case 'share':
         return <ShareView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} userProfile={userProfile!} />;
       case 'profile':
-        return <ProfileView userProfile={userProfile!} setUserProfile={setUserProfile} />;
+        return <ProfileView userProfile={userProfile} setUserProfile={setUserProfile} />;
       default:
         return <DiaryView 
                   emotionsList={emotionsList || []} 
@@ -178,9 +181,7 @@ export default function EmotionExplorer() {
     return <LoginView />;
   }
   
-  // While user profile is loading, or if it's creating for the first time, show loading state.
-  // This prevents rendering children that depend on userProfile before it's ready.
-  if (isProfileLoading || !userProfile) {
+  if (isProfileLoading) {
      return <div className="flex h-screen w-screen items-center justify-center">Cargando perfil...</div>;
   }
 
@@ -188,7 +189,7 @@ export default function EmotionExplorer() {
   return (
     <SidebarProvider>
       <div className="flex h-screen w-screen bg-background">
-        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} />
+        <AppSidebar view={view} setView={setView} userProfile={userProfile!} diaryEntries={diaryEntries || []} refs={tourRefs} />
         <main className="flex-1 flex flex-col overflow-hidden">
           <header className="p-2 md:hidden flex items-center border-b">
              <MobileMenuButton />

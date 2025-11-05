@@ -39,6 +39,22 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
     setOpenMobile(false);
   };
   
+  if (!userProfile) {
+    // Render a loading state or a default state if userProfile is not available yet.
+    return (
+        <Sidebar collapsible="icon" className="shadow-lg">
+             <SidebarHeader className="p-4">
+                 <div className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12 bg-muted" />
+                    <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+                         <span className="font-bold text-lg text-primary">Cargando...</span>
+                    </div>
+                 </div>
+             </SidebarHeader>
+        </Sidebar>
+    );
+  }
+
   return (
     <Sidebar collapsible="icon" className="shadow-lg">
       <SidebarHeader className="p-4">
