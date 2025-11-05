@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, createRef, useEffect } from 'react';
-import type { Emotion, DiaryEntry, UserProfile, View, PredefinedEmotion, TourStepData } from '@/lib/types';
+import type { Emotion, DiaryEntry, UserProfile, View, PredefinedEmotion, TourStepData, SpiritAnimal, Reward } from '@/lib/types';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar, MobileMenuButton } from './app-sidebar';
 import { DiaryView } from './views/diary-view';
@@ -14,15 +14,19 @@ import { ProfileView } from './views/profile-view';
 import { AddEmotionModal } from './modals/add-emotion-modal';
 import { WelcomeDialog } from './tour/welcome-dialog';
 import { TourPopup } from './tour/tour-popup';
-import { TOUR_STEPS } from '@/lib/constants';
+import { TOUR_STEPS, REWARDS } from '@/lib/constants';
 import { useFirebase, useUser, useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { deleteDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc, setDoc, writeBatch, query, where, getDocs } from 'firebase/firestore';
 import LoginView from './views/login-view';
 import useLocalStorage from '@/hooks/use-local-storage';
 import { StreakView } from './views/streak-view';
+import { SanctuaryView } from './views/sanctuary-view';
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { calculateDailyStreak } from '@/lib/utils';
+import { Crown } from 'lucide-react';
 
-const defaultProfile: Omit<UserProfile, 'id'> = {
+const defaultProfile: Omit<UserProfile, 'id' | 'unlockedAnimalIds'> = {
   name: 'Usuario',
   avatar: '😊',
   avatarType: 'emoji',
@@ -45,6 +49,7 @@ export default function EmotionExplorer() {
   // --------------------
 
   const [addingEmotionData, setAddingEmotionData] = useState<Partial<Emotion> & { id?: string } | null>(null);
+  const [newlyUnlockedReward, setNewlyUnlockedReward] = useState<Reward | null>(null);
 
   // Tour state
   const [showWelcome, setShowWelcome] = useLocalStorage('emotion-explorer-show-welcome', true);
@@ -56,10 +61,27 @@ export default function EmotionExplorer() {
     return acc;
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
 
-  const setUserProfile = (profile: Omit<UserProfile, 'id'>) => {
+  useEffect(() => {
+    if (isProfileLoading || !userProfile || !diaryEntries) return;
+
+    const dailyStreak = calculateDailyStreak(diaryEntries);
+    const unlockedIds = userProfile.unlockedAnimalIds || [];
+    
+    const rewardToUnlock = REWARDS.find(reward => 
+      reward.type === 'streak' && 
+      dailyStreak >= reward.value && 
+      !unlockedIds.includes(reward.animal.id)
+    );
+
+    if (rewardToUnlock) {
+      const newUnlockedIds = [...unlockedIds, rewardToUnlock.animal.id];
+      setUserProfile({ ...userProfile, unlockedAnimalIds: newUnlockedIds });
+      setNewlyUnlockedReward(rewardToUnlock);
+    }
+  }, [diaryEntries, isProfileLoading, userProfile]);
+
+  const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
     if (!userProfileRef) return;
-    // Use setDoc with merge:true. This will CREATE the document if it doesn't exist,
-    // or UPDATE it if it does. This is the core of the robust save/create logic.
     setDocumentNonBlocking(userProfileRef, profile, { merge: true });
   };
 
@@ -148,6 +170,19 @@ export default function EmotionExplorer() {
       setTourStep(0);
     }
   };
+  
+  // This is a crucial effect. It ensures a new user gets a default profile document
+  // created non-blockingly, which prevents a lot of downstream errors.
+  useEffect(() => {
+    if (user && userProfileRef && !isProfileLoading) {
+      if (!userProfile) {
+        console.log("User profile does not exist, creating one.");
+        // Set a default profile. merge:true ensures we don't overwrite existing data
+        // if this were to runracing against another write (it shouldn't, but it's safe).
+        setDocumentNonBlocking(userProfileRef, defaultProfile, { merge: true });
+      }
+    }
+  }, [user, userProfileRef, isProfileLoading, userProfile]);
 
   const renderView = () => {
     return (
@@ -171,6 +206,8 @@ export default function EmotionExplorer() {
               return <CalmView />;
             case 'streak':
               return <StreakView diaryEntries={diaryEntries || []} />;
+            case 'sanctuary':
+              return <SanctuaryView unlockedAnimalIds={userProfile?.unlockedAnimalIds || []} />;
             case 'report':
               return <ReportView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} />;
             case 'share':
@@ -192,11 +229,11 @@ export default function EmotionExplorer() {
     );
   };
   
-  if (isUserLoading || isProfileLoading) {
+  if (isUserLoading || (user && isProfileLoading)) {
     return (
         <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-lg text-primary">Cargando...</p>
+            <p className="text-lg text-primary">Cargando perfil...</p>
         </div>
     );
   }
@@ -240,6 +277,31 @@ export default function EmotionExplorer() {
         onNext={nextTourStep}
         onSkip={() => setTourStep(0)}
       />
+
+      <AlertDialog open={!!newlyUnlockedReward}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex flex-col items-center text-center gap-2 text-2xl">
+              <Crown className="w-10 h-10 text-amber-400" />
+              ¡Recompensa Desbloqueada!
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center pt-2">
+              <div className="flex flex-col items-center gap-4">
+                <span className="text-7xl">{newlyUnlockedReward?.animal.icon}</span>
+                <p>¡Felicidades! Por tu increíble racha has desbloqueado al:</p>
+                <p className="font-bold text-xl text-primary">{newlyUnlockedReward?.animal.name}</p>
+                <p className="text-sm text-muted-foreground">{newlyUnlockedReward?.animal.description}</p>
+                <p className="text-xs text-amber-500 font-semibold">{newlyUnlockedReward?.animal.rarity}</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+              <AlertDialogAction onClick={() => setNewlyUnlockedReward(null)} className="bg-accent text-accent-foreground hover:bg-accent/90 w-full">
+                ¡Genial! Ver en mi Santuario
+              </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
   );
 }

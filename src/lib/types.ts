@@ -20,9 +20,10 @@ export type UserProfile = {
   name: string;
   avatar: string; // Can be an emoji or a URL for generated avatar
   avatarType: 'emoji' | 'generated';
+  unlockedAnimalIds?: string[];
 };
 
-export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak';
+export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary';
 
 export type PredefinedEmotion = {
   name: string;
@@ -35,4 +36,21 @@ export type TourStepData = {
   refKey: string;
   title: string;
   description: string;
+};
+
+export type SpiritAnimal = {
+  id: string;
+  name: string;
+  icon: string;
+  emotion: string;
+  description: string;
+  rarity: 'Común' | 'Poco Común' | 'Raro' | 'Épico';
+};
+
+export type Reward = {
+  id: string;
+  type: 'streak' | 'entry_count';
+  value: number;
+  animal: SpiritAnimal;
+  unlockMessage: string;
 };

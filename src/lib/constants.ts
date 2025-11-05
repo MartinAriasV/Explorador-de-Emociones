@@ -1,4 +1,4 @@
-import type { PredefinedEmotion, TourStepData } from './types';
+import type { PredefinedEmotion, TourStepData, SpiritAnimal, Reward } from './types';
 
 export const PREDEFINED_EMOTIONS: PredefinedEmotion[] = [
   { name: 'Alegría', icon: '😄', description: 'Sentimiento de vivo placer y contentamiento.', example: 'Sentí una gran alegría al ver a mi familia.' },
@@ -37,8 +37,77 @@ export const TOUR_STEPS: TourStepData[] = [
     { refKey: 'emocionarioRef', title: 'Crea tu Emocionario', description: 'Define tus propias emociones con nombres, iconos y colores. ¡Hazlo tuyo!' },
     { refKey: 'discoverRef', title: 'Descubre Nuevas Emociones', description: 'Explora una lista de emociones comunes y añádelas a tu propio emocionario.' },
     { refKey: 'streakRef', title: 'Controla tu Racha', description: '¡Mantén la llama encendida! Registra tus emociones a diario para no perder tu racha.' },
+    { refKey: 'sanctuaryRef', title: 'Tu Santuario de Recompensas', description: 'Alcanza hitos y desbloquea "animales espirituales" como recompensa por tu constancia.' },
     { refKey: 'calmRef', title: 'Rincón de la Calma', description: '¿Necesitas un respiro? Prueba nuestros ejercicios de respiración guiada para relajarte.' },
     { refKey: 'reportRef', title: 'Reporte Visual', description: 'Observa tus patrones emocionales a lo largo del tiempo con este calendario interactivo.' },
     { refKey: 'shareRef', title: 'Comparte tu Viaje', description: 'Genera un reporte de texto de tu diario para compartirlo con quien tú quieras.' },
     { refKey: 'profileRef', title: 'Personaliza tu Perfil', description: 'Elige tu nombre y un avatar que te represente. ¡Este es tu espacio!' },
 ];
+
+export const SPIRIT_ANIMALS: SpiritAnimal[] = [
+    {
+        id: 'agile-hummingbird',
+        name: 'Colibrí Ágil',
+        icon: '🐦‍🔥',
+        emotion: 'Entusiasmo',
+        description: 'Representa la alegría, la energía y la capacidad de encontrar la dulzura en cada día.',
+        rarity: 'Común',
+    },
+    {
+        id: 'cunning-fox',
+        name: 'Zorro Astuto',
+        icon: '🦊',
+        emotion: 'Curiosidad',
+        description: 'Simboliza la inteligencia, la adaptabilidad y la capacidad de pensar de forma creativa.',
+        rarity: 'Poco Común',
+    },
+    {
+        id: 'loyal-wolf',
+        name: 'Lobo Leal',
+        icon: '🐺',
+        emotion: 'Confianza',
+        description: 'Encarna la lealtad, el trabajo en equipo y los fuertes lazos con la comunidad.',
+        rarity: 'Raro',
+    },
+    {
+        id: 'wise-owl',
+        name: 'Búho Sabio',
+        icon: '🦉',
+        emotion: 'Serenidad',
+        description: 'Representa la sabiduría, la intuición y la capacidad de ver más allá de lo evidente.',
+        rarity: 'Épico',
+    },
+];
+
+export const REWARDS: Reward[] = [
+    {
+        id: 'streak-1',
+        type: 'streak',
+        value: 1,
+        animal: SPIRIT_ANIMALS.find(a => a.id === 'agile-hummingbird')!,
+        unlockMessage: '¡Has completado tu primer día! El Colibrí Ágil se une a tu santuario.',
+    },
+    {
+        id: 'streak-3',
+        type: 'streak',
+        value: 3,
+        animal: SPIRIT_ANIMALS.find(a => a.id === 'cunning-fox')!,
+        unlockMessage: '¡3 días seguidos! El Zorro Astuto admira tu astucia y se une a tu santuario.',
+    },
+    {
+        id: 'streak-7',
+        type: 'streak',
+        value: 7,
+        animal: SPIRIT_ANIMALS.find(a => a.id === 'loyal-wolf')!,
+        unlockMessage: '¡Una semana completa! El Lobo Leal reconoce tu compromiso y ahora forma parte de tu manada.',
+    },
+    {
+        id: 'streak-14',
+        type: 'streak',
+        value: 14,
+        animal: SPIRIT_ANIMALS.find(a => a.id === 'wise-owl')!,
+        unlockMessage: '¡Dos semanas de introspección! El Búho Sabio te ofrece su sabiduría y se posa en tu santuario.',
+    },
+];
+
+    
