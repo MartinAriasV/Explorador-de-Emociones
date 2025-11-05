@@ -14,7 +14,7 @@ import { ProfileView } from './views/profile-view';
 import { AddEmotionModal } from './modals/add-emotion-modal';
 import { WelcomeDialog } from './tour/welcome-dialog';
 import { TourPopup } from './tour/tour-popup';
-import { TOUR_STEPS, REWARDS } from '@/lib/constants';
+import { TOUR_STEPS, REWARDS, SPIRIT_ANIMALS } from '@/lib/constants';
 import { useFirebase, useUser, useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { deleteDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc, setDoc, writeBatch, query, where, getDocs } from 'firebase/firestore';
@@ -171,19 +171,6 @@ export default function EmotionExplorer() {
     }
   };
   
-  // This is a crucial effect. It ensures a new user gets a default profile document
-  // created non-blockingly, which prevents a lot of downstream errors.
-  useEffect(() => {
-    if (user && userProfileRef && !isProfileLoading) {
-      if (!userProfile) {
-        console.log("User profile does not exist, creating one.");
-        // Set a default profile. merge:true ensures we don't overwrite existing data
-        // if this were to runracing against another write (it shouldn't, but it's safe).
-        // setDocumentNonBlocking(userProfileRef, defaultProfile, { merge: true });
-      }
-    }
-  }, [user, userProfileRef, isProfileLoading, userProfile]);
-
   const renderView = () => {
     return (
       <div className="animate-fade-in-up">
@@ -280,23 +267,23 @@ export default function EmotionExplorer() {
 
       <AlertDialog open={!!newlyUnlockedReward}>
         <AlertDialogContent>
-          <AlertDialogHeader>
+          <AlertDialogHeader className="items-center text-center">
             <AlertDialogTitle className="flex flex-col items-center text-center gap-2 text-2xl">
               <Crown className="w-10 h-10 text-amber-400" />
               ¡Recompensa Desbloqueada!
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-center pt-2">
-              <div className="flex flex-col items-center gap-4">
-                <span className="text-7xl">{newlyUnlockedReward?.animal.icon}</span>
-                <span className="block">¡Felicidades! Por tu increíble racha has desbloqueado al:</span>
-                <span className="block font-bold text-xl text-primary">{newlyUnlockedReward?.animal.name}</span>
-                <span className="block text-sm text-muted-foreground">{newlyUnlockedReward?.animal.description}</span>
-                <span className="block text-xs text-amber-500 font-semibold">{newlyUnlockedReward?.animal.rarity}</span>
-              </div>
+            <AlertDialogDescription>
+              ¡Felicidades! Por tu increíble racha has desbloqueado al:
             </AlertDialogDescription>
+            <div className="flex flex-col items-center gap-2 pt-4">
+              <span className="text-7xl">{newlyUnlockedReward?.animal.icon}</span>
+              <span className="block font-bold text-2xl text-primary">{newlyUnlockedReward?.animal.name}</span>
+              <span className="block text-sm text-muted-foreground">{newlyUnlockedReward?.animal.description}</span>
+              <span className="block text-xs text-amber-500 font-semibold">{newlyUnlockedReward?.animal.rarity}</span>
+            </div>
           </AlertDialogHeader>
           <AlertDialogFooter>
-              <AlertDialogAction onClick={() => setNewlyUnlockedReward(null)} className="bg-accent text-accent-foreground hover:bg-accent/90 w-full">
+              <AlertDialogAction onClick={() => { setNewlyUnlockedReward(null); setView('sanctuary'); }} className="bg-accent text-accent-foreground hover:bg-accent/90 w-full">
                 ¡Genial! Ver en mi Santuario
               </AlertDialogAction>
           </AlertDialogFooter>
