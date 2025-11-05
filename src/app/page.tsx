@@ -1,8 +1,17 @@
-import EmotionExplorer from '@/app/components/emotion-explorer';
-import { FirebaseClientProvider, useUser, useFirestore } from '@/firebase';
-import { Suspense } from 'react';
+'use client';
+
+import React, { Suspense, useEffect, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import EmotionExplorer from '@/app/components/emotion-explorer';
+import {
+  FirebaseClientProvider,
+  useUser,
+  useFirestore,
+  useDoc,
+  useMemoFirebase,
+} from '@/firebase';
 import type { UserProfile } from '@/lib/types';
+import type { User } from 'firebase/auth';
 
 const defaultProfile: Omit<UserProfile, 'id' | 'unlockedAnimalIds' | 'emotionCount'> = {
   name: 'Usuario',
@@ -10,72 +19,77 @@ const defaultProfile: Omit<UserProfile, 'id' | 'unlockedAnimalIds' | 'emotionCou
   avatarType: 'emoji',
 };
 
-// This component acts as a gate to ensure the user profile exists before rendering the app.
-function ProfileGate() {
+// This component now handles the logic for checking/creating a profile
+// and then rendering the main application.
+function AppGate() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
+  
+  const userProfileRef = useMemoFirebase(
+    () => (user ? doc(firestore, 'users', user.uid) : null),
+    [firestore, user]
+  );
+  
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-  // We pass a key to EmotionExplorer to force a re-render when isNewUser changes.
-  // This ensures the component re-evaluates its initial state.
-  if (user) {
-    const userProfileRef = doc(firestore, 'users', user.uid);
+  const [isNewUser, setIsNewUser] = useState(false);
+  
+  useEffect(() => {
+    // This effect runs when auth and profile loading states change.
+    // It's responsible for creating a profile for a new user.
+    if (!user || isUserLoading || isProfileLoading) {
+      // If we are still loading or have no user, do nothing.
+      return;
+    }
+
+    if (!userProfile) {
+      // If loading is finished and we have a user but no profile,
+      // it means this is a new user.
+      const newProfile: UserProfile = {
+        id: user.uid,
+        name: user.email?.split('@')[0] || defaultProfile.name,
+        avatar: defaultProfile.avatar,
+        avatarType: defaultProfile.avatarType,
+        unlockedAnimalIds: [],
+        emotionCount: 0,
+      };
+      
+      // Create the profile document in Firestore.
+      setDoc(userProfileRef!, newProfile, { merge: true }).then(() => {
+        // After the profile is successfully created, we set the flag.
+        setIsNewUser(true);
+      }).catch(console.error);
+    }
+  }, [user, isUserLoading, isProfileLoading, userProfile, userProfileRef]);
+
+
+  if (isUserLoading || (user && isProfileLoading)) {
     return (
-      <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center">Cargando...</div>}>
-        <CheckAndCreateProfile user={user} userProfileRef={userProfileRef} firestore={firestore} />
-      </Suspense>
+      <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
+        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-lg text-primary">Cargando...</p>
+      </div>
     );
   }
 
-  // If there's no user, and we are not loading, show the login view (which is inside EmotionExplorer)
-  if (!user && !isUserLoading) {
-    return <EmotionExplorer isNewUser={false} />;
-  }
-
-  // Otherwise, show a loading screen while auth state is being determined.
-  return <div className="flex h-screen w-screen items-center justify-center">Cargando...</div>;
+  // Pass a key to EmotionExplorer to ensure it remounts if the user changes,
+  // and pass the isNewUser flag to trigger the welcome tour.
+  return <EmotionExplorer key={user?.uid} isNewUser={isNewUser} />;
 }
-
-async function checkAndCreateProfile(user: any, userProfileRef: any, firestore: any): Promise<boolean> {
-  const profileSnap = await getDoc(userProfileRef);
-  if (!profileSnap.exists()) {
-    const newProfile: UserProfile = {
-      id: user.uid,
-      name: user.email?.split('@')[0] || defaultProfile.name,
-      avatar: defaultProfile.avatar,
-      avatarType: defaultProfile.avatarType,
-      unlockedAnimalIds: [],
-      emotionCount: 0,
-    };
-    await setDoc(userProfileRef, newProfile, { merge: true });
-    return true; // Is a new user
-  }
-  return false; // Is an existing user
-}
-
-function CheckAndCreateProfile({ user, userProfileRef, firestore }: any) {
-  const promise = checkAndCreateProfile(user, userProfileRef, firestore);
-
-  // This is a pattern to use async operations in server components.
-  // It's not ideal, but it's a way to bridge the gap.
-  const [isNewUser, setIsNewUser] = React.useState<boolean | null>(null);
-  React.useEffect(() => {
-    promise.then(setIsNewUser);
-  }, [promise]);
-
-  if (isNewUser === null) {
-    return <div className="flex h-screen w-screen items-center justify-center">Verificando perfil...</div>;
-  }
-
-  return <EmotionExplorer key={user.uid} isNewUser={isNewUser} />;
-}
-
 
 export default function Home() {
   return (
     <main className="h-screen w-screen overflow-hidden">
       <FirebaseClientProvider>
-        <Suspense fallback={<div className="flex h-screen w-screen items-center justify-center">Cargando...</div>}>
-          <ProfileGate />
+        {/* Suspense is a good practice for components with async data */}
+        <Suspense
+          fallback={
+            <div className="flex h-screen w-screen items-center justify-center">
+              Cargando...
+            </div>
+          }
+        >
+          <AppGate />
         </Suspense>
       </FirebaseClientProvider>
     </main>

@@ -60,10 +60,10 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
   const emotionsQuery = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'emotions') : null, [firestore, user]);
-  const { data: emotionsList } = useCollection<Emotion>(emotionsQuery);
+  const { data: emotionsList, isLoading: areEmotionsLoading } = useCollection<Emotion>(emotionsQuery);
   
   const diaryEntriesQuery = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'diaryEntries') : null, [firestore, user]);
-  const { data: diaryEntries } = useCollection<DiaryEntry>(diaryEntriesQuery);
+  const { data: diaryEntries, isLoading: areDiaryEntriesLoading } = useCollection<DiaryEntry>(diaryEntriesQuery);
   // --------------------
 
   const [addingEmotionData, setAddingEmotionData] = useState<Partial<Emotion> & { id?: string } | null>(null);
@@ -87,32 +87,44 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
   const checkAndUnlockRewards = (currentProfile: UserProfile, currentDiaryEntries: DiaryEntry[], currentEmotions: Emotion[]) => {
     if (!currentProfile) return;
 
+    const previouslyUnlocked = new Set(currentProfile.unlockedAnimalIds || []);
+    let newUnlockedIds = [...(currentProfile.unlockedAnimalIds || [])];
+    let justUnlockedReward: Reward | null = null;
+    
     const dailyStreak = calculateDailyStreak(currentDiaryEntries);
     const entryCount = currentDiaryEntries.length;
     const emotionCount = currentEmotions.length;
-    const unlockedIds = currentProfile.unlockedAnimalIds || [];
     
-    const rewardsToUnlock = REWARDS.filter(reward => {
-        if (unlockedIds.includes(reward.animal.id)) return false;
+    for (const reward of REWARDS) {
+        if (previouslyUnlocked.has(reward.animal.id)) continue;
 
+        let unlocked = false;
         switch(reward.type) {
             case 'streak':
-                return dailyStreak >= reward.value;
+                unlocked = dailyStreak >= reward.value;
+                break;
             case 'entry_count':
-                return entryCount >= reward.value;
+                unlocked = entryCount >= reward.value;
+                break;
             case 'emotion_count':
-                return emotionCount >= reward.value;
+                unlocked = emotionCount >= reward.value;
+                break;
             case 'share':
-                return false;
-            default:
-                return false;
+                 // This is handled by handleShare
+                break;
         }
-    });
 
-    if (rewardsToUnlock.length > 0) {
-      const newUnlockedIds = [...unlockedIds, ...rewardsToUnlock.map(r => r.animal.id)];
-      setUserProfile({ unlockedAnimalIds: newUnlockedIds });
-      setNewlyUnlockedReward(rewardsToUnlock[0]);
+        if (unlocked) {
+            newUnlockedIds.push(reward.animal.id);
+            if (!justUnlockedReward) {
+                justUnlockedReward = reward;
+            }
+        }
+    }
+
+    if (newUnlockedIds.length > (currentProfile.unlockedAnimalIds?.length || 0)) {
+        setUserProfile({ unlockedAnimalIds: newUnlockedIds });
+        setNewlyUnlockedReward(justUnlockedReward);
     }
   };
 
@@ -315,7 +327,7 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
     );
   };
   
-  if (isUserLoading || (user && isProfileLoading)) {
+  if (isUserLoading || (user && (isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading))) {
     return (
         <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
