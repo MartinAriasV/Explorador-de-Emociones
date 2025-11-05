@@ -140,7 +140,7 @@ export function AddEmotionModal({ initialData, onSave, onClose, onDelete }: AddE
                   <AlertDialogHeader>
                     <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Esta acción no se puede deshacer. Esto eliminará permanentemente la emoción y todas las entradas del diario asociadas a ella.
+                      Esta acción no se puede deshacer. Esto eliminará permanentemente la emoción y **todas las entradas del diario asociadas a ella**.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>

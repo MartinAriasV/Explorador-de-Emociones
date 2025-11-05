@@ -17,7 +17,7 @@ import { TourPopup } from './tour/tour-popup';
 import { TOUR_STEPS } from '@/lib/constants';
 import { useFirebase, useUser, useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { deleteDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection, doc, setDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, writeBatch, query, where, getDocs } from 'firebase/firestore';
 import LoginView from './views/login-view';
 import useLocalStorage from '@/hooks/use-local-storage';
 import { StreakView } from './views/streak-view';
@@ -50,18 +50,28 @@ export default function EmotionExplorer() {
     return acc;
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
   
+  useEffect(() => {
+    // This effect runs once when the component mounts and the user is resolved.
+    // It checks if a user profile exists and creates one if it doesn't.
+    if (user && userProfileRef && !isProfileLoading && !userProfile) {
+      const defaultProfile: Omit<UserProfile, 'id'> = {
+        name: 'Usuario',
+        avatar: '😊',
+        avatarType: 'emoji'
+      };
+      setDocumentNonBlocking(userProfileRef, defaultProfile, { merge: true });
+    }
+  }, [user, userProfileRef, isProfileLoading, userProfile]);
+
   const setUserProfile = (profile: Omit<UserProfile, 'id'>) => {
     if (!userProfileRef) return;
-  
     // This logic ensures that if a profile doesn't exist, it's created with `setDoc`.
     // If it already exists, `setDoc` with `merge: true` will update it without overwriting other fields.
-    // This is a non-blocking write.
-    const profileToSave = {
+    const profileToSave: UserProfile = {
       name: profile.name,
       avatar: profile.avatar,
       avatarType: profile.avatarType
     };
-    
     setDocumentNonBlocking(userProfileRef, profileToSave, { merge: true });
   }
 
@@ -78,10 +88,33 @@ export default function EmotionExplorer() {
     setAddingEmotionData(null);
   };
   
-  const deleteEmotion = (emotionId: string) => {
+  const deleteEmotion = async (emotionId: string) => {
     if (!user) return;
+  
+    const batch = writeBatch(firestore);
+  
+    // 1. Delete the emotion itself
     const emotionDoc = doc(firestore, 'users', user.uid, 'emotions', emotionId);
-    deleteDocumentNonBlocking(emotionDoc);
+    batch.delete(emotionDoc);
+  
+    // 2. Find and delete all diary entries associated with this emotion
+    const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
+    const q = query(diaryCollection, where("emotionId", "==", emotionId));
+    
+    try {
+      const querySnapshot = await getDocs(q);
+      querySnapshot.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+  
+      // 3. Commit the batch
+      await batch.commit();
+      
+    } catch (error) {
+      console.error("Error deleting emotion and associated entries: ", error);
+      // Here you might want to use the global error emitter for permission errors
+    }
+    
     setAddingEmotionData(null); // Close modal if it was open
   };
 
