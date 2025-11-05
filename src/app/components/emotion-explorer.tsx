@@ -70,6 +70,21 @@ export default function EmotionExplorer() {
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
 
   useEffect(() => {
+    // This effect handles the creation of a profile for a new user.
+    if (!isUserLoading && user && !isProfileLoading && !userProfile) {
+      // If the user is logged in but has no profile document after the initial load, create one.
+      const newProfile = {
+        ...defaultProfile,
+        name: user.email?.split('@')[0] || defaultProfile.name, // Default name from email
+      };
+      // We use setDoc here to explicitly set the document with the user's UID.
+      // non-blocking is fine here.
+      setDocumentNonBlocking(userProfileRef!, newProfile, {});
+    }
+  }, [isUserLoading, user, isProfileLoading, userProfile, userProfileRef]);
+
+
+  useEffect(() => {
     if (isProfileLoading || !userProfile || !diaryEntries || !emotionsList) return;
 
     const dailyStreak = calculateDailyStreak(diaryEntries);
