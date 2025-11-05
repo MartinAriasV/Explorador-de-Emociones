@@ -106,18 +106,18 @@ export function ShareView({ diaryEntries, emotionsList, userProfile }: ShareView
                 />
             </div>
         </div>
-
-        <Button onClick={handleCopy} className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
-          {copied ? <Check className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}
-          {copied ? '¡Reporte Copiado!' : 'Copiar Reporte al Portapapeles'}
-        </Button>
-        <div className="flex-grow relative">
-            <Textarea
-              readOnly
-              value={reportText}
-              className="absolute inset-0 w-full h-full bg-muted/50 resize-none"
-              rows={15}
-            />
+        <div className="flex-grow flex flex-col gap-4">
+          <Button onClick={handleCopy} className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
+            {copied ? <Check className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}
+            {copied ? '¡Reporte Copiado!' : 'Copiar Reporte al Portapapeles'}
+          </Button>
+          <div className="flex-grow relative">
+              <Textarea
+                readOnly
+                value={reportText}
+                className="w-full h-full bg-muted/50 resize-none min-h-[200px] sm:min-h-[300px]"
+              />
+          </div>
         </div>
       </CardContent>
     </Card>
