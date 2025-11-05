@@ -21,7 +21,7 @@ interface DiaryViewProps {
   setView: (view: View) => void;
 }
 
-export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, updateDiaryEntry, deleteDiaryEntry, setView }: DiaryViewProps) {
+export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry, updateDiaryEntry, deleteDiaryEntry, setView }: DiaryViewProps) {
   const [editingEntry, setEditingEntry] = useState<DiaryEntry | null>(null);
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
