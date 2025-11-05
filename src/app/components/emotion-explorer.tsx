@@ -78,6 +78,7 @@ export default function EmotionExplorer() {
 
   // Tour state
   const [showWelcome, setShowWelcome] = useLocalStorage('emotion-explorer-show-welcome', true);
+  const [isNewUserFlow, setIsNewUserFlow] = useState(false);
   const [tourStep, setTourStep] = useState(0);
 
   // Refs for the tour
@@ -95,11 +96,13 @@ export default function EmotionExplorer() {
         unlockedAnimalIds: [],
         emotionCount: 0,
       };
+      // This is a new user, create their profile and start the welcome flow
       setDocumentNonBlocking(userProfileRef!, newProfile, { merge: true }).then(() => {
+        setIsNewUserFlow(true);
         setShowWelcome(true);
       });
     }
-  }, [isUserLoading, user, isProfileLoading, userProfile, userProfileRef, setShowWelcome]);
+  }, [isUserLoading, user, isProfileLoading, userProfile, userProfileRef]);
 
 
   const checkAndUnlockRewards = (currentProfile: UserProfile, currentDiaryEntries: DiaryEntry[], currentEmotions: Emotion[]) => {
@@ -162,16 +165,15 @@ export default function EmotionExplorer() {
       : addDocumentNonBlocking(emotionsCollection, { ...emotionData, userProfileId: user.uid });
     
     promise.then(() => {
-        if (emotionData.id) {
-            // If editing, emotionsList will be updated by useCollection.
-            // We can pass the existing lists.
-            checkAndUnlockRewards(userProfile, diaryEntries, emotionsList);
-        } else {
-            // If adding, create a mock new list for immediate check.
-            const newEmotion = { ...emotionData, id: 'temp', userProfileId: user.uid };
-            checkAndUnlockRewards(userProfile, diaryEntries, [...emotionsList, newEmotion as Emotion]);
-        }
+        // Use a snapshot of the current state to check for rewards
+        const currentEmotions = emotionsList || [];
+        const newEmotionsList = emotionData.id 
+            ? currentEmotions.map(e => e.id === emotionData.id ? {...e, ...emotionData} : e)
+            : [...currentEmotions, { ...emotionData, id: 'temp-id', userProfileId: user.uid } as Emotion];
+        
+        checkAndUnlockRewards(userProfile, diaryEntries || [], newEmotionsList);
     });
+
     setAddingEmotionData(null);
   };
   
@@ -206,9 +208,9 @@ export default function EmotionExplorer() {
     const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
     addDocumentNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid })
       .then(() => {
-        // Create mock new entry for immediate check
-        const newEntry = { ...entryData, id: 'temp', userProfileId: user.uid };
-        checkAndUnlockRewards(userProfile, [...diaryEntries, newEntry as DiaryEntry], emotionsList);
+        const newEntry = { ...entryData, id: 'temp-id', userProfileId: user.uid } as DiaryEntry;
+        const newDiaryEntries = [...(diaryEntries || []), newEntry];
+        checkAndUnlockRewards(userProfile, newDiaryEntries, emotionsList);
       });
   };
   
@@ -274,12 +276,14 @@ export default function EmotionExplorer() {
 
   const startTour = () => {
     setShowWelcome(false);
+    setIsNewUserFlow(false);
     setTourStep(1);
     setView('diary');
   };
 
   const skipTour = () => {
     setShowWelcome(false);
+    setIsNewUserFlow(false);
     setTourStep(0);
   };
   
@@ -381,7 +385,7 @@ export default function EmotionExplorer() {
       )}
 
       <WelcomeDialog
-        open={showWelcome && tourStep === 0 && !isProfileLoading && !!userProfile}
+        open={isNewUserFlow && showWelcome && tourStep === 0}
         onStartTour={startTour}
         onSkipTour={skipTour}
       />
@@ -438,3 +442,5 @@ export default function EmotionExplorer() {
     </SidebarProvider>
   );
 }
+
+    
