@@ -29,7 +29,7 @@ const navItems = [
   { id: 'profile', icon: UserCircle, text: 'Mi Perfil', refKey: 'profileRef' },
 ] as const;
 
-export function AppSidebar({ view, setView, userProfile, diaryEntries, refs }: AppSidebarProps) {
+export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs }: AppSidebarProps) {
   const { setOpenMobile } = useSidebar();
   const { auth } = useFirebase();
   const dailyStreak = calculateDailyStreak(diaryEntries);

@@ -14,7 +14,7 @@ import { ProfileView } from './views/profile-view';
 import { AddEmotionModal } from './modals/add-emotion-modal';
 import { WelcomeDialog } from './tour/welcome-dialog';
 import { TourPopup } from './tour/tour-popup';
-import { TOUR_STEPS, PREDEFINED_EMOTIONS } from '@/lib/constants';
+import { TOUR_STEPS } from '@/lib/constants';
 import { useFirebase, useUser, useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { deleteDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc, setDoc } from 'firebase/firestore';
@@ -35,10 +35,10 @@ export default function EmotionExplorer() {
   const { data: emotionsList, isLoading: isLoadingEmotions } = useCollection<Emotion>(emotionsQuery);
   
   const diaryEntriesQuery = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'diaryEntries') : null, [firestore, user]);
-  const { data: diaryEntries = [], isLoading: isLoadingEntries } = useCollection<DiaryEntry>(diaryEntriesQuery);
+  const { data: diaryEntries, isLoading: isLoadingEntries } = useCollection<DiaryEntry>(diaryEntriesQuery);
   // --------------------
 
-  const [addingEmotionData, setAddingEmotionData] = useState<Partial<Emotion> | null>(null);
+  const [addingEmotionData, setAddingEmotionData] = useState<Partial<Emotion> & { id?: string } | null>(null);
 
   // Tour state
   const [showWelcome, setShowWelcome] = useLocalStorage('emotion-explorer-show-welcome', true);
@@ -52,17 +52,13 @@ export default function EmotionExplorer() {
 
   // Effect to create initial user profile in Firestore
   useEffect(() => {
-    // Only proceed if we have a user, profile loading has finished, and no profile exists.
     if (user && !isProfileLoading && !userProfile) {
         const newUserProfile: UserProfile = {
             name: user.displayName || 'Usuario',
             avatar: user.photoURL || '😊',
             avatarType: user.photoURL ? 'generated' : 'emoji',
         };
-        // Use a standard `setDoc` here as it's a one-time setup operation.
-        // It's crucial to ensure the user document exists before other operations.
         if (userProfileRef) {
-          // It's safe to set the doc, as our condition ensures it doesn't exist.
           setDoc(userProfileRef, newUserProfile).catch(console.error);
         }
     }
@@ -111,7 +107,7 @@ export default function EmotionExplorer() {
     deleteDocumentNonBlocking(entryDoc);
   };
 
-  const handleOpenAddEmotionModal = (emotionData: Partial<Emotion>) => {
+  const handleOpenAddEmotionModal = (emotionData: Partial<Emotion> & { id?: string }) => {
     setAddingEmotionData(emotionData);
   };
 
@@ -140,8 +136,8 @@ export default function EmotionExplorer() {
     switch (view) {
       case 'diary':
         return <DiaryView 
-                  emotionsList={emotionsList} 
-                  diaryEntries={diaryEntries} 
+                  emotionsList={emotionsList || []} 
+                  diaryEntries={diaryEntries || []} 
                   addDiaryEntry={addDiaryEntry}
                   updateDiaryEntry={updateDiaryEntry}
                   deleteDiaryEntry={deleteDiaryEntry}
@@ -154,17 +150,17 @@ export default function EmotionExplorer() {
       case 'calm':
         return <CalmView />;
       case 'streak':
-        return <StreakView diaryEntries={diaryEntries} />;
+        return <StreakView diaryEntries={diaryEntries || []} />;
       case 'report':
-        return <ReportView diaryEntries={diaryEntries} emotionsList={emotionsList || []} />;
+        return <ReportView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} />;
       case 'share':
-        return <ShareView diaryEntries={diaryEntries} emotionsList={emotionsList || []} userProfile={userProfile!} />;
+        return <ShareView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} userProfile={userProfile!} />;
       case 'profile':
         return <ProfileView userProfile={userProfile!} setUserProfile={setUserProfile} />;
       default:
         return <DiaryView 
-                  emotionsList={emotionsList} 
-                  diaryEntries={diaryEntries} 
+                  emotionsList={emotionsList || []} 
+                  diaryEntries={diaryEntries || []} 
                   addDiaryEntry={addDiaryEntry}
                   updateDiaryEntry={updateDiaryEntry}
                   deleteDiaryEntry={deleteDiaryEntry}
@@ -182,7 +178,6 @@ export default function EmotionExplorer() {
   }
   
   if (!userProfile) {
-     // This state will be brief, as the useEffect will trigger to create the profile.
     return <div className="flex h-screen w-screen items-center justify-center">Creando perfil...</div>;
   }
 
@@ -190,7 +185,7 @@ export default function EmotionExplorer() {
   return (
     <SidebarProvider>
       <div className="flex h-screen w-screen bg-background">
-        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries} refs={tourRefs} />
+        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} />
         <main className="flex-1 flex flex-col overflow-hidden">
           <header className="p-2 md:hidden flex items-center border-b">
              <MobileMenuButton />
