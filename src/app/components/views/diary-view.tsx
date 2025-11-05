@@ -33,13 +33,16 @@ export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, upda
 
   useEffect(() => {
     if (editingEntry) {
-      setDate(editingEntry.date);
-      setSelectedEmotionId(editingEntry.emotionId);
-      setText(editingEntry.text);
+        // Dates from Firestore are strings. If it includes time, split it.
+        const entryDate = new Date(editingEntry.date).toISOString().split('T')[0];
+        setDate(entryDate);
+        setSelectedEmotionId(editingEntry.emotionId);
+        setText(editingEntry.text);
     } else {
-      resetForm();
+        resetForm();
     }
   }, [editingEntry]);
+
 
   const resetForm = () => {
     setDate(new Date().toISOString().split('T')[0]);
@@ -166,7 +169,7 @@ export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, upda
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                                 <p className="font-bold" style={{ color: emotion?.color }}>{emotion?.name}</p>
-                                <p className="text-xs text-muted-foreground">{new Date(entry.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric'})}</p>
+                                <p className="text-xs text-muted-foreground">{new Date(entry.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}</p>
                             </div>
                             <p className="text-sm text-foreground/80">{entry.text}</p>
                           </div>
@@ -231,3 +234,5 @@ export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, upda
     </>
   );
 }
+
+    
