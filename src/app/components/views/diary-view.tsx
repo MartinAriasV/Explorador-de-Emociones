@@ -52,6 +52,7 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
 
   const handleCancelEdit = () => {
     resetForm();
+    setEditingEntry(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -231,3 +232,5 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
     </>
   );
 }
+
+    
