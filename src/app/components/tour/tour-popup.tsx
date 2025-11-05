@@ -19,10 +19,11 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
   const [position, setPosition] = useState<{ top: number; left: number; width: number; height: number }>({ top: 0, left: 0, width: 0, height: 0 });
   const [popupPosition, setPopupPosition] = useState<{ top: number, left: number }>({ top: 0, left: 0 });
   const { isMobile, setOpenMobile, openMobile } = useSidebar();
+  const animationFrameId = useRef<number>();
 
   const calculatePosition = () => {
     const currentStepData = steps[step - 1];
-    if (!currentStepData) return;
+    if (!currentStepData) return false;
   
     const targetRef = refs[currentStepData.refKey];
     const targetElement = targetRef?.current;
@@ -30,7 +31,7 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
     if (targetElement) {
       const rect = targetElement.getBoundingClientRect();
       
-      if (rect.width > 0) { // Only update if the element is visible
+      if (rect.width > 0 && rect.height > 0) {
         setPosition({
           top: rect.top,
           left: rect.left,
@@ -55,41 +56,61 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
   
           setPopupPosition({ top, left });
         }
+        return true; // Position calculated successfully
       }
     }
+    return false; // Element not ready
   };
 
-  // Effect to open sidebar on mobile when a new step starts
   useEffect(() => {
-    const currentStepData = steps[step - 1];
-    if (currentStepData && isMobile) {
-      setOpenMobile(true);
-    }
-  }, [step, steps, isMobile, setOpenMobile]);
-
-  // UseLayoutEffect to calculate position after render
-  useLayoutEffect(() => {
     if (step === 0) {
       setPosition({ top: 0, left: 0, width: 0, height: 0 });
       return;
-    };
-    
-    // If mobile, wait for sidebar animation to finish
-    if (isMobile && openMobile) {
-      const timeoutId = setTimeout(calculatePosition, 300); // Wait for animation
-      return () => clearTimeout(timeoutId);
-    } 
-    
-    // If desktop, calculate immediately
-    if (!isMobile) {
-      calculatePosition();
     }
-  }, [step, isMobile, openMobile, refs, steps]);
+
+    const currentStepData = steps[step - 1];
+    if (!currentStepData) return;
+
+    if (isMobile) {
+      setOpenMobile(true);
+    }
+
+    // Cancel any previous animation frame loop
+    if (animationFrameId.current) {
+      cancelAnimationFrame(animationFrameId.current);
+    }
+    
+    // On both mobile and desktop, we might need to wait for the element to be ready.
+    const startTime = performance.now();
+    const maxWaitTime = 1000; // 1 second timeout
+
+    const waitForElement = (timestamp: number) => {
+        if (performance.now() - startTime > maxWaitTime) {
+            console.warn("TourPopup: Waited too long for element to become visible.");
+            return;
+        }
+
+        if (calculatePosition()) {
+            // Position calculated, stop the loop
+            return;
+        }
+
+        // If not ready, try again on the next frame
+        animationFrameId.current = requestAnimationFrame(waitForElement);
+    };
+
+    animationFrameId.current = requestAnimationFrame(waitForElement);
+
+    return () => {
+        if (animationFrameId.current) {
+            cancelAnimationFrame(animationFrameId.current);
+        }
+    };
+  }, [step, isMobile, openMobile, setOpenMobile, steps, refs]);
 
 
   const handleNext = () => {
     onNext();
-    // Close sidebar on mobile when tour ends
     if (isMobile && step === steps.length) {
       setOpenMobile(false);
     }
