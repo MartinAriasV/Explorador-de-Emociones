@@ -88,31 +88,20 @@ export default function EmotionExplorer() {
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
 
   useEffect(() => {
-    // This effect handles the creation of a profile for a new user.
     if (!isUserLoading && user && !isProfileLoading && !userProfile) {
-      // If the user is logged in but has no profile document after the initial load, create one.
       const newProfile = {
         ...defaultProfile,
         id: user.uid,
-        name: user.email?.split('@')[0] || defaultProfile.name, // Default name from email
+        name: user.email?.split('@')[0] || defaultProfile.name,
       };
-      // We use setDoc here to explicitly set the document with the user's UID.
-      // non-blocking is fine here.
       setDocumentNonBlocking(userProfileRef!, newProfile, { merge: true }).then(() => {
-        // After profile creation, show the welcome screen
         setShowWelcome(true);
       });
-    } else if (!isUserLoading && user && userProfile) {
-      // If user and profile exist, but welcome has not been decided, show it.
-      // This handles the case where localStorage is cleared
-      if (localStorage.getItem('emotion-explorer-show-welcome') === null) {
-        setShowWelcome(true);
-      }
     }
   }, [isUserLoading, user, isProfileLoading, userProfile, userProfileRef, setShowWelcome]);
 
 
-  useEffect(() => {
+  const checkAndUnlockRewards = () => {
     if (isProfileLoading || !userProfile || !diaryEntries || !emotionsList) return;
 
     const dailyStreak = calculateDailyStreak(diaryEntries);
@@ -142,7 +131,13 @@ export default function EmotionExplorer() {
       // Show popup for the first unlocked reward in the batch
       setNewlyUnlockedReward(rewardsToUnlock[0]);
     }
-  }, [diaryEntries, emotionsList, isProfileLoading, userProfile]);
+  };
+
+  useEffect(() => {
+    // This effect runs once when data is loaded to check for rewards.
+    // It doesn't trigger popups, just updates the profile if needed.
+    checkAndUnlockRewards();
+  }, [isProfileLoading, userProfile, diaryEntries, emotionsList]);
 
   // Special handler for "share" reward
   const handleShare = () => {
@@ -167,12 +162,11 @@ export default function EmotionExplorer() {
     if (!user) return;
     const emotionsCollection = collection(firestore, 'users', user.uid, 'emotions');
     
-    if (emotionData.id) {
-      const emotionDoc = doc(emotionsCollection, emotionData.id);
-      setDocumentNonBlocking(emotionDoc, { ...emotionData, userProfileId: user.uid }, { merge: true });
-    } else {
-      addDocumentNonBlocking(emotionsCollection, { ...emotionData, userProfileId: user.uid });
-    }
+    const promise = emotionData.id
+      ? setDocumentNonBlocking(doc(emotionsCollection, emotionData.id), { ...emotionData, userProfileId: user.uid }, { merge: true })
+      : addDocumentNonBlocking(emotionsCollection, { ...emotionData, userProfileId: user.uid });
+    
+    promise.then(() => checkAndUnlockRewards());
     setAddingEmotionData(null);
   };
   
@@ -205,7 +199,8 @@ export default function EmotionExplorer() {
   const addDiaryEntry = (entryData: Omit<DiaryEntry, 'id' | 'userProfileId'>) => {
     if (!user) return;
     const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
-    addDocumentNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid });
+    addDocumentNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid })
+      .then(() => checkAndUnlockRewards());
   };
   
   const updateDiaryEntry = (updatedEntry: DiaryEntry) => {
@@ -334,7 +329,7 @@ export default function EmotionExplorer() {
     );
   };
   
-  if (isUserLoading || (user && isProfileLoading)) {
+  if (isUserLoading || (user && isProfileLoading && !userProfile)) {
     return (
         <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
