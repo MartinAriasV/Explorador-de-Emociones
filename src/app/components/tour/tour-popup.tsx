@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useLayoutEffect, useRef, useState, RefObject } from 'react';
+import React, { useLayoutEffect, useRef, useState, RefObject, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { TourStepData } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { useSidebar } from '@/components/ui/sidebar';
 
 interface TourPopupProps {
   step: number;
@@ -17,46 +18,90 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
   const popupRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<{ top: number; left: number; width: number; height: number }>({ top: 0, left: 0, width: 0, height: 0 });
   const [popupPosition, setPopupPosition] = useState<{ top: number, left: number }>({ top: 0, left: 0 });
+  const { isMobile, setOpenMobile, openMobile } = useSidebar();
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const currentStepData = steps[step - 1];
     if (!currentStepData) return;
 
+    if (isMobile) {
+      setOpenMobile(true);
+    }
+  }, [step, steps, isMobile, setOpenMobile]);
+
+
+  useLayoutEffect(() => {
+    const currentStepData = steps[step - 1];
+    if (!currentStepData || (isMobile && !openMobile)) return;
+
     const targetRef = refs[currentStepData.refKey];
     const targetElement = targetRef?.current;
+    
+    let animationFrameId: number;
 
-    if (targetElement) {
-      const rect = targetElement.getBoundingClientRect();
-      setPosition({
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
-      });
-
-      const popupElement = popupRef.current;
-      if (popupElement) {
-        const popupRect = popupElement.getBoundingClientRect();
-        let top = rect.bottom + 16;
-        let left = rect.left + rect.width / 2 - popupRect.width / 2;
+    const updatePosition = () => {
+      if (targetElement) {
+        const rect = targetElement.getBoundingClientRect();
         
-        // Adjust vertical position
-        if (top + popupRect.height > window.innerHeight) {
-            top = rect.top - popupRect.height - 16;
-        }
+        if (rect.width > 0) { // Only update if the element is visible
+          setPosition({
+            top: rect.top,
+            left: rect.left,
+            width: rect.width,
+            height: rect.height,
+          });
 
-        // Adjust horizontal position
-        if (left < 16) left = 16;
-        if (left + popupRect.width > window.innerWidth - 16) {
-            left = window.innerWidth - popupRect.width - 16;
-        }
+          const popupElement = popupRef.current;
+          if (popupElement) {
+            const popupRect = popupElement.getBoundingClientRect();
+            let top = rect.bottom + 16;
+            let left = rect.left + rect.width / 2 - popupRect.width / 2;
+            
+            // Adjust vertical position
+            if (top + popupRect.height > window.innerHeight) {
+                top = rect.top - popupRect.height - 16;
+            }
 
-        setPopupPosition({ top, left });
+            // Adjust horizontal position
+            if (left < 16) left = 16;
+            if (left + popupRect.width > window.innerWidth - 16) {
+                left = window.innerWidth - popupRect.width - 16;
+            }
+
+            setPopupPosition({ top, left });
+          }
+        } else {
+            // If element is not visible, try again on the next frame
+            animationFrameId = requestAnimationFrame(updatePosition);
+        }
       }
+    };
+
+    // Delay to allow for sidebar animation
+    const timeoutId = setTimeout(updatePosition, isMobile ? 300 : 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+      if(animationFrameId) cancelAnimationFrame(animationFrameId);
     }
-  }, [step, steps, refs]);
+
+  }, [step, steps, refs, isMobile, openMobile]);
   
-  if (step === 0 || !steps[step - 1]) {
+  const handleNext = () => {
+    onNext();
+    if (isMobile && step === steps.length) {
+      setOpenMobile(false);
+    }
+  };
+
+  const handleSkip = () => {
+    onSkip();
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+
+  if (step === 0 || !steps[step - 1] || position.width === 0) {
     return null;
   }
 
@@ -87,8 +132,8 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
         <h3 className="font-bold text-lg mb-2">{title}</h3>
         <p className="text-sm text-muted-foreground">{description}</p>
         <div className="flex justify-between mt-4">
-          <Button variant="ghost" onClick={onSkip}>Saltar</Button>
-          <Button onClick={onNext} className="bg-accent text-accent-foreground hover:bg-accent/90">
+          <Button variant="ghost" onClick={handleSkip}>Saltar</Button>
+          <Button onClick={handleNext} className="bg-accent text-accent-foreground hover:bg-accent/90">
             {step === steps.length ? 'Finalizar' : 'Siguiente'}
           </Button>
         </div>
