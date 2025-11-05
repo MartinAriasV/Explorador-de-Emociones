@@ -179,7 +179,7 @@ export default function EmotionExplorer() {
         console.log("User profile does not exist, creating one.");
         // Set a default profile. merge:true ensures we don't overwrite existing data
         // if this were to runracing against another write (it shouldn't, but it's safe).
-        setDocumentNonBlocking(userProfileRef, defaultProfile, { merge: true });
+        // setDocumentNonBlocking(userProfileRef, defaultProfile, { merge: true });
       }
     }
   }, [user, userProfileRef, isProfileLoading, userProfile]);
@@ -288,10 +288,10 @@ export default function EmotionExplorer() {
             <AlertDialogDescription className="text-center pt-2">
               <div className="flex flex-col items-center gap-4">
                 <span className="text-7xl">{newlyUnlockedReward?.animal.icon}</span>
-                <p>¡Felicidades! Por tu increíble racha has desbloqueado al:</p>
-                <p className="font-bold text-xl text-primary">{newlyUnlockedReward?.animal.name}</p>
-                <p className="text-sm text-muted-foreground">{newlyUnlockedReward?.animal.description}</p>
-                <p className="text-xs text-amber-500 font-semibold">{newlyUnlockedReward?.animal.rarity}</p>
+                <span className="block">¡Felicidades! Por tu increíble racha has desbloqueado al:</span>
+                <span className="block font-bold text-xl text-primary">{newlyUnlockedReward?.animal.name}</span>
+                <span className="block text-sm text-muted-foreground">{newlyUnlockedReward?.animal.description}</span>
+                <span className="block text-xs text-amber-500 font-semibold">{newlyUnlockedReward?.animal.rarity}</span>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
