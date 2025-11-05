@@ -335,6 +335,12 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
     );
   };
   
+  useEffect(() => {
+    if(isNewUser) {
+      setIsNewUserFlow(true);
+    }
+  }, [isNewUser]);
+
   if (isUserLoading || (user && (isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading))) {
     return (
         <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">

@@ -21,15 +21,20 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
   const { isMobile, setOpenMobile, openMobile } = useSidebar();
 
   const calculateAndSetPosition = () => {
+    if (step === 0) {
+      setPosition({ top: 0, left: 0, width: 0, height: 0 });
+      return false;
+    }
+  
     const currentStepData = steps[step - 1];
     if (!currentStepData) return false;
-
+  
     const targetRef = refs[currentStepData.refKey];
     const targetElement = targetRef?.current;
-
+  
     if (targetElement) {
       const rect = targetElement.getBoundingClientRect();
-
+  
       if (rect.width > 0 && rect.height > 0) {
         setPosition({
           top: rect.top,
@@ -37,22 +42,22 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
           width: rect.width,
           height: rect.height,
         });
-
+  
         const popupElement = popupRef.current;
         if (popupElement) {
           const popupRect = popupElement.getBoundingClientRect();
           let top = rect.bottom + 16;
           let left = rect.left + rect.width / 2 - popupRect.width / 2;
-
+  
           if (top + popupRect.height > window.innerHeight) {
             top = rect.top - popupRect.height - 16;
           }
-
+  
           if (left < 16) left = 16;
           if (left + popupRect.width > window.innerWidth - 16) {
             left = window.innerWidth - popupRect.width - 16;
           }
-
+  
           setPopupPosition({ top, left });
         }
         return true; // Position calculated successfully
@@ -67,49 +72,29 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
       return;
     }
 
-    if (isMobile && !openMobile) {
-      setOpenMobile(true);
-    } else {
-      calculateAndSetPosition();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, isMobile, setOpenMobile]);
-
-
-  useEffect(() => {
-    if (!isMobile || step === 0 || !openMobile) return;
-
-    const observer = new MutationObserver((mutations, obs) => {
-        if (calculateAndSetPosition()) {
-            obs.disconnect();
-        }
-    });
-
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-    });
+    const currentStepData = steps[step - 1];
+    if (!currentStepData) return;
     
-    const timeoutId = setTimeout(() => {
-        if(calculateAndSetPosition()) {
-            observer.disconnect();
-        }
-    }, 100);
+    // On mobile, if the menu is closed and the step requires it, open it first.
+    if (isMobile && !openMobile && refs[currentStepData.refKey]) {
+      setOpenMobile(true);
+      // We return here. The effect will re-run when openMobile changes.
+      return;
+    }
 
+    // If we're on mobile and the menu is open, or we're on desktop, calculate position.
+    // A small delay gives the UI time to settle, especially for animations.
+    const timer = setTimeout(() => {
+      calculateAndSetPosition();
+    }, isMobile ? 150 : 0); // A bit more delay for mobile animation
 
-    return () => {
-        observer.disconnect();
-        clearTimeout(timeoutId);
-    };
+    return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openMobile, step, isMobile]);
+  }, [step, isMobile, openMobile, refs]);
 
 
   const handleNext = () => {
     onNext();
-    if (isMobile && step === steps.length) {
-      setOpenMobile(false);
-    }
   };
 
   const handleSkip = () => {
@@ -126,11 +111,13 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
   const { title, description } = steps[step - 1];
 
   return (
-    <div className="fixed inset-0 z-[60] pointer-events-auto">
-       <div className="fixed inset-0 bg-black/50 z-0"></div>
-      {/* Highlight */}
+    <div className="fixed inset-0 z-[60] pointer-events-none">
+      {/* Background overlay */}
+      <div className="fixed inset-0 bg-black/50 z-0 pointer-events-auto" onClick={handleSkip}></div>
+      
+      {/* Highlight Box */}
       <div
-        className="fixed transition-all duration-300 ease-in-out border-2 border-accent rounded-lg bg-background pointer-events-none"
+        className="fixed transition-all duration-300 ease-in-out border-2 border-accent rounded-lg bg-background/20"
         style={{
           top: `${position.top - 4}px`,
           left: `${position.left - 4}px`,
@@ -141,7 +128,7 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
         }}
       />
 
-      {/* Popup */}
+      {/* Popup Content */}
       <div
         ref={popupRef}
         className={cn(
@@ -158,7 +145,13 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
         <p className="text-sm text-muted-foreground">{description}</p>
         <div className="flex justify-between mt-4">
           <Button variant="ghost" onClick={handleSkip}>Saltar</Button>
-          <Button onClick={handleNext} className="bg-accent text-accent-foreground hover:bg-accent/90">
+          <Button onClick={() => {
+            if (step === steps.length) {
+              handleSkip();
+            } else {
+              handleNext();
+            }
+          }} className="bg-accent text-accent-foreground hover:bg-accent/90">
             {step === steps.length ? 'Finalizar' : 'Siguiente'}
           </Button>
         </div>
