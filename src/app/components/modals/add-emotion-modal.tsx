@@ -8,19 +8,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Emotion } from '@/lib/types';
 import { AVATAR_EMOJIS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Trash2 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 
 interface AddEmotionModalProps {
   initialData: (Partial<Emotion>) | null;
   onSave: (emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string }) => void;
-  onDelete: (emotionId: string) => void;
   onClose: () => void;
 }
 
-export function AddEmotionModal({ initialData, onSave, onClose, onDelete }: AddEmotionModalProps) {
+export function AddEmotionModal({ initialData, onSave, onClose }: AddEmotionModalProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [color, setColor] = useState('#47a2a2');
@@ -61,15 +58,7 @@ export function AddEmotionModal({ initialData, onSave, onClose, onDelete }: AddE
     onSave(dataToSave);
   };
 
-  const handleDelete = () => {
-    if (initialData?.id) {
-      onDelete(initialData.id);
-    }
-  }
-
   if (!initialData) return null;
-
-  const isEditing = !!initialData.id;
 
   return (
     <Dialog open={!!initialData} onOpenChange={(open) => !open && onClose()}>
@@ -77,10 +66,10 @@ export function AddEmotionModal({ initialData, onSave, onClose, onDelete }: AddE
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3 text-2xl">
             <span className="text-3xl">{icon || initialData.icon}</span>
-            {isEditing ? `Editar "${initialData.name}"` : `Añadir "${name}"`}
+            Añadir "{name || initialData.name}"
           </DialogTitle>
           <DialogDescription>
-            {isEditing ? 'Modifica los detalles de tu emoción.' : 'Personaliza esta emoción antes de añadirla a tu emocionario.'}
+            Personaliza esta emoción antes de añadirla a tu emocionario.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
@@ -126,37 +115,11 @@ export function AddEmotionModal({ initialData, onSave, onClose, onDelete }: AddE
             />
           </div>
         </div>
-        <DialogFooter className="sm:justify-between">
-          <div>
-            {isEditing && (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button variant="destructive">
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Eliminar
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      Esta acción no se puede deshacer. Esto eliminará permanentemente la emoción y **todas las entradas del diario asociadas a ella**.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete}>Eliminar</AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose}>Cancelar</Button>
-            <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90">
-              {isEditing ? 'Guardar Cambios' : 'Guardar en mi Emocionario'}
-            </Button>
-          </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90">
+            Guardar en mi Emocionario
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

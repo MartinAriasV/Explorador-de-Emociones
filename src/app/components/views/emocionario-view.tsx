@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,18 +16,35 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 interface EmocionarioViewProps {
   emotionsList: Emotion[];
-  addEmotion: (emotion: Omit<Emotion, 'id' | 'userProfileId'>) => void;
+  addEmotion: (emotion: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string }) => void;
   onEditEmotion: (emotion: Emotion) => void;
   onDeleteEmotion: (emotionId: string) => void;
+  editingEmotion: Emotion | null;
+  onCancelEdit: () => void;
 }
 
-export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDeleteEmotion }: EmocionarioViewProps) {
+export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDeleteEmotion, editingEmotion, onCancelEdit }: EmocionarioViewProps) {
   const [name, setName] = useState('');
   const [icon, setIcon] = useState('');
   const [color, setColor] = useState('#8B5CF6');
   const [description, setDescription] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    if (editingEmotion) {
+      setName(editingEmotion.name);
+      setIcon(editingEmotion.icon);
+      setColor(editingEmotion.color);
+      setDescription(editingEmotion.description || '');
+    } else {
+      // Reset form when not editing
+      setName('');
+      setIcon('');
+      setColor('#8B5CF6');
+      setDescription('');
+    }
+  }, [editingEmotion]);
 
   const handleGenerateDescription = async () => {
     if (!name) {
@@ -52,20 +69,40 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !icon || !color) return;
-    addEmotion({ name, icon, color, description });
-    setName('');
-    setIcon('');
-    setColor('#8B5CF6');
-    setDescription('');
+    if (!name || !icon || !color) {
+      toast({ title: "Faltan campos", description: "Asegúrate de que la emoción tenga un nombre y un icono.", variant: "destructive" });
+      return;
+    };
+
+    const emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string } = {
+      name,
+      icon,
+      color,
+      description,
+    };
+    
+    if (editingEmotion) {
+      emotionData.id = editingEmotion.id;
+    }
+    
+    addEmotion(emotionData);
+
+    if (editingEmotion) {
+      onCancelEdit();
+    } else {
+      setName('');
+      setIcon('');
+      setColor('#8B5CF6');
+      setDescription('');
+    }
   };
 
   return (
     <div className="grid lg:grid-cols-2 gap-6 h-full">
       <Card className="w-full shadow-lg flex flex-col transition-all duration-300 hover:shadow-xl">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-primary">Añadir Emoción</CardTitle>
-          <CardDescription>Crea una nueva emoción para tu diario.</CardDescription>
+          <CardTitle className="text-2xl font-bold text-primary">{editingEmotion ? 'Editar Emoción' : 'Añadir Emoción'}</CardTitle>
+          <CardDescription>{editingEmotion ? `Modificando "${editingEmotion.name}"` : 'Crea una nueva emoción para tu diario.'}</CardDescription>
         </CardHeader>
         <CardContent className="flex-grow flex flex-col gap-4 overflow-y-auto">
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -123,9 +160,16 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
                   {isAiLoading ? <Loader className="animate-spin" /> : <Sparkles />}
                 </Button>
               </div>
-              <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full mt-auto">
-                Añadir Emoción
-              </Button>
+              <div className="flex gap-2 mt-auto">
+                {editingEmotion && (
+                  <Button type="button" variant="outline" onClick={onCancelEdit} className="w-full">
+                    Cancelar Edición
+                  </Button>
+                )}
+                <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
+                  {editingEmotion ? 'Actualizar Emoción' : 'Añadir Emoción'}
+                </Button>
+              </div>
             </form>
         </CardContent>
       </Card>
