@@ -1,14 +1,15 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from '@/components/ui/sidebar';
 import type { UserProfile, View, DiaryEntry } from '@/lib/types';
-import { BookOpen, Smile, Sparkles, Heart, BarChart, Share2, UserCircle, Menu, Flame } from 'lucide-react';
+import { BookOpen, Smile, Sparkles, Heart, BarChart, Share2, UserCircle, Menu, Flame, LogOut, Moon, Sun } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useFirebase } from '@/firebase';
 import { calculateDailyStreak } from '@/lib/utils';
 import { cn } from '@/lib/utils';
-
+import { Switch } from '@/components/ui/switch';
+import useLocalStorage from '@/hooks/use-local-storage';
 
 interface AppSidebarProps {
   view: View;
@@ -33,6 +34,12 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
   const { setOpenMobile } = useSidebar();
   const { auth } = useFirebase();
   const dailyStreak = calculateDailyStreak(diaryEntries);
+  const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
+
+  useEffect(() => {
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(theme);
+  }, [theme]);
 
   const handleItemClick = (newView: View) => {
     setView(newView);
@@ -42,7 +49,7 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
   if (!userProfile) {
     // Render a loading state or a default state if userProfile is not available yet.
     return (
-        <Sidebar collapsible="icon" className="shadow-lg">
+        <Sidebar collapsible="icon" className="shadow-lg animate-fade-in">
              <SidebarHeader className="p-4">
                  <div className="flex items-center gap-3">
                     <Avatar className="h-12 w-12 bg-muted" />
@@ -56,10 +63,10 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
   }
 
   return (
-    <Sidebar collapsible="icon" className="shadow-lg">
+    <Sidebar collapsible="icon" className="shadow-lg animate-fade-in">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-           <Avatar className="h-12 w-12">
+           <Avatar className="h-12 w-12 border-2 border-primary/20">
             {userProfile.avatarType === 'generated' ? (
               <AvatarImage src={userProfile.avatar} alt={userProfile.name} />
             ) : (
@@ -91,9 +98,21 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
           </SidebarMenuItem>
         ))}
       </SidebarMenu>
-      <SidebarMenu className="p-4 mt-auto">
+      <SidebarMenu className="p-4 mt-auto space-y-2">
+        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center px-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground group-data-[collapsible=icon]:hidden">
+                <Moon className="h-5 w-5" />
+                <span>Modo Oscuro</span>
+            </div>
+            <Switch
+                checked={theme === 'dark'}
+                onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
+                aria-label="Toggle dark mode"
+            />
+        </div>
         <SidebarMenuItem>
-            <SidebarMenuButton onClick={() => auth.signOut()} className="text-base">
+            <SidebarMenuButton onClick={() => auth.signOut()} className="text-base" tooltip="Cerrar Sesión">
+                <LogOut className="h-5 w-5"/>
                 <span>Cerrar sesión</span>
             </SidebarMenuButton>
         </SidebarMenuItem>

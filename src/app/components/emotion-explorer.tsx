@@ -22,6 +22,12 @@ import LoginView from './views/login-view';
 import useLocalStorage from '@/hooks/use-local-storage';
 import { StreakView } from './views/streak-view';
 
+const defaultProfile: Omit<UserProfile, 'id'> = {
+  name: 'Usuario',
+  avatar: '😊',
+  avatarType: 'emoji',
+};
+
 export default function EmotionExplorer() {
   const [view, setView] = useState<View>('diary');
   const { firestore } = useFirebase();
@@ -50,6 +56,18 @@ export default function EmotionExplorer() {
     return acc;
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
 
+
+  // Effect to create a default profile for new users
+  useEffect(() => {
+    // Only run if we have a user, a valid ref, and loading is complete
+    if (user && userProfileRef && !isProfileLoading) {
+      // If the profile document doesn't exist, create it.
+      if (!userProfile) {
+        console.log("User profile does not exist, creating one.");
+        setDocumentNonBlocking(userProfileRef, defaultProfile, { merge: true });
+      }
+    }
+  }, [user, userProfileRef, isProfileLoading, userProfile]);
 
   const setUserProfile = (profile: Omit<UserProfile, 'id'>) => {
     if (!userProfileRef) return;
@@ -145,40 +163,46 @@ export default function EmotionExplorer() {
   };
 
   const renderView = () => {
-    switch (view) {
-      case 'diary':
-        return <DiaryView 
-                  emotionsList={emotionsList || []} 
-                  diaryEntries={diaryEntries || []} 
-                  addDiaryEntry={addDiaryEntry}
-                  updateDiaryEntry={updateDiaryEntry}
-                  deleteDiaryEntry={deleteDiaryEntry}
-                  setView={setView} 
-                />;
-      case 'emocionario':
-        return <EmocionarioView emotionsList={emotionsList || []} addEmotion={saveEmotion} onEditEmotion={handleOpenAddEmotionModal} onDeleteEmotion={deleteEmotion} />;
-      case 'discover':
-        return <DiscoverView onAddEmotion={handleOpenAddEmotionModal} />;
-      case 'calm':
-        return <CalmView />;
-      case 'streak':
-        return <StreakView diaryEntries={diaryEntries || []} />;
-      case 'report':
-        return <ReportView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} />;
-      case 'share':
-        return <ShareView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} userProfile={userProfile!} />;
-      case 'profile':
-        return <ProfileView userProfile={userProfile} setUserProfile={setUserProfile} />;
-      default:
-        return <DiaryView 
-                  emotionsList={emotionsList || []} 
-                  diaryEntries={diaryEntries || []} 
-                  addDiaryEntry={addDiaryEntry}
-                  updateDiaryEntry={updateDiaryEntry}
-                  deleteDiaryEntry={deleteDiaryEntry}
-                  setView={setView} 
-                />;
-    }
+    return (
+      <div className="animate-fade-in-up">
+        {(() => {
+          switch (view) {
+            case 'diary':
+              return <DiaryView 
+                        emotionsList={emotionsList || []} 
+                        diaryEntries={diaryEntries || []} 
+                        addDiaryEntry={addDiaryEntry}
+                        updateDiaryEntry={updateDiaryEntry}
+                        deleteDiaryEntry={deleteDiaryEntry}
+                        setView={setView} 
+                      />;
+            case 'emocionario':
+              return <EmocionarioView emotionsList={emotionsList || []} addEmotion={saveEmotion} onEditEmotion={handleOpenAddEmotionModal} onDeleteEmotion={deleteEmotion} />;
+            case 'discover':
+              return <DiscoverView onAddEmotion={handleOpenAddEmotionModal} />;
+            case 'calm':
+              return <CalmView />;
+            case 'streak':
+              return <StreakView diaryEntries={diaryEntries || []} />;
+            case 'report':
+              return <ReportView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} />;
+            case 'share':
+              return <ShareView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} userProfile={userProfile!} />;
+            case 'profile':
+              return <ProfileView userProfile={userProfile} setUserProfile={setUserProfile} />;
+            default:
+              return <DiaryView 
+                        emotionsList={emotionsList || []} 
+                        diaryEntries={diaryEntries || []} 
+                        addDiaryEntry={addDiaryEntry}
+                        updateDiaryEntry={updateDiaryEntry}
+                        deleteDiaryEntry={deleteDiaryEntry}
+                        setView={setView} 
+                      />;
+          }
+        })()}
+      </div>
+    );
   };
   
   if (isUserLoading) {
@@ -190,7 +214,12 @@ export default function EmotionExplorer() {
   }
   
   if (isProfileLoading) {
-     return <div className="flex h-screen w-screen items-center justify-center">Cargando perfil...</div>;
+    return (
+        <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
+            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-lg text-primary">Cargando perfil...</p>
+        </div>
+    );
   }
 
 
@@ -232,5 +261,3 @@ export default function EmotionExplorer() {
     </SidebarProvider>
   );
 }
-
-    

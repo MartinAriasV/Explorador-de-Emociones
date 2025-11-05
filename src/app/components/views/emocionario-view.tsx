@@ -24,7 +24,7 @@ interface EmocionarioViewProps {
 export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDeleteEmotion }: EmocionarioViewProps) {
   const [name, setName] = useState('');
   const [icon, setIcon] = useState('');
-  const [color, setColor] = useState('#47a2a2');
+  const [color, setColor] = useState('#8B5CF6');
   const [description, setDescription] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const { toast } = useToast();
@@ -56,13 +56,13 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
     addEmotion({ name, icon, color, description });
     setName('');
     setIcon('');
-    setColor('#47a2a2');
+    setColor('#8B5CF6');
     setDescription('');
   };
 
   return (
     <div className="grid lg:grid-cols-2 gap-6 h-full">
-      <Card className="w-full shadow-lg flex flex-col">
+      <Card className="w-full shadow-lg flex flex-col transition-all duration-300 hover:shadow-xl">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-primary">Añadir Emoción</CardTitle>
           <CardDescription>Crea una nueva emoción para tu diario.</CardDescription>
@@ -129,7 +129,7 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
             </form>
         </CardContent>
       </Card>
-      <Card className="w-full shadow-lg flex flex-col">
+      <Card className="w-full shadow-lg flex flex-col transition-all duration-300 hover:shadow-xl">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-primary">Tu Emocionario</CardTitle>
           <CardDescription>Las emociones que has añadido.</CardDescription>
@@ -141,7 +141,7 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
                 {emotionsList.map((em) => (
                   <Card 
                     key={em.id} 
-                    className="p-4 text-center border-2 flex flex-col items-center justify-center aspect-square transition-all group relative" 
+                    className="p-4 text-center border-2 flex flex-col items-center justify-center aspect-square transition-all group relative hover:scale-105 hover:shadow-md" 
                     style={{ borderColor: em.color }}
                   >
                     <p className="text-4xl mb-2">{em.icon}</p>
