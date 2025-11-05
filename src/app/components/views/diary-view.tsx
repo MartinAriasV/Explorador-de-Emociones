@@ -51,10 +51,6 @@ export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, upda
     setEditingEntry(null);
   };
 
-  const handleEditClick = (entry: DiaryEntry) => {
-    setEditingEntry(entry);
-  };
-
   const handleCancelEdit = () => {
     resetForm();
   };
@@ -63,7 +59,11 @@ export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, upda
     e.preventDefault();
     if (!date || !selectedEmotionId || !text) return;
     
-    const entryData = { date, emotionId: selectedEmotionId, text };
+    // Create a new Date object from the input string to ensure it's treated as UTC midnight
+    // Then convert to ISO string. This avoids timezone issues.
+    const utcDate = new Date(date + 'T00:00:00Z').toISOString();
+
+    const entryData = { date: utcDate, emotionId: selectedEmotionId, text };
 
     if (editingEntry) {
       updateDiaryEntry({ ...editingEntry, ...entryData });
@@ -174,7 +174,7 @@ export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, upda
                             <p className="text-sm text-foreground/80">{entry.text}</p>
                           </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditClick(entry)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingEntry(entry)}>
                               <Edit className="h-4 w-4" />
                             </Button>
                             <AlertDialog>
@@ -234,5 +234,3 @@ export function DiaryView({ emotionsList = [], diaryEntries, addDiaryEntry, upda
     </>
   );
 }
-
-    
