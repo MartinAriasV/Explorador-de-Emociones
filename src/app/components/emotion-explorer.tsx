@@ -49,28 +49,20 @@ export default function EmotionExplorer() {
     acc[step.refKey] = createRef<HTMLLIElement>();
     return acc;
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
-
-  // This effect handles the initial creation of a user profile document in Firestore.
-  // It only runs when a user is authenticated, the profile loading is complete,
-  // and it's confirmed that no profile document exists.
-  useEffect(() => {
-    if (user && userProfileRef && !isProfileLoading && !userProfile) {
-      const newUserProfile: UserProfile = {
-        name: user.displayName || 'Usuario',
-        avatar: user.photoURL || '😊',
-        avatarType: user.photoURL ? 'generated' : 'emoji',
-      };
-      // This is a non-blocking write. It ensures that if the user navigates away
-      // or closes the app, the creation request is still sent.
-      setDocumentNonBlocking(userProfileRef, newUserProfile, { merge: false });
-    }
-  }, [user, userProfile, isProfileLoading, userProfileRef]);
   
   const setUserProfile = (profile: Omit<UserProfile, 'id'>) => {
     if (!userProfileRef) return;
-    // Use `setDoc` with merge to either create or update the document.
+  
+    // This logic ensures that if a profile doesn't exist, it's created with `setDoc`.
+    // If it already exists, `setDoc` with `merge: true` will update it without overwriting other fields.
     // This is a non-blocking write.
-    setDocumentNonBlocking(userProfileRef, profile, { merge: true });
+    const profileToSave = {
+      name: profile.name,
+      avatar: profile.avatar,
+      avatarType: profile.avatarType
+    };
+    
+    setDocumentNonBlocking(userProfileRef, profileToSave, { merge: true });
   }
 
   const saveEmotion = (emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string }) => {
