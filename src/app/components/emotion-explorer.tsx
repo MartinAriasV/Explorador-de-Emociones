@@ -52,18 +52,16 @@ export default function EmotionExplorer() {
 
   // Effect to create initial user profile in Firestore
   useEffect(() => {
-    // Only proceed if we have a user, the profile has finished loading, and no profile exists.
-    if (user && !isProfileLoading && !userProfile) {
-        const newUserProfile: UserProfile = {
-            name: user.displayName || 'Usuario',
-            avatar: user.photoURL || '😊',
-            avatarType: user.photoURL ? 'generated' : 'emoji',
-        };
-        // Ensure userProfileRef is not null before using it.
-        if (userProfileRef) {
-          // setDoc is non-blocking, but we want to ensure it's called correctly.
-          setDoc(userProfileRef, newUserProfile).catch(console.error);
-        }
+    // This effect should only run when we have a user, the profile loading is complete,
+    // and there is definitively no userProfile document.
+    if (user && userProfileRef && !isProfileLoading && !userProfile) {
+      const newUserProfile: UserProfile = {
+        name: user.displayName || 'Usuario',
+        avatar: user.photoURL || '😊',
+        avatarType: user.photoURL ? 'generated' : 'emoji',
+      };
+      // This is a non-blocking write.
+      setDoc(userProfileRef, newUserProfile).catch(console.error);
     }
   }, [user, userProfile, isProfileLoading, userProfileRef]);
   
@@ -180,14 +178,10 @@ export default function EmotionExplorer() {
     return <LoginView />;
   }
   
-  if (isProfileLoading) {
+  // While user profile is loading, or if it's creating for the first time, show loading state.
+  // This prevents rendering children that depend on userProfile before it's ready.
+  if (isProfileLoading || !userProfile) {
      return <div className="flex h-screen w-screen items-center justify-center">Cargando perfil...</div>;
-  }
-
-  if (!userProfile) {
-    // This case will be hit transiently while the profile is being created by the useEffect.
-    // Showing a loading indicator here prevents rendering children that depend on userProfile.
-    return <div className="flex h-screen w-screen items-center justify-center">Creando perfil...</div>;
   }
 
 
