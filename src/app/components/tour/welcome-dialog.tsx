@@ -12,7 +12,7 @@ interface WelcomeDialogProps {
 
 export function WelcomeDialog({ open, onStartTour, onSkipTour }: WelcomeDialogProps) {
     return (
-        <Dialog open={open}>
+        <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onSkipTour()}>
             <DialogContent className="sm:max-w-[425px]" hideCloseButton>
                 <DialogHeader>
                     <DialogTitle className="flex flex-col items-center text-center gap-2 text-2xl">

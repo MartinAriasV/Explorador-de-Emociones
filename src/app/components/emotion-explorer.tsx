@@ -25,8 +25,10 @@ import { StreakView } from './views/streak-view';
 import { SanctuaryView } from './views/sanctuary-view';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { calculateDailyStreak } from '@/lib/utils';
-import { Crown } from 'lucide-react';
+import { Crown, Map } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const defaultProfile: Omit<UserProfile, 'id' | 'unlockedAnimalIds' | 'emotionCount'> = {
   name: 'Usuario',
@@ -79,9 +81,18 @@ export default function EmotionExplorer() {
       };
       // We use setDoc here to explicitly set the document with the user's UID.
       // non-blocking is fine here.
-      setDocumentNonBlocking(userProfileRef!, newProfile, {});
+      setDocumentNonBlocking(userProfileRef!, newProfile, { merge: true }).then(() => {
+        // After profile creation, show the welcome screen
+        setShowWelcome(true);
+      });
+    } else if (!isUserLoading && user && userProfile) {
+      // If user and profile exist, but welcome has not been decided, show it.
+      // This handles the case where localStorage is cleared
+      if (localStorage.getItem('emotion-explorer-show-welcome') === null) {
+        setShowWelcome(true);
+      }
     }
-  }, [isUserLoading, user, isProfileLoading, userProfile, userProfileRef]);
+  }, [isUserLoading, user, isProfileLoading, userProfile, userProfileRef, setShowWelcome]);
 
 
   useEffect(() => {
@@ -364,13 +375,13 @@ export default function EmotionExplorer() {
 
       <AlertDialog open={!!newlyUnlockedReward}>
         <AlertDialogContent>
-          <AlertDialogHeader className="items-center text-center">
+          <AlertDialogHeader>
             <AlertDialogTitle className="flex flex-col items-center text-center gap-2 text-2xl">
               <Crown className="w-10 h-10 text-amber-400" />
               ¡Recompensa Desbloqueada!
             </AlertDialogTitle>
             <AlertDialogDescription>
-              ¡Felicidades! Has desbloqueado al:
+               ¡Felicidades! Has desbloqueado al:
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="flex flex-col items-center gap-2 pt-4">
@@ -386,6 +397,23 @@ export default function EmotionExplorer() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button 
+              onClick={startTour} 
+              className="fixed bottom-6 right-6 w-16 h-16 rounded-full bg-accent shadow-lg animate-pulse hover:animate-none"
+            >
+              <Map className="w-8 h-8" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Realizar Tour Guiado</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
     </SidebarProvider>
   );
 }
