@@ -86,15 +86,20 @@ export default function EmotionExplorer() {
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
 
   useEffect(() => {
+    // This effect handles the creation of a profile for a new user.
     if (!isUserLoading && user && !isProfileLoading && !userProfile) {
-      const newProfile = {
-        ...defaultProfile,
+      const newProfile: UserProfile = {
         id: user.uid,
         name: user.email?.split('@')[0] || defaultProfile.name,
+        avatar: defaultProfile.avatar,
+        avatarType: defaultProfile.avatarType,
         unlockedAnimalIds: [],
         emotionCount: 0,
       };
-      setDocumentNonBlocking(userProfileRef!, newProfile, { merge: true }).then(() => {
+      
+      // Create the profile document in Firestore.
+      setDoc(userProfileRef!, newProfile, { merge: true }).then(() => {
+        // Only after the profile is successfully created, we trigger the new user flow.
         setIsNewUserFlow(true);
       });
     }
@@ -379,7 +384,7 @@ export default function EmotionExplorer() {
       )}
 
       <WelcomeDialog
-        open={isNewUserFlow && tourStep === 0}
+        open={isNewUserFlow}
         onStartTour={startTour}
         onSkipTour={skipTour}
       />
@@ -421,7 +426,7 @@ export default function EmotionExplorer() {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button 
-              onClick={startTour} 
+              onClick={() => setTourStep(1)} 
               className="fixed bottom-6 right-6 w-16 h-16 rounded-full bg-accent shadow-lg animate-pulse hover:animate-none"
             >
               <Map className="w-8 h-8" />
@@ -436,3 +441,5 @@ export default function EmotionExplorer() {
     </SidebarProvider>
   );
 }
+
+    
