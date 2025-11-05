@@ -14,7 +14,7 @@ import { ProfileView } from './views/profile-view';
 import { AddEmotionModal } from './modals/add-emotion-modal';
 import { WelcomeDialog } from './tour/welcome-dialog';
 import { TourPopup } from './tour/tour-popup';
-import { TOUR_STEPS } from '@/lib/constants';
+import { TOUR_STEPS, PREDEFINED_EMOTIONS } from '@/lib/constants';
 import { useFirebase, useUser, useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { deleteDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc, setDoc } from 'firebase/firestore';
@@ -29,7 +29,7 @@ export default function EmotionExplorer() {
 
   // --- Firestore Data ---
   const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+  const { data: userProfile, isLoading: isProfileLoading, error: profileError } = useDoc<UserProfile>(userProfileRef);
 
   const emotionsQuery = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'emotions') : null, [firestore, user]);
   const { data: emotionsList, isLoading: isLoadingEmotions } = useCollection<Emotion>(emotionsQuery);
@@ -52,7 +52,7 @@ export default function EmotionExplorer() {
 
   // Effect to create initial user profile in Firestore
   useEffect(() => {
-    // Only proceed if we have a user, the profile is not loading, and no profile exists.
+    // Only proceed if we have a user, profile loading has finished, and no profile exists.
     if (user && !isProfileLoading && !userProfile) {
         const newUserProfile: UserProfile = {
             name: user.displayName || 'Usuario',
@@ -62,6 +62,7 @@ export default function EmotionExplorer() {
         // Use a standard `setDoc` here as it's a one-time setup operation.
         // It's crucial to ensure the user document exists before other operations.
         if (userProfileRef) {
+          // It's safe to set the doc, as our condition ensures it doesn't exist.
           setDoc(userProfileRef, newUserProfile).catch(console.error);
         }
     }
@@ -157,9 +158,9 @@ export default function EmotionExplorer() {
       case 'report':
         return <ReportView diaryEntries={diaryEntries} emotionsList={emotionsList || []} />;
       case 'share':
-        return <ShareView diaryEntries={diaryEntries} emotionsList={emotionsList || []} userProfile={userProfile} />;
+        return <ShareView diaryEntries={diaryEntries} emotionsList={emotionsList || []} userProfile={userProfile!} />;
       case 'profile':
-        return <ProfileView userProfile={userProfile} setUserProfile={setUserProfile} />;
+        return <ProfileView userProfile={userProfile!} setUserProfile={setUserProfile} />;
       default:
         return <DiaryView 
                   emotionsList={emotionsList} 
@@ -172,7 +173,7 @@ export default function EmotionExplorer() {
     }
   };
   
-  if (isUserLoading || isLoadingEmotions || isLoadingEntries || (user && isProfileLoading && !userProfile)) {
+  if (isUserLoading || isLoadingEmotions || isLoadingEntries || isProfileLoading) {
     return <div className="flex h-screen w-screen items-center justify-center">Cargando...</div>;
   }
 
@@ -181,7 +182,8 @@ export default function EmotionExplorer() {
   }
   
   if (!userProfile) {
-    return <div className="flex h-screen w-screen items-center justify-center">Cargando perfil...</div>;
+     // This state will be brief, as the useEffect will trigger to create the profile.
+    return <div className="flex h-screen w-screen items-center justify-center">Creando perfil...</div>;
   }
 
 
