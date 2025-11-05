@@ -33,11 +33,14 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
 
   useEffect(() => {
     if (editingEntry) {
-        const entryDate = new Date(editingEntry.date).toISOString().split('T')[0];
-        setDate(entryDate);
+        // When editing, parse the ISO string and format it to YYYY-MM-DD for the input
+        const entryDate = new Date(editingEntry.date);
+        const formattedDate = entryDate.toISOString().split('T')[0];
+        setDate(formattedDate);
         setSelectedEmotionId(editingEntry.emotionId);
         setText(editingEntry.text);
     } else {
+        // When not editing, reset to default values
         resetForm();
     }
   }, [editingEntry]);
@@ -59,7 +62,8 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
     e.preventDefault();
     if (!date || !selectedEmotionId || !text) return;
     
-    const utcDate = new Date(date + 'T00:00:00Z').toISOString();
+    // Ensure the date is treated as UTC to avoid timezone shifts
+    const utcDate = new Date(date).toISOString();
 
     const entryData = { date: utcDate, emotionId: selectedEmotionId, text };
 
@@ -172,7 +176,7 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
                             <p className="text-sm text-foreground/80">{entry.text}</p>
                           </div>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingEntry(entry)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 bg-accent/80 hover:bg-accent text-accent-foreground" onClick={() => setEditingEntry(entry)}>
                               <Edit className="h-4 w-4" />
                             </Button>
                             <AlertDialog>

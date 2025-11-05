@@ -52,13 +52,16 @@ export default function EmotionExplorer() {
 
   // Effect to create initial user profile in Firestore
   useEffect(() => {
+    // Only proceed if we have a user, the profile has finished loading, and no profile exists.
     if (user && !isProfileLoading && !userProfile) {
         const newUserProfile: UserProfile = {
             name: user.displayName || 'Usuario',
             avatar: user.photoURL || '😊',
             avatarType: user.photoURL ? 'generated' : 'emoji',
         };
+        // Ensure userProfileRef is not null before using it.
         if (userProfileRef) {
+          // setDoc is non-blocking, but we want to ensure it's called correctly.
           setDoc(userProfileRef, newUserProfile).catch(console.error);
         }
     }
@@ -169,7 +172,7 @@ export default function EmotionExplorer() {
     }
   };
   
-  if (isUserLoading || isProfileLoading) {
+  if (isUserLoading) {
     return <div className="flex h-screen w-screen items-center justify-center">Cargando...</div>;
   }
 
@@ -177,7 +180,13 @@ export default function EmotionExplorer() {
     return <LoginView />;
   }
   
+  if (isProfileLoading) {
+     return <div className="flex h-screen w-screen items-center justify-center">Cargando perfil...</div>;
+  }
+
   if (!userProfile) {
+    // This case will be hit transiently while the profile is being created by the useEffect.
+    // Showing a loading indicator here prevents rendering children that depend on userProfile.
     return <div className="flex h-screen w-screen items-center justify-center">Creando perfil...</div>;
   }
 
