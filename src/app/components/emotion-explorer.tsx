@@ -61,7 +61,7 @@ export default function EmotionExplorer() {
         avatarType: user.photoURL ? 'generated' : 'emoji',
       };
       // This is a non-blocking write.
-      setDoc(userProfileRef, newUserProfile).catch(console.error);
+      setDocumentNonBlocking(userProfileRef, newUserProfile, { merge: false });
     }
   }, [user, userProfile, isProfileLoading, userProfileRef]);
   
