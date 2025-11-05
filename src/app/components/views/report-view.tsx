@@ -72,11 +72,11 @@ export function ReportView({ diaryEntries, emotionsList }: ReportViewProps) {
         </div>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col min-h-0">
-        <div className="grid grid-cols-7 gap-2 text-center font-bold text-muted-foreground">
-          {weekdays.map(day => <div key={day}>{day}</div>)}
+        <div className="grid grid-cols-7 gap-1 md:gap-2 text-center font-bold text-muted-foreground">
+          {weekdays.map(day => <div key={day} className="text-xs md:text-sm">{day}</div>)}
         </div>
         <ScrollArea className="flex-grow mt-2">
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 gap-1 md:gap-2">
             <TooltipProvider>
             {calendarDays.map((day, index) => {
                 if (!day) return <div key={`empty-${index}`} />;
@@ -95,28 +95,28 @@ export function ReportView({ diaryEntries, emotionsList }: ReportViewProps) {
                   <TooltipTrigger asChild>
                     <div
                         className={cn(
-                        "border rounded-lg p-2 flex flex-col items-center justify-between aspect-square overflow-hidden transition-all duration-200",
+                        "border rounded-lg p-1 md:p-2 flex flex-col items-center justify-between aspect-square overflow-hidden transition-all duration-200",
                         isToday && "ring-2 ring-primary",
                         dayEntries.length === 0 && isPast && "bg-muted/50",
                         dayEntries.length > 0 && "hover:scale-105 hover:shadow-md cursor-pointer",
                         )}
                         style={dayEntries.length > 0 ? { borderColor: getEmotionById(dayEntries[0].emotionId)?.color } : {}}
                     >
-                        <span className={cn("font-bold self-start", dayEntries.length === 0 && 'text-muted-foreground')}>{day}</span>
+                        <span className={cn("font-bold self-start text-xs md:text-sm", dayEntries.length === 0 && 'text-muted-foreground')}>{day}</span>
                         
                         <div className="flex flex-col items-center justify-center flex-grow">
                           {dayEntries.length > 0 ? (
-                            <span className="text-4xl">{getEmotionById(dayEntries[0].emotionId)?.icon || '❓'}</span>
+                            <span className="text-2xl md:text-4xl">{getEmotionById(dayEntries[0].emotionId)?.icon || '❓'}</span>
                           ) : (
                             isPast && <div className="w-2 h-2 rounded-full bg-muted-foreground/20"></div>
                           )}
                         </div>
 
-                        <div className="h-4">
+                        <div className="h-4 flex items-end">
                            {dayEntries.length > 1 && (
                             <div className="flex space-x-1">
-                              {dayEntries.slice(0, 3).map((_, i) => (
-                                <div key={i} className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: getEmotionById(dayEntries[0].emotionId)?.color || 'grey'}}></div>
+                              {dayEntries.slice(0, 3).map((entry, i) => (
+                                <div key={entry.id} className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: getEmotionById(entry.emotionId)?.color || 'grey'}}></div>
                               ))}
                             </div>
                            )}

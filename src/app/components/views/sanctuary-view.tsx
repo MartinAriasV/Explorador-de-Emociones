@@ -1,11 +1,13 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SPIRIT_ANIMALS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import type { SpiritAnimal } from '@/lib/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+
 
 interface SanctuaryViewProps {
   unlockedAnimalIds: string[];
@@ -27,6 +29,60 @@ const rarityTextStyles = {
     'Legendario': 'text-amber-500 dark:text-amber-400',
 }
 
+function AnimalCard({ animal, isUnlocked }: { animal: SpiritAnimal; isUnlocked: boolean }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Card 
+          className={cn(
+              "flex flex-col items-center justify-center p-6 aspect-square transition-all duration-300 border-4 cursor-pointer",
+              isUnlocked ? cn('shadow-lg hover:shadow-2xl hover:scale-105', rarityStyles[animal.rarity]) : 'bg-muted/50 border-dashed'
+          )}
+        >
+          <div className="flex-grow flex flex-col items-center justify-center text-center gap-2">
+            {isUnlocked ? (
+              <>
+                <span className="text-7xl drop-shadow-lg">{animal.icon}</span>
+                <h3 className="text-xl font-bold text-foreground">{animal.name}</h3>
+              </>
+            ) : (
+              <>
+                <span className="text-7xl grayscale opacity-40">❓</span>
+                <h3 className="text-xl font-bold text-muted-foreground">Bloqueado</h3>
+              </>
+            )}
+          </div>
+          <p className={cn(
+            "font-semibold text-sm",
+            isUnlocked ? rarityTextStyles[animal.rarity] : 'text-muted-foreground'
+          )}>
+            {animal.rarity}
+          </p>
+        </Card>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle className="text-2xl text-primary">{isUnlocked ? animal.name : 'Animal Bloqueado'}</DialogTitle>
+          <DialogDescription>
+            {isUnlocked ? (
+                <>
+                    <p className="font-bold text-lg text-primary">{animal.emotion}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{animal.description}</p>
+                </>
+            ) : (
+                <>
+                    <p className="font-bold text-lg text-primary">¿Cómo desbloquear?</p>
+                    <p className="text-sm text-muted-foreground mt-1">{animal.unlockHint}</p>
+                </>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 export function SanctuaryView({ unlockedAnimalIds }: SanctuaryViewProps) {
   return (
     <Card className="w-full h-full shadow-lg flex flex-col">
@@ -36,59 +92,14 @@ export function SanctuaryView({ unlockedAnimalIds }: SanctuaryViewProps) {
       </CardHeader>
       <CardContent className="flex-grow overflow-hidden">
         <ScrollArea className="h-full pr-4 -mr-4">
-            <TooltipProvider>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {SPIRIT_ANIMALS.map((animal) => {
                   const isUnlocked = unlockedAnimalIds.includes(animal.id);
                   return (
-                    <Tooltip key={animal.id} delayDuration={100}>
-                        <TooltipTrigger asChild>
-                            <Card 
-                                className={cn(
-                                    "flex flex-col items-center justify-center p-6 aspect-square transition-all duration-300 border-4",
-                                    isUnlocked ? cn('shadow-lg hover:shadow-2xl hover:scale-105', rarityStyles[animal.rarity]) : 'bg-muted/50 border-dashed'
-                                )}
-                            >
-                                <div className="flex-grow flex flex-col items-center justify-center text-center gap-2">
-                                {isUnlocked ? (
-                                    <>
-                                        <span className="text-7xl drop-shadow-lg">{animal.icon}</span>
-                                        <h3 className="text-xl font-bold text-foreground">{animal.name}</h3>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span className="text-7xl grayscale opacity-40">❓</span>
-                                        <h3 className="text-xl font-bold text-muted-foreground">Bloqueado</h3>
-                                    </>
-                                )}
-                                </div>
-                                <p className={cn(
-                                        "font-semibold text-sm",
-                                        isUnlocked ? rarityTextStyles[animal.rarity] : 'text-muted-foreground'
-                                    )}
-                                >
-                                    {animal.rarity}
-                                </p>
-                            </Card>
-                        </TooltipTrigger>
-                        <TooltipContent className="p-4 bg-card border-primary max-w-xs">
-                            {isUnlocked ? (
-                                <>
-                                    <p className="font-bold text-lg text-primary">{animal.emotion}</p>
-                                    <p className="text-sm text-muted-foreground mt-1">{animal.description}</p>
-                                </>
-                            ) : (
-                                <>
-                                    <p className="font-bold text-lg text-primary">¿Cómo desbloquear?</p>
-                                    <p className="text-sm text-muted-foreground mt-1">{animal.unlockHint}</p>
-                                </>
-                            )}
-                        </TooltipContent>
-                  </Tooltip>
+                    <AnimalCard key={animal.id} animal={animal} isUnlocked={isUnlocked} />
                   );
                 })}
               </div>
-          </TooltipProvider>
         </ScrollArea>
       </CardContent>
     </Card>
