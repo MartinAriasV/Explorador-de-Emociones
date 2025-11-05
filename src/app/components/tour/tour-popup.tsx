@@ -127,24 +127,31 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
 
   return (
     <div className="fixed inset-0 z-[60] pointer-events-auto">
+       <div className="fixed inset-0 bg-black/50 z-0"></div>
       {/* Highlight */}
       <div
-        className="fixed transition-all duration-300 ease-in-out border-2 border-accent rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.5)] pointer-events-none"
+        className="fixed transition-all duration-300 ease-in-out border-2 border-accent rounded-lg bg-background pointer-events-none"
         style={{
           top: `${position.top - 4}px`,
           left: `${position.left - 4}px`,
           width: `${position.width + 8}px`,
           height: `${position.height + 8}px`,
+          boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)',
+          zIndex: 1,
         }}
       />
 
       {/* Popup */}
       <div
         ref={popupRef}
-        className={cn("fixed bg-card text-card-foreground p-4 rounded-lg shadow-2xl w-72 transition-all duration-300 ease-in-out pointer-events-auto", position.width === 0 ? 'opacity-0' : 'opacity-100')}
+        className={cn(
+          "fixed bg-card text-card-foreground p-4 rounded-lg shadow-2xl w-72 transition-all duration-300 ease-in-out pointer-events-auto",
+          position.width === 0 ? 'opacity-0' : 'opacity-100'
+        )}
         style={{
           top: `${popupPosition.top}px`,
           left: `${popupPosition.left}px`,
+          zIndex: 2,
         }}
       >
         <h3 className="font-bold text-lg mb-2">{title}</h3>
