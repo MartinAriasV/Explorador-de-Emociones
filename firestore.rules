@@ -10,12 +10,12 @@ service cloud.firestore {
     // User Profile: a user can read/write to their own profile
     match /users/{userId} {
       allow read, delete: if isOwner(userId);
-      allow create, update: if isOwner(userId)
-        && request.resource.data.keys().hasAll(['name', 'avatar', 'avatarType'])
-        && request.resource.data.size() == 3
-        && request.resource.data.name is string
-        && request.resource.data.avatar is string
-        && request.resource.data.avatarType is string;
+      allow create, update: if isOwner(userId) &&
+        request.resource.data.name is string &&
+        request.resource.data.avatar is string &&
+        request.resource.data.avatarType is string &&
+        // optional fields
+        (!request.resource.data.keys().hasAny(['unlockedAnimalIds']) || request.resource.data.unlockedAnimalIds is list);
     }
 
     // Diary Entries: a user can CRUD their own diary entries
