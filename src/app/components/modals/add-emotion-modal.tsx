@@ -99,7 +99,7 @@ export function AddEmotionModal({ initialData, onSave, onClose, onDelete }: AddE
                             key={`${emoji}-${index}`}
                             onClick={() => setIcon(emoji)}
                             className={cn(
-                                'text-3xl p-1 rounded-lg transition-all',
+                                'text-3xl p-1 rounded-lg transition-all flex items-center justify-center aspect-square',
                                 icon === emoji ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
                             )}
                         >

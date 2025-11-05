@@ -91,7 +91,7 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
                             key={`${emoji}-${index}`}
                             onClick={() => selectAvatar(emoji, 'emoji')}
                             className={cn(
-                                'text-3xl p-1 rounded-lg transition-all',
+                                'text-3xl p-1 rounded-lg transition-all flex items-center justify-center aspect-square',
                                 localAvatar === emoji && localAvatarType === 'emoji' ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
                             )}
                         >
