@@ -20,75 +20,76 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
   const [popupPosition, setPopupPosition] = useState<{ top: number, left: number }>({ top: 0, left: 0 });
   const { isMobile, setOpenMobile, openMobile } = useSidebar();
 
-  useEffect(() => {
+  const calculatePosition = () => {
     const currentStepData = steps[step - 1];
     if (!currentStepData) return;
+  
+    const targetRef = refs[currentStepData.refKey];
+    const targetElement = targetRef?.current;
+  
+    if (targetElement) {
+      const rect = targetElement.getBoundingClientRect();
+      
+      if (rect.width > 0) { // Only update if the element is visible
+        setPosition({
+          top: rect.top,
+          left: rect.left,
+          width: rect.width,
+          height: rect.height,
+        });
+  
+        const popupElement = popupRef.current;
+        if (popupElement) {
+          const popupRect = popupElement.getBoundingClientRect();
+          let top = rect.bottom + 16;
+          let left = rect.left + rect.width / 2 - popupRect.width / 2;
+          
+          if (top + popupRect.height > window.innerHeight) {
+              top = rect.top - popupRect.height - 16;
+          }
+  
+          if (left < 16) left = 16;
+          if (left + popupRect.width > window.innerWidth - 16) {
+              left = window.innerWidth - popupRect.width - 16;
+          }
+  
+          setPopupPosition({ top, left });
+        }
+      }
+    }
+  };
 
-    if (isMobile) {
+  // Effect to open sidebar on mobile when a new step starts
+  useEffect(() => {
+    const currentStepData = steps[step - 1];
+    if (currentStepData && isMobile) {
       setOpenMobile(true);
     }
   }, [step, steps, isMobile, setOpenMobile]);
 
-
+  // UseLayoutEffect to calculate position after render
   useLayoutEffect(() => {
-    const currentStepData = steps[step - 1];
-    if (!currentStepData || (isMobile && !openMobile)) return;
-
-    const targetRef = refs[currentStepData.refKey];
-    const targetElement = targetRef?.current;
-    
-    let animationFrameId: number;
-
-    const updatePosition = () => {
-      if (targetElement) {
-        const rect = targetElement.getBoundingClientRect();
-        
-        if (rect.width > 0) { // Only update if the element is visible
-          setPosition({
-            top: rect.top,
-            left: rect.left,
-            width: rect.width,
-            height: rect.height,
-          });
-
-          const popupElement = popupRef.current;
-          if (popupElement) {
-            const popupRect = popupElement.getBoundingClientRect();
-            let top = rect.bottom + 16;
-            let left = rect.left + rect.width / 2 - popupRect.width / 2;
-            
-            // Adjust vertical position
-            if (top + popupRect.height > window.innerHeight) {
-                top = rect.top - popupRect.height - 16;
-            }
-
-            // Adjust horizontal position
-            if (left < 16) left = 16;
-            if (left + popupRect.width > window.innerWidth - 16) {
-                left = window.innerWidth - popupRect.width - 16;
-            }
-
-            setPopupPosition({ top, left });
-          }
-        } else {
-            // If element is not visible, try again on the next frame
-            animationFrameId = requestAnimationFrame(updatePosition);
-        }
-      }
+    if (step === 0) {
+      setPosition({ top: 0, left: 0, width: 0, height: 0 });
+      return;
     };
-
-    // Delay to allow for sidebar animation
-    const timeoutId = setTimeout(updatePosition, isMobile ? 300 : 0);
-
-    return () => {
-      clearTimeout(timeoutId);
-      if(animationFrameId) cancelAnimationFrame(animationFrameId);
+    
+    // If mobile, wait for sidebar animation to finish
+    if (isMobile && openMobile) {
+      const timeoutId = setTimeout(calculatePosition, 300); // Wait for animation
+      return () => clearTimeout(timeoutId);
+    } 
+    
+    // If desktop, calculate immediately
+    if (!isMobile) {
+      calculatePosition();
     }
+  }, [step, isMobile, openMobile, refs, steps]);
 
-  }, [step, steps, refs, isMobile, openMobile]);
-  
+
   const handleNext = () => {
     onNext();
+    // Close sidebar on mobile when tour ends
     if (isMobile && step === steps.length) {
       setOpenMobile(false);
     }
