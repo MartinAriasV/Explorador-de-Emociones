@@ -18,7 +18,7 @@ import { TourPopup } from './tour/tour-popup';
 import { TOUR_STEPS, REWARDS, SPIRIT_ANIMALS } from '@/lib/constants';
 import { useFirebase, useUser, useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
 import { deleteDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { collection, doc, setDoc, writeBatch, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, writeBatch, query, where, getDocs } from 'firebase/firestore';
 import LoginView from './views/login-view';
 import { StreakView } from './views/streak-view';
 import { SanctuaryView } from './views/sanctuary-view';
@@ -28,12 +28,6 @@ import { Crown, Map } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-
-const defaultProfile: Omit<UserProfile, 'id' | 'unlockedAnimalIds' | 'emotionCount'> = {
-  name: 'Usuario',
-  avatar: '😊',
-  avatarType: 'emoji',
-};
 
 const rarityTextStyles: { [key: string]: string } = {
     'Común': 'text-gray-500 dark:text-gray-400',
@@ -51,7 +45,11 @@ const rarityBorderStyles: { [key: string]: string } = {
     'Legendario': 'border-amber-400',
 }
 
-export default function EmotionExplorer() {
+interface EmotionExplorerProps {
+  isNewUser: boolean;
+}
+
+export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
   const [view, setView] = useState<View>('diary');
   const { firestore } = useFirebase();
   const { user, isUserLoading } = useUser();
@@ -59,13 +57,13 @@ export default function EmotionExplorer() {
 
   // --- Firestore Data ---
   const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-  const { data: userProfile, isLoading: isProfileLoading, error: profileError } = useDoc<UserProfile>(userProfileRef);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
   const emotionsQuery = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'emotions') : null, [firestore, user]);
-  const { data: emotionsList, isLoading: isLoadingEmotions } = useCollection<Emotion>(emotionsQuery);
+  const { data: emotionsList } = useCollection<Emotion>(emotionsQuery);
   
   const diaryEntriesQuery = useMemoFirebase(() => user ? collection(firestore, 'users', user.uid, 'diaryEntries') : null, [firestore, user]);
-  const { data: diaryEntries, isLoading: isLoadingEntries } = useCollection<DiaryEntry>(diaryEntriesQuery);
+  const { data: diaryEntries } = useCollection<DiaryEntry>(diaryEntriesQuery);
   // --------------------
 
   const [addingEmotionData, setAddingEmotionData] = useState<Partial<Emotion> & { id?: string } | null>(null);
@@ -76,7 +74,7 @@ export default function EmotionExplorer() {
   const [showQuiz, setShowQuiz] = useState(false);
 
   // Tour state
-  const [isNewUserFlow, setIsNewUserFlow] = useState(false);
+  const [isWelcomeDialogOpen, setIsWelcomeDialogOpen] = useState(isNewUser);
   const [tourStep, setTourStep] = useState(0);
 
   // Refs for the tour
@@ -84,23 +82,6 @@ export default function EmotionExplorer() {
     acc[step.refKey] = createRef<HTMLLIElement>();
     return acc;
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
-
-  useEffect(() => {
-    if (!isUserLoading && user && !isProfileLoading && !userProfile) {
-      const newProfile: UserProfile = {
-        id: user.uid,
-        name: user.email?.split('@')[0] || defaultProfile.name,
-        avatar: defaultProfile.avatar,
-        avatarType: defaultProfile.avatarType,
-        unlockedAnimalIds: [],
-        emotionCount: 0,
-      };
-      
-      setDoc(userProfileRef!, newProfile, { merge: true }).then(() => {
-        setIsNewUserFlow(true);
-      });
-    }
-  }, [isUserLoading, user, isProfileLoading, userProfile, userProfileRef]);
 
 
   const checkAndUnlockRewards = (currentProfile: UserProfile, currentDiaryEntries: DiaryEntry[], currentEmotions: Emotion[]) => {
@@ -122,7 +103,6 @@ export default function EmotionExplorer() {
             case 'emotion_count':
                 return emotionCount >= reward.value;
             case 'share':
-                 // This is handled by a separate function
                 return false;
             default:
                 return false;
@@ -270,13 +250,13 @@ export default function EmotionExplorer() {
   };
 
   const startTour = () => {
-    setIsNewUserFlow(false);
+    setIsWelcomeDialogOpen(false);
     setTourStep(1);
     setView('diary');
   };
 
   const skipTour = () => {
-    setIsNewUserFlow(false);
+    setIsWelcomeDialogOpen(false);
     setTourStep(0);
   };
   
@@ -378,7 +358,7 @@ export default function EmotionExplorer() {
       )}
 
       <WelcomeDialog
-        open={isNewUserFlow}
+        open={isWelcomeDialogOpen}
         onStartTour={startTour}
         onSkipTour={skipTour}
       />
