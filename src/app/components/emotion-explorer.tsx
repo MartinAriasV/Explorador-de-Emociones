@@ -36,6 +36,22 @@ const defaultProfile: Omit<UserProfile, 'id' | 'unlockedAnimalIds' | 'emotionCou
   avatarType: 'emoji',
 };
 
+const rarityTextStyles: { [key: string]: string } = {
+    'Común': 'text-gray-500 dark:text-gray-400',
+    'Poco Común': 'text-green-600 dark:text-green-400',
+    'Raro': 'text-blue-600 dark:text-blue-500',
+    'Épico': 'text-purple-600 dark:text-purple-500',
+    'Legendario': 'text-amber-500 dark:text-amber-400',
+}
+
+const rarityBorderStyles: { [key: string]: string } = {
+    'Común': 'border-gray-300 dark:border-gray-700',
+    'Poco Común': 'border-green-500',
+    'Raro': 'border-blue-500',
+    'Épico': 'border-purple-500',
+    'Legendario': 'border-amber-400',
+}
+
 export default function EmotionExplorer() {
   const [view, setView] = useState<View>('diary');
   const { firestore } = useFirebase();
@@ -77,6 +93,7 @@ export default function EmotionExplorer() {
       // If the user is logged in but has no profile document after the initial load, create one.
       const newProfile = {
         ...defaultProfile,
+        id: user.uid,
         name: user.email?.split('@')[0] || defaultProfile.name, // Default name from email
       };
       // We use setDoc here to explicitly set the document with the user's UID.
@@ -374,23 +391,23 @@ export default function EmotionExplorer() {
       />
 
       <AlertDialog open={!!newlyUnlockedReward}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex flex-col items-center text-center gap-2 text-2xl">
-              <Crown className="w-10 h-10 text-amber-400" />
+        <AlertDialogContent className={`p-0 overflow-hidden border-4 ${newlyUnlockedReward ? rarityBorderStyles[newlyUnlockedReward.animal.rarity] : 'border-transparent'}`}>
+          <AlertDialogHeader className="p-6 pb-0">
+            <AlertDialogTitle className="flex items-center justify-center text-center gap-2 text-2xl font-bold">
+              <Crown className="w-8 h-8 text-amber-400" />
               ¡Recompensa Desbloqueada!
             </AlertDialogTitle>
-            <AlertDialogDescription>
-               ¡Felicidades! Has desbloqueado al:
-            </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="flex flex-col items-center gap-2 pt-4">
-              <span className="text-7xl">{newlyUnlockedReward?.animal.icon}</span>
-              <span className="block font-bold text-2xl text-primary">{newlyUnlockedReward?.animal.name}</span>
-              <span className="block text-sm text-muted-foreground">{newlyUnlockedReward?.animal.description}</span>
-              <span className="block text-xs text-amber-500 font-semibold">{newlyUnlockedReward?.animal.rarity}</span>
+          <div className="flex flex-col items-center gap-2 pt-4 pb-8 text-center bg-background/50">
+              <div className="relative w-32 h-32 flex items-center justify-center">
+                  <div className={`absolute inset-0 bg-gradient-to-t ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity]?.replace('text-','from-') : ''}/20 to-transparent rounded-full blur-2xl`}></div>
+                  <span className="text-8xl drop-shadow-lg">{newlyUnlockedReward?.animal.icon}</span>
+              </div>
+              <span className={`block font-bold text-3xl ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity] : ''}`}>{newlyUnlockedReward?.animal.name}</span>
+              <p className="block text-sm text-muted-foreground max-w-xs">{newlyUnlockedReward?.animal.description}</p>
+              <p className={`block text-xs font-semibold uppercase tracking-wider ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity] : ''}`}>{newlyUnlockedReward?.animal.rarity}</p>
           </div>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="bg-muted/40 p-4 border-t">
               <AlertDialogAction onClick={() => { setNewlyUnlockedReward(null); setView('sanctuary'); }} className="bg-accent text-accent-foreground hover:bg-accent/90 w-full">
                 ¡Genial! Ver en mi Santuario
               </AlertDialogAction>
