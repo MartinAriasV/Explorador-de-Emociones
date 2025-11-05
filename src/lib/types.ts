@@ -54,3 +54,10 @@ export type Reward = {
   animal: SpiritAnimal;
   unlockMessage: string;
 };
+
+export interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: string;
+  difficulty: 'Fácil' | 'Medio' | 'Difícil' | 'Experto';
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, createRef, useEffect } from 'react';
-import type { Emotion, DiaryEntry, UserProfile, View, PredefinedEmotion, TourStepData, SpiritAnimal, Reward } from '@/lib/types';
+import type { Emotion, DiaryEntry, UserProfile, View, PredefinedEmotion, TourStepData, SpiritAnimal, Reward, QuizQuestion } from '@/lib/types';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar, MobileMenuButton } from './app-sidebar';
 import { DiaryView } from './views/diary-view';
@@ -12,6 +12,7 @@ import { ReportView } from './views/report-view';
 import { ShareView } from './views/share-view';
 import { ProfileView } from './views/profile-view';
 import { AddEmotionModal } from './modals/add-emotion-modal';
+import { QuizModal } from './modals/quiz-modal';
 import { WelcomeDialog } from './tour/welcome-dialog';
 import { TourPopup } from './tour/tour-popup';
 import { TOUR_STEPS, REWARDS, SPIRIT_ANIMALS } from '@/lib/constants';
@@ -25,6 +26,7 @@ import { SanctuaryView } from './views/sanctuary-view';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { calculateDailyStreak } from '@/lib/utils';
 import { Crown } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const defaultProfile: Omit<UserProfile, 'id' | 'unlockedAnimalIds'> = {
   name: 'Usuario',
@@ -36,6 +38,7 @@ export default function EmotionExplorer() {
   const [view, setView] = useState<View>('diary');
   const { firestore } = useFirebase();
   const { user, isUserLoading } = useUser();
+  const { toast } = useToast();
 
   // --- Firestore Data ---
   const userProfileRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
@@ -50,6 +53,10 @@ export default function EmotionExplorer() {
 
   const [addingEmotionData, setAddingEmotionData] = useState<Partial<Emotion> & { id?: string } | null>(null);
   const [newlyUnlockedReward, setNewlyUnlockedReward] = useState<Reward | null>(null);
+  
+  // Quiz state
+  const [quizDate, setQuizDate] = useState<Date | null>(null);
+  const [showQuiz, setShowQuiz] = useState(false);
 
   // Tour state
   const [showWelcome, setShowWelcome] = useLocalStorage('emotion-explorer-show-welcome', true);
@@ -80,7 +87,7 @@ export default function EmotionExplorer() {
     }
   }, [diaryEntries, isProfileLoading, userProfile]);
 
-  const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
+  const setUserProfile = (profile: Partial<UserProfile>) => {
     if (!userProfileRef) return;
     setDocumentNonBlocking(userProfileRef, profile, { merge: true });
   };
@@ -103,11 +110,9 @@ export default function EmotionExplorer() {
   
     const batch = writeBatch(firestore);
   
-    // 1. Delete the emotion itself
     const emotionDoc = doc(firestore, 'users', user.uid, 'emotions', emotionId);
     batch.delete(emotionDoc);
   
-    // 2. Find and delete all diary entries associated with this emotion
     const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
     const q = query(diaryCollection, where("emotionId", "==", emotionId));
     
@@ -117,15 +122,13 @@ export default function EmotionExplorer() {
         batch.delete(doc.ref);
       });
   
-      // 3. Commit the batch
       await batch.commit();
       
     } catch (error) {
       console.error("Error deleting emotion and associated entries: ", error);
-      // Here you might want to use the global error emitter for permission errors
     }
     
-    setAddingEmotionData(null); // Close modal if it was open
+    setAddingEmotionData(null);
   };
 
   const addDiaryEntry = (entryData: Omit<DiaryEntry, 'id' | 'userProfileId'>) => {
@@ -148,6 +151,42 @@ export default function EmotionExplorer() {
 
   const handleOpenAddEmotionModal = (emotionData: Partial<Emotion> & { id?: string }) => {
     setAddingEmotionData(emotionData);
+  };
+
+  const startQuiz = (date: Date) => {
+    setQuizDate(date);
+    setShowQuiz(true);
+  };
+
+  const handleQuizComplete = (success: boolean) => {
+    setShowQuiz(false);
+    if (success && quizDate) {
+      const defaultEmotion = emotionsList?.find(e => e.name.toLowerCase() === 'calma') || emotionsList?.[0];
+      if (defaultEmotion) {
+        addDiaryEntry({
+          date: quizDate.toISOString(),
+          emotionId: defaultEmotion.id,
+          text: 'Día recuperado completando el desafío de la racha. ¡Buen trabajo!',
+        });
+        toast({
+          title: "¡Día Recuperado!",
+          description: "Has superado el desafío y recuperado tu racha.",
+        });
+      } else {
+        toast({
+          title: "Error de Recuperación",
+          description: "No se pudo recuperar el día. Necesitas al menos una emoción en tu emocionario.",
+          variant: "destructive",
+        });
+      }
+    } else if (!success) {
+      toast({
+        title: "Desafío No Superado",
+        description: "No has alcanzado la puntuación necesaria. ¡Inténtalo de nuevo!",
+        variant: "destructive",
+      });
+    }
+    setQuizDate(null);
   };
 
   const startTour = () => {
@@ -192,7 +231,7 @@ export default function EmotionExplorer() {
             case 'calm':
               return <CalmView />;
             case 'streak':
-              return <StreakView diaryEntries={diaryEntries || []} />;
+              return <StreakView diaryEntries={diaryEntries || []} onRecoverDay={startQuiz} />;
             case 'sanctuary':
               return <SanctuaryView unlockedAnimalIds={userProfile?.unlockedAnimalIds || []} />;
             case 'report':
@@ -250,6 +289,13 @@ export default function EmotionExplorer() {
         onDelete={deleteEmotion}
         onClose={() => setAddingEmotionData(null)}
       />
+
+      {showQuiz && (
+        <QuizModal 
+          onClose={() => setShowQuiz(false)} 
+          onComplete={handleQuizComplete} 
+        />
+      )}
 
       <WelcomeDialog
         open={showWelcome && tourStep === 0}

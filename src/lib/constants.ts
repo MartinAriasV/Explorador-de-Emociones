@@ -1,4 +1,4 @@
-import type { PredefinedEmotion, TourStepData, SpiritAnimal, Reward } from './types';
+import type { PredefinedEmotion, TourStepData, SpiritAnimal, Reward, QuizQuestion } from './types';
 
 export const PREDEFINED_EMOTIONS: PredefinedEmotion[] = [
   { name: 'Alegría', icon: '😄', description: 'Sentimiento de vivo placer y contentamiento.', example: 'Sentí una gran alegría al ver a mi familia.' },
@@ -110,4 +110,129 @@ export const REWARDS: Reward[] = [
     },
 ];
 
-    
+export const QUIZ_QUESTIONS: QuizQuestion[] = [
+    // Fácil
+    {
+        question: '¿Cuál de estas es considerada una emoción básica?',
+        options: ['Amor', 'Felicidad', 'Culpa', 'Celos'],
+        correctAnswer: 'Felicidad',
+        difficulty: 'Fácil',
+    },
+    {
+        question: 'La respiración profunda es una técnica para manejar...',
+        options: ['La alegría', 'El aburrimiento', 'La ansiedad', 'La sorpresa'],
+        correctAnswer: 'La ansiedad',
+        difficulty: 'Fácil',
+    },
+    {
+        question: '¿Qué significa "empatía"?',
+        options: ['Sentir lástima por alguien', 'Entender y compartir los sentimientos de otra persona', 'Estar de acuerdo con todo lo que alguien dice', 'Dar consejos sin que te los pidan'],
+        correctAnswer: 'Entender y compartir los sentimientos de otra persona',
+        difficulty: 'Fácil',
+    },
+    {
+        question: 'Nombrar tus emociones (ej. "me siento triste") es un paso hacia...',
+        options: ['Ignorarlas', 'La gestión emocional', 'La negación', 'Aumentar el estrés'],
+        correctAnswer: 'La gestión emocional',
+        difficulty: 'Fácil',
+    },
+    {
+        question: '¿Cuál es una forma saludable de expresar el enojo?',
+        options: ['Gritar a la primera persona que veas', 'Guardártelo y no decir nada', 'Hablar sobre lo que te molestó de manera calmada', 'Romper objetos'],
+        correctAnswer: 'Hablar sobre lo que te molestó de manera calmada',
+        difficulty: 'Fácil',
+    },
+    // Medio
+    {
+        question: 'La "inteligencia emocional" se refiere a la capacidad de:',
+        options: ['Ser siempre feliz', 'Resolver problemas matemáticos complejos', 'Percibir, usar, entender y manejar las emociones', 'No mostrar nunca tus emociones'],
+        correctAnswer: 'Percibir, usar, entender y manejar las emociones',
+        difficulty: 'Medio',
+    },
+    {
+        question: '¿Qué es un "desencadenante" (trigger) emocional?',
+        options: ['Una emoción muy fuerte', 'Una persona que no te agrada', 'Un evento o situación que provoca una reacción emocional intensa', 'Un tipo de terapia'],
+        correctAnswer: 'Un evento o situación que provoca una reacción emocional intensa',
+        difficulty: 'Medio',
+    },
+    {
+        question: 'La "rumiación" es un patrón de pensamiento que se caracteriza por:',
+        options: ['Pensar brevemente en un problema y solucionarlo', 'Planificar el futuro de manera optimista', 'Darle vueltas a los mismos pensamientos negativos de forma repetitiva', 'Soñar despierto con cosas agradables'],
+        correctAnswer: 'Darle vueltas a los mismos pensamientos negativos de forma repetitiva',
+        difficulty: 'Medio',
+    },
+    {
+        question: '¿Qué diferencia hay entre "culpa" y "vergüenza"?',
+        options: ['Son exactamente lo mismo', 'La culpa se enfoca en una acción ("hice algo malo"), la vergüenza en el ser ("soy malo")', 'La vergüenza es más leve que la culpa', 'La culpa es pública, la vergüenza es privada'],
+        correctAnswer: 'La culpa se enfoca en una acción ("hice algo malo"), la vergüenza en el ser ("soy malo")',
+        difficulty: 'Medio',
+    },
+    {
+        question: 'La técnica de "reencuadre cognitivo" (cognitive reframing) consiste en:',
+        options: ['Evitar pensar en lo que te preocupa', 'Cambiar la forma en que interpretas una situación para cambiar cómo te sientes', 'Hacer una lista de todo lo que salió mal', 'Pedirle a otra persona que resuelva tus problemas'],
+        correctAnswer: 'Cambiar la forma en que interpretas una situación para cambiar cómo te sientes',
+        difficulty: 'Medio',
+    },
+    // Difícil
+    {
+        question: '¿Qué es la "disonancia cognitiva"?',
+        options: ['La capacidad de sentir dos emociones a la vez', 'El malestar que se siente al tener dos creencias contradictorias o cuando tus acciones contradicen tus creencias', 'Un trastorno del sueño relacionado con el estrés', 'Una técnica de meditación avanzada'],
+        correctAnswer: 'El malestar que se siente al tener dos creencias contradictorias o cuando tus acciones contradicen tus creencias',
+        difficulty: 'Difícil',
+    },
+    {
+        question: 'La "alexitimia" es una condición caracterizada por:',
+        options: ['Una capacidad extraordinaria para sentir empatía', 'Un miedo irracional a las emociones', 'La dificultad para identificar y describir las propias emociones', 'Experimentar emociones de forma extremadamente intensa'],
+        correctAnswer: 'La dificultad para identificar y describir las propias emociones',
+        difficulty: 'Difícil',
+    },
+    {
+        question: '¿Cuál es la diferencia principal entre una emoción y un estado de ánimo?',
+        options: ['Las emociones son más débiles', 'Los estados de ánimo son breves y las emociones duraderas', 'Las emociones suelen tener una causa específica y son intensas y breves; los estados de ánimo son más difusos y duraderos', 'No hay diferencia'],
+        correctAnswer: 'Las emociones suelen tener una causa específica y son intensas y breves; los estados de ánimo son más difusos y duraderos',
+        difficulty: 'Difícil',
+    },
+    {
+        question: 'La "ventana de tolerancia" en psicología se refiere a:',
+        options: ['El tiempo que puedes tolerar a una persona', 'La zona de activación óptima en la que puedes gestionar tus emociones eficazmente', 'Un periodo en el que eres inmune al estrés', 'La apertura a nuevas experiencias'],
+        correctAnswer: 'La zona de activación óptima en la que puedes gestionar tus emociones eficazmente',
+        difficulty: 'Difícil',
+    },
+    {
+        question: 'En la terapia Dialéctico Conductual (DBT), la "mente sabia" (wise mind) es la integración de:',
+        options: ['Mente positiva y mente negativa', 'Mente racional y mente emocional', 'Mente consciente y mente inconsciente', 'Mente activa y mente pasiva'],
+        correctAnswer: 'Mente racional y mente emocional',
+        difficulty: 'Difícil',
+    },
+    // Experto
+    {
+        question: '¿Qué describe la "Teoría de la Autodeterminación" sobre la motivación intrínseca?',
+        options: ['Se basa en recompensas y castigos externos', 'Surge de satisfacer tres necesidades psicológicas: autonomía, competencia y conexión', 'Es más fuerte en personas extrovertidas', 'Solo se aplica en el ámbito deportivo'],
+        correctAnswer: 'Surge de satisfacer tres necesidades psicológicas: autonomía, competencia y conexión',
+        difficulty: 'Experto',
+    },
+    {
+        question: 'La "supresión emocional" a largo plazo está asociada con:',
+        options: ['Mayor resiliencia y autocontrol', 'Mejores relaciones sociales', 'Peores resultados de salud mental y física, y menor autenticidad', 'Un aumento de la inteligencia emocional'],
+        correctAnswer: 'Peores resultados de salud mental y física, y menor autenticidad',
+        difficulty: 'Experto',
+    },
+    {
+        question: 'El concepto de "Eudaimonia", a diferencia del "Hedonismo", define el bienestar como:',
+        options: ['La búsqueda constante de placer y evitación del dolor', 'La acumulación de riqueza y bienes materiales', 'Vivir una vida con propósito, significado y autorrealización', 'La popularidad y la aprobación social'],
+        correctAnswer: 'Vivir una vida con propósito, significado y autorrealización',
+        difficulty: 'Experto',
+    },
+    {
+        question: 'Según la "Teoría del Proceso Irónico", intentar suprimir un pensamiento...',
+        options: ['Hace que desaparezca rápidamente', 'Lo transfiere al subconsciente', 'Puede hacer que se vuelva más prominente e intrusivo', 'Lo convierte en un recuerdo a largo plazo'],
+        correctAnswer: 'Puede hacer que se vuelva más prominente e intrusivo',
+        difficulty: 'Experto',
+    },
+    {
+        question: 'La "complejidad emocional" (o granularidad emocional) se refiere a:',
+        options: ['Experimentar muchas emociones negativas', 'La habilidad para diferenciar y nombrar las experiencias emocionales de forma precisa y específica', 'Tener emociones muy simples y directas', 'La tendencia a reaccionar de forma exagerada'],
+        correctAnswer: 'La habilidad para diferenciar y nombrar las experiencias emocionales de forma precisa y específica',
+        difficulty: 'Experto',
+    },
+];
