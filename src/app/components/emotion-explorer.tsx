@@ -20,7 +20,6 @@ import { useFirebase, useUser, useCollection, useFirestore, useMemoFirebase, use
 import { deleteDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { collection, doc, setDoc, writeBatch, query, where, getDocs } from 'firebase/firestore';
 import LoginView from './views/login-view';
-import useLocalStorage from '@/hooks/use-local-storage';
 import { StreakView } from './views/streak-view';
 import { SanctuaryView } from './views/sanctuary-view';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -77,7 +76,6 @@ export default function EmotionExplorer() {
   const [showQuiz, setShowQuiz] = useState(false);
 
   // Tour state
-  const [showWelcome, setShowWelcome] = useLocalStorage('emotion-explorer-show-welcome', true);
   const [isNewUserFlow, setIsNewUserFlow] = useState(false);
   const [tourStep, setTourStep] = useState(0);
 
@@ -96,10 +94,8 @@ export default function EmotionExplorer() {
         unlockedAnimalIds: [],
         emotionCount: 0,
       };
-      // This is a new user, create their profile and start the welcome flow
       setDocumentNonBlocking(userProfileRef!, newProfile, { merge: true }).then(() => {
         setIsNewUserFlow(true);
-        setShowWelcome(true);
       });
     }
   }, [isUserLoading, user, isProfileLoading, userProfile, userProfileRef]);
@@ -275,14 +271,12 @@ export default function EmotionExplorer() {
   };
 
   const startTour = () => {
-    setShowWelcome(false);
     setIsNewUserFlow(false);
     setTourStep(1);
     setView('diary');
   };
 
   const skipTour = () => {
-    setShowWelcome(false);
     setIsNewUserFlow(false);
     setTourStep(0);
   };
@@ -385,7 +379,7 @@ export default function EmotionExplorer() {
       )}
 
       <WelcomeDialog
-        open={isNewUserFlow && showWelcome && tourStep === 0}
+        open={isNewUserFlow && tourStep === 0}
         onStartTour={startTour}
         onSkipTour={skipTour}
       />
@@ -442,5 +436,3 @@ export default function EmotionExplorer() {
     </SidebarProvider>
   );
 }
-
-    
