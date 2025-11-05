@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Emotion, PredefinedEmotion } from '@/lib/types';
+import { Emotion } from '@/lib/types';
 import { AVATAR_EMOJIS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -14,7 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 
 interface AddEmotionModalProps {
-  initialData: (Omit<PredefinedEmotion, 'example'> & { id?: string; color?: string, icon?: string }) | null;
+  initialData: (Partial<Emotion>) | null;
   onSave: (emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string }) => void;
   onDelete: (emotionId: string) => void;
   onClose: () => void;
@@ -29,8 +29,8 @@ export function AddEmotionModal({ initialData, onSave, onClose, onDelete }: AddE
 
   useEffect(() => {
     if (initialData) {
-      setName(initialData.name);
-      setDescription(initialData.description);
+      setName(initialData.name || '');
+      setDescription(initialData.description || '');
       setColor(initialData.color || '#47a2a2');
       setIcon(initialData.icon || '');
     }
