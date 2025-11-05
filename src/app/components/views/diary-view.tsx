@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import { suggestCalmingExercise } from '@/ai/flows/suggest-calming-exercise';
 import { Edit, Trash2 } from 'lucide-react';
 
 interface DiaryViewProps {
-  emotionsList: Emotion[] | null;
+  emotionsList: Emotion[];
   diaryEntries: DiaryEntry[];
   addDiaryEntry: (entry: Omit<DiaryEntry, 'id' | 'userProfileId'>) => void;
   updateDiaryEntry: (entry: DiaryEntry) => void;
@@ -23,6 +23,7 @@ interface DiaryViewProps {
 
 export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry, updateDiaryEntry, deleteDiaryEntry, setView }: DiaryViewProps) {
   const [editingEntry, setEditingEntry] = useState<DiaryEntry | null>(null);
+  const formCardRef = useRef<HTMLDivElement>(null);
 
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedEmotionId, setSelectedEmotionId] = useState<string>('');
@@ -39,6 +40,10 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
         setDate(formattedDate);
         setSelectedEmotionId(editingEntry.emotionId);
         setText(editingEntry.text);
+        
+        // Scroll the form into view
+        formCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
     } else {
         // When not editing, reset to default values
         resetForm();
@@ -91,7 +96,7 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
     <>
       <div className="grid lg:grid-cols-2 gap-6 h-full">
         {/* Columna del formulario */}
-        <Card className="w-full shadow-lg flex flex-col">
+        <Card ref={formCardRef} className="w-full shadow-lg flex flex-col">
            <CardHeader>
             <CardTitle className="text-2xl font-bold text-primary">
               {editingEntry ? 'Editando Entrada' : '¿Cómo te sientes hoy?'}
@@ -236,5 +241,3 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
     </>
   );
 }
-
-    
