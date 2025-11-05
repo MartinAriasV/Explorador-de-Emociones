@@ -19,18 +19,17 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
   const [position, setPosition] = useState<{ top: number; left: number; width: number; height: number }>({ top: 0, left: 0, width: 0, height: 0 });
   const [popupPosition, setPopupPosition] = useState<{ top: number, left: number }>({ top: 0, left: 0 });
   const { isMobile, setOpenMobile, openMobile } = useSidebar();
-  const animationFrameId = useRef<number>();
 
-  const calculatePosition = () => {
+  const calculateAndSetPosition = () => {
     const currentStepData = steps[step - 1];
     if (!currentStepData) return false;
-  
+
     const targetRef = refs[currentStepData.refKey];
     const targetElement = targetRef?.current;
-  
+
     if (targetElement) {
       const rect = targetElement.getBoundingClientRect();
-      
+
       if (rect.width > 0 && rect.height > 0) {
         setPosition({
           top: rect.top,
@@ -38,22 +37,22 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
           width: rect.width,
           height: rect.height,
         });
-  
+
         const popupElement = popupRef.current;
         if (popupElement) {
           const popupRect = popupElement.getBoundingClientRect();
           let top = rect.bottom + 16;
           let left = rect.left + rect.width / 2 - popupRect.width / 2;
-          
+
           if (top + popupRect.height > window.innerHeight) {
-              top = rect.top - popupRect.height - 16;
+            top = rect.top - popupRect.height - 16;
           }
-  
+
           if (left < 16) left = 16;
           if (left + popupRect.width > window.innerWidth - 16) {
-              left = window.innerWidth - popupRect.width - 16;
+            left = window.innerWidth - popupRect.width - 16;
           }
-  
+
           setPopupPosition({ top, left });
         }
         return true; // Position calculated successfully
@@ -68,45 +67,48 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
       return;
     }
 
-    const currentStepData = steps[step - 1];
-    if (!currentStepData) return;
-
+    // Always open the mobile sidebar if the tour is active on mobile
     if (isMobile) {
       setOpenMobile(true);
+    } else {
+        // For desktop, calculate immediately.
+        calculateAndSetPosition();
     }
+  }, [step, isMobile]);
 
-    // Cancel any previous animation frame loop
-    if (animationFrameId.current) {
-      cancelAnimationFrame(animationFrameId.current);
-    }
+
+  useEffect(() => {
+    // This effect is specifically for mobile to handle the sidebar animation.
+    if (!isMobile || step === 0 || !openMobile) return;
+
+    // Use a MutationObserver to wait for the sidebar to be fully in the DOM and visible.
+    const observer = new MutationObserver((mutations, obs) => {
+        if (calculateAndSetPosition()) {
+            // Once the position is successfully calculated, we don't need to observe anymore.
+            obs.disconnect();
+        }
+    });
+
+    // Start observing the body for child list changes. This will detect when the sidebar <div.dialog> is added.
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+    });
     
-    // On both mobile and desktop, we might need to wait for the element to be ready.
-    const startTime = performance.now();
-    const maxWaitTime = 1000; // 1 second timeout
-
-    const waitForElement = (timestamp: number) => {
-        if (performance.now() - startTime > maxWaitTime) {
-            console.warn("TourPopup: Waited too long for element to become visible.");
-            return;
+    // As a fallback, also try to calculate position after a short delay, in case the element is already there.
+    const timeoutId = setTimeout(() => {
+        if(calculateAndSetPosition()) {
+            observer.disconnect();
         }
+    }, 100);
 
-        if (calculatePosition()) {
-            // Position calculated, stop the loop
-            return;
-        }
-
-        // If not ready, try again on the next frame
-        animationFrameId.current = requestAnimationFrame(waitForElement);
-    };
-
-    animationFrameId.current = requestAnimationFrame(waitForElement);
 
     return () => {
-        if (animationFrameId.current) {
-            cancelAnimationFrame(animationFrameId.current);
-        }
+        observer.disconnect();
+        clearTimeout(timeoutId);
     };
-  }, [step, isMobile, openMobile, setOpenMobile, steps, refs]);
+
+  }, [openMobile, step, isMobile]); // Rerun when the mobile sidebar opens/closes or the step changes.
 
 
   const handleNext = () => {
