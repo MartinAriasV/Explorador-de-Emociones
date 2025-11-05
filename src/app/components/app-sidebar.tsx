@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 interface AppSidebarProps {
   view: View;
   setView: (view: View) => void;
-  userProfile: UserProfile;
+  userProfile: UserProfile | null;
   diaryEntries: DiaryEntry[];
   refs: { [key: string]: React.RefObject<HTMLLIElement> };
 }
