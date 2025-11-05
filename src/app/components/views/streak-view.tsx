@@ -18,7 +18,6 @@ export function StreakView({ diaryEntries }: StreakViewProps) {
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
 
-  // Adjust startingDayOfWeek to be 0 for Monday
   const startingDayOfWeek = (firstDayOfMonth.getDay() + 6) % 7;
 
   const prevMonth = () => {
@@ -68,51 +67,61 @@ export function StreakView({ diaryEntries }: StreakViewProps) {
           {weekdays.map(day => <div key={day} className="text-xs md:text-sm">{day}</div>)}
         </div>
         <div className="grid grid-cols-7 grid-rows-6 gap-2 flex-grow">
-          {calendarDays.map((day, index) => {
-            if (!day) return <div key={`empty-${index}`} className="bg-muted/30 rounded-lg" />;
-            
-            const calendarDate = normalizeDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), day));
-            const hasEntry = entryDates.has(calendarDate);
+          <TooltipProvider>
+            {calendarDays.map((day, index) => {
+              if (!day) return <div key={`empty-${index}`} className="bg-muted/30 rounded-lg" />;
+              
+              const calendarDate = normalizeDate(new Date(currentDate.getFullYear(), currentDate.getMonth(), day));
+              const hasEntry = entryDates.has(calendarDate);
 
-            const today = normalizeDate(new Date());
-            const isToday = calendarDate === today;
-            const isPast = calendarDate < today;
+              const today = normalizeDate(new Date());
+              const isToday = calendarDate === today;
+              const isPast = calendarDate < today;
 
-            let status: 'completed' | 'missed' | 'future' | 'today' = 'future';
-            if (isToday) {
-                status = 'today';
-            } else if (isPast) {
-                status = hasEntry ? 'completed' : 'missed';
-            }
+              let status: 'completed' | 'missed' | 'future' | 'today' = 'future';
+              if (isToday) {
+                  status = 'today';
+              } else if (isPast) {
+                  status = hasEntry ? 'completed' : 'missed';
+              }
 
-            return (
-              <TooltipProvider key={day}>
-                <Tooltip>
+              return (
+                <Tooltip key={day}>
                   <TooltipTrigger asChild>
                     <div
                       className={cn(
-                        "border rounded-lg p-2 flex flex-col items-center justify-center aspect-square transition-all duration-300",
-                        status === 'completed' && "bg-amber-100 border-amber-300",
-                        status === 'missed' && "bg-gray-100 border-gray-200 opacity-60",
+                        "border rounded-lg flex flex-col items-center justify-center aspect-square transition-all duration-300 group",
+                        status === 'completed' && "bg-amber-100 dark:bg-amber-900/40 border-amber-300 dark:border-amber-800",
+                        status === 'missed' && "bg-gray-100 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 opacity-60",
                         status === 'today' && "border-primary border-2 ring-4 ring-primary/20",
-                        status === 'future' && "bg-background",
+                        status === 'future' && "bg-background dark:bg-muted/50",
                       )}
                     >
-                      <span className={cn("font-bold text-lg", status === 'missed' && 'text-muted-foreground/50')}>{day}</span>
-                      <div className="text-3xl mt-1">
-                        {hasEntry ? <Flame className="text-amber-500"/> : isPast ? '⚪' : '⚫'}
+                      <span className={cn(
+                          "font-bold text-sm md:text-base", 
+                          status === 'missed' && 'text-muted-foreground/50'
+                      )}>{day}</span>
+                      
+                      <div className="flex-1 flex items-center justify-center">
+                        {hasEntry ? (
+                            <Flame className="w-8 h-8 text-amber-500 animate-flame transition-transform duration-200 group-hover:scale-125" />
+                        ) : isPast ? (
+                           <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600" /> // Ash
+                        ) : (
+                           <div className="w-5 h-5 rounded-full bg-gray-700 dark:bg-gray-900" /> // Ember
+                        )}
                       </div>
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
                     <p>{new Date(calendarDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                    {hasEntry && <p className="font-bold text-amber-600">¡Meta cumplida!</p>}
+                    {hasEntry && <p className="font-bold text-amber-600 dark:text-amber-400">¡Meta cumplida!</p>}
                     {status === 'missed' && <p className="font-bold text-gray-500">Día omitido</p>}
                   </TooltipContent>
                 </Tooltip>
-              </TooltipProvider>
-            );
-          })}
+              );
+            })}
+          </TooltipProvider>
         </div>
       </CardContent>
     </Card>
