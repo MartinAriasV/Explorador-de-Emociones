@@ -93,6 +93,9 @@ body {
 }
 
 @layer utilities {
+  .shape-triangle {
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  }
   .animate-fade-in {
     animation: fade-in 0.5s ease-in-out;
   }

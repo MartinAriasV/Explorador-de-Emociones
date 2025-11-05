@@ -107,8 +107,6 @@ export function CalmView() {
     animationTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
     animationFillMode: 'forwards',
   } as React.CSSProperties;
-  
-  const nextActionText = breathCycles[mode][0].text;
 
   return (
     <div className="w-full h-full flex flex-col items-center justify-center text-center p-4">
@@ -136,7 +134,7 @@ export function CalmView() {
             isPreparing ? PREP_GRADIENT : currentStep?.gradient,
             mode === 'circle' && 'rounded-full',
             mode === 'square' && 'rounded-3xl',
-            mode === '4-7-8' && '[clip-path:polygon(50%_0%,0%_100%,100%_100%)]',
+            mode === '4-7-8' && 'shape-triangle',
             'shadow-2xl shadow-primary/20'
           )}
           style={!isPreparing ? animationStyle : {}}

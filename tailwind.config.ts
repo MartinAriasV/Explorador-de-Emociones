@@ -128,6 +128,8 @@ export default {
         'accordion-up': 'accordion-up 0.2s ease-out',
         'fade-in': 'fade-in 0.5s ease-in-out',
         'fade-in-up': 'fade-in-up 0.5s ease-in-out',
+        'breathe-in-triangle': 'breathe-in-triangle ease-in-out',
+        'breathe-out-triangle': 'breathe-out-triangle ease-in-out',
       },
     },
   },
