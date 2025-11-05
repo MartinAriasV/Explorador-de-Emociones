@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PlusCircle } from 'lucide-react';
-import { PREDEFINED_EMOTions } from '@/lib/constants';
+import { PREDEFINED_EMOTIONS } from '@/lib/constants';
 import { Emotion } from '@/lib/types';
 
 interface DiscoverViewProps {
