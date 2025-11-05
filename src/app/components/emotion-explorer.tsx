@@ -28,7 +28,7 @@ import { calculateDailyStreak } from '@/lib/utils';
 import { Crown } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-const defaultProfile: Omit<UserProfile, 'id' | 'unlockedAnimalIds'> = {
+const defaultProfile: Omit<UserProfile, 'id' | 'unlockedAnimalIds' | 'emotionCount'> = {
   name: 'Usuario',
   avatar: '😊',
   avatarType: 'emoji',
@@ -53,6 +53,7 @@ export default function EmotionExplorer() {
 
   const [addingEmotionData, setAddingEmotionData] = useState<Partial<Emotion> & { id?: string } | null>(null);
   const [newlyUnlockedReward, setNewlyUnlockedReward] = useState<Reward | null>(null);
+  const [sharedOnce, setSharedOnce] = useLocalStorage('emotion-explorer-shared-once', false);
   
   // Quiz state
   const [quizDate, setQuizDate] = useState<Date | null>(null);
@@ -69,23 +70,50 @@ export default function EmotionExplorer() {
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
 
   useEffect(() => {
-    if (isProfileLoading || !userProfile || !diaryEntries) return;
+    if (isProfileLoading || !userProfile || !diaryEntries || !emotionsList) return;
 
     const dailyStreak = calculateDailyStreak(diaryEntries);
+    const entryCount = diaryEntries.length;
+    const emotionCount = emotionsList.length;
     const unlockedIds = userProfile.unlockedAnimalIds || [];
     
-    const rewardToUnlock = REWARDS.find(reward => 
-      reward.type === 'streak' && 
-      dailyStreak >= reward.value && 
-      !unlockedIds.includes(reward.animal.id)
-    );
+    const rewardsToUnlock = REWARDS.filter(reward => {
+        if (unlockedIds.includes(reward.animal.id)) return false;
 
-    if (rewardToUnlock) {
-      const newUnlockedIds = [...unlockedIds, rewardToUnlock.animal.id];
-      setUserProfile({ ...userProfile, unlockedAnimalIds: newUnlockedIds });
-      setNewlyUnlockedReward(rewardToUnlock);
+        switch(reward.type) {
+            case 'streak':
+                return dailyStreak >= reward.value;
+            case 'entry_count':
+                return entryCount >= reward.value;
+            case 'emotion_count':
+                return emotionCount >= reward.value;
+            // The 'share' type is handled separately
+            default:
+                return false;
+        }
+    });
+
+    if (rewardsToUnlock.length > 0) {
+      const newUnlockedIds = [...unlockedIds, ...rewardsToUnlock.map(r => r.animal.id)];
+      setUserProfile({ unlockedAnimalIds: newUnlockedIds });
+      // Show popup for the first unlocked reward in the batch
+      setNewlyUnlockedReward(rewardsToUnlock[0]);
     }
-  }, [diaryEntries, isProfileLoading, userProfile]);
+  }, [diaryEntries, emotionsList, isProfileLoading, userProfile]);
+
+  // Special handler for "share" reward
+  const handleShare = () => {
+    if (!sharedOnce) {
+        const shareReward = REWARDS.find(r => r.id === 'share-1');
+        if (shareReward && !userProfile?.unlockedAnimalIds?.includes(shareReward.animal.id)) {
+            const newUnlockedIds = [...(userProfile?.unlockedAnimalIds || []), shareReward.animal.id];
+            setUserProfile({ unlockedAnimalIds: newUnlockedIds });
+            setNewlyUnlockedReward(shareReward);
+        }
+        setSharedOnce(true);
+    }
+  };
+
 
   const setUserProfile = (profile: Partial<UserProfile>) => {
     if (!userProfileRef) return;
@@ -168,6 +196,14 @@ export default function EmotionExplorer() {
           emotionId: defaultEmotion.id,
           text: 'Día recuperado completando el desafío de la racha. ¡Buen trabajo!',
         });
+
+        const phoenixReward = REWARDS.find(r => r.id === 'phoenix-reward');
+        if (phoenixReward && !userProfile?.unlockedAnimalIds?.includes(phoenixReward.animal.id)) {
+            const newUnlockedIds = [...(userProfile?.unlockedAnimalIds || []), phoenixReward.animal.id];
+            setUserProfile({ unlockedAnimalIds: newUnlockedIds });
+            setNewlyUnlockedReward(phoenixReward);
+        }
+
         toast({
           title: "¡Día Recuperado!",
           description: "Has superado el desafío y recuperado tu racha.",
@@ -237,7 +273,7 @@ export default function EmotionExplorer() {
             case 'report':
               return <ReportView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} />;
             case 'share':
-              return <ShareView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} userProfile={userProfile!} />;
+              return <ShareView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} userProfile={userProfile!} onShare={handleShare} />;
             case 'profile':
               return <ProfileView userProfile={userProfile} setUserProfile={setUserProfile} />;
             default:
@@ -319,15 +355,15 @@ export default function EmotionExplorer() {
               ¡Recompensa Desbloqueada!
             </AlertDialogTitle>
             <AlertDialogDescription>
-              ¡Felicidades! Por tu increíble racha has desbloqueado al:
+              ¡Felicidades! Has desbloqueado al:
             </AlertDialogDescription>
-            <div className="flex flex-col items-center gap-2 pt-4">
+          </AlertDialogHeader>
+          <div className="flex flex-col items-center gap-2 pt-4">
               <span className="text-7xl">{newlyUnlockedReward?.animal.icon}</span>
               <span className="block font-bold text-2xl text-primary">{newlyUnlockedReward?.animal.name}</span>
               <span className="block text-sm text-muted-foreground">{newlyUnlockedReward?.animal.description}</span>
               <span className="block text-xs text-amber-500 font-semibold">{newlyUnlockedReward?.animal.rarity}</span>
-            </div>
-          </AlertDialogHeader>
+          </div>
           <AlertDialogFooter>
               <AlertDialogAction onClick={() => { setNewlyUnlockedReward(null); setView('sanctuary'); }} className="bg-accent text-accent-foreground hover:bg-accent/90 w-full">
                 ¡Genial! Ver en mi Santuario

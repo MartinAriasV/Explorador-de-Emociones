@@ -6,7 +6,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { SPIRIT_ANIMALS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Lock } from 'lucide-react';
 
 interface SanctuaryViewProps {
   unlockedAnimalIds: string[];
@@ -17,6 +16,7 @@ const rarityStyles = {
   'Poco Común': 'border-green-400 dark:border-green-700',
   'Raro': 'border-blue-400 dark:border-blue-700',
   'Épico': 'border-purple-500 dark:border-purple-600',
+  'Legendario': 'border-amber-400 dark:border-amber-500 shadow-amber-400/20',
 };
 
 const rarityTextStyles = {
@@ -24,6 +24,7 @@ const rarityTextStyles = {
     'Poco Común': 'text-green-600 dark:text-green-400',
     'Raro': 'text-blue-600 dark:text-blue-500',
     'Épico': 'text-purple-600 dark:text-purple-500',
+    'Legendario': 'text-amber-500 dark:text-amber-400',
 }
 
 export function SanctuaryView({ unlockedAnimalIds }: SanctuaryViewProps) {
@@ -70,12 +71,19 @@ export function SanctuaryView({ unlockedAnimalIds }: SanctuaryViewProps) {
                                 </p>
                             </Card>
                         </TooltipTrigger>
-                        {isUnlocked && (
-                            <TooltipContent className="p-4 bg-card border-primary max-w-xs">
-                                <p className="font-bold text-lg text-primary">{animal.emotion}</p>
-                                <p className="text-sm text-muted-foreground mt-1">{animal.description}</p>
-                            </TooltipContent>
-                        )}
+                        <TooltipContent className="p-4 bg-card border-primary max-w-xs">
+                            {isUnlocked ? (
+                                <>
+                                    <p className="font-bold text-lg text-primary">{animal.emotion}</p>
+                                    <p className="text-sm text-muted-foreground mt-1">{animal.description}</p>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="font-bold text-lg text-primary">¿Cómo desbloquear?</p>
+                                    <p className="text-sm text-muted-foreground mt-1">{animal.unlockHint}</p>
+                                </>
+                            )}
+                        </TooltipContent>
                   </Tooltip>
                   );
                 })}

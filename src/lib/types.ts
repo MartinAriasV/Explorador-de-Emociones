@@ -21,6 +21,7 @@ export type UserProfile = {
   avatar: string; // Can be an emoji or a URL for generated avatar
   avatarType: 'emoji' | 'generated';
   unlockedAnimalIds?: string[];
+  emotionCount?: number;
 };
 
 export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary';
@@ -44,15 +45,15 @@ export type SpiritAnimal = {
   icon: string;
   emotion: string;
   description: string;
-  rarity: 'Común' | 'Poco Común' | 'Raro' | 'Épico';
+  rarity: 'Común' | 'Poco Común' | 'Raro' | 'Épico' | 'Legendario';
+  unlockHint: string;
 };
 
 export type Reward = {
   id: string;
-  type: 'streak' | 'entry_count';
+  type: 'streak' | 'entry_count' | 'emotion_count';
   value: number;
   animal: SpiritAnimal;
-  unlockMessage: string;
 };
 
 export interface QuizQuestion {

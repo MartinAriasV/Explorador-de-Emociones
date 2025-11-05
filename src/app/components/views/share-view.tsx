@@ -14,9 +14,10 @@ interface ShareViewProps {
   diaryEntries: DiaryEntry[];
   emotionsList: Emotion[];
   userProfile: UserProfile | null;
+  onShare: () => void;
 }
 
-export function ShareView({ diaryEntries, emotionsList, userProfile }: ShareViewProps) {
+export function ShareView({ diaryEntries, emotionsList, userProfile, onShare }: ShareViewProps) {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
   const [startDate, setStartDate] = useState('');
@@ -27,8 +28,8 @@ export function ShareView({ diaryEntries, emotionsList, userProfile }: ShareView
   const reportText = useMemo(() => {
     let text = `Diario de Emociones de ${userProfile?.name || 'Usuario'}\n`;
     if (startDate && endDate) {
-      const start = new Date(startDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
-      const end = new Date(endDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+      const start = new Date(startDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+      const end = new Date(endDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
       text += `Periodo: ${start} - ${end}\n`;
     }
     text += "========================================\n\n";
@@ -39,7 +40,7 @@ export function ShareView({ diaryEntries, emotionsList, userProfile }: ShareView
         const entryDate = new Date(entry.date);
         // Add one day to endDate to include it in the range
         const endRangeDate = new Date(endDate);
-        endRangeDate.setDate(endRangeDate.getDate() + 1);
+        endRangeDate.setUTCDate(endRangeDate.getUTCDate() + 1);
 
         return entryDate >= new Date(startDate) && entryDate < endRangeDate;
     });
@@ -47,7 +48,7 @@ export function ShareView({ diaryEntries, emotionsList, userProfile }: ShareView
     if (filteredEntries.length > 0) {
         filteredEntries.slice().reverse().forEach(entry => {
             const emotion = getEmotionById(entry.emotionId);
-            const date = new Date(entry.date).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+            const date = new Date(entry.date).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
             text += `Fecha: ${date}\n`;
             text += `Emoción: ${emotion?.name || 'Desconocida'} ${emotion?.icon || ''}\n`;
             text += `Reflexión: ${entry.text}\n`;
@@ -72,6 +73,7 @@ export function ShareView({ diaryEntries, emotionsList, userProfile }: ShareView
   const handleCopy = () => {
     navigator.clipboard.writeText(reportText).then(() => {
         setCopied(true);
+        onShare(); // Trigger the share event for reward checking
         toast({ title: "¡Copiado!", description: "El reporte se ha copiado al portapapeles." });
         setTimeout(() => setCopied(false), 2000);
     }, () => {
