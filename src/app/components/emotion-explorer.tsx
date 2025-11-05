@@ -50,19 +50,26 @@ export default function EmotionExplorer() {
     return acc;
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
   
+  // This effect ensures a profile document is created for new users,
+  // but only after confirming one doesn't exist.
   useEffect(() => {
-    // This effect runs once when the component mounts and the user is resolved.
-    // It checks if a user profile exists and creates one if it doesn't.
-    if (user && userProfileRef && !isProfileLoading && !userProfile) {
+    // Exit if we're still waiting for user auth or profile data, or if the user is not logged in.
+    if (isUserLoading || isProfileLoading || !user || !userProfileRef) {
+      return;
+    }
+  
+    // If loading is finished and there's still no profile, create one.
+    if (!userProfile) {
       const defaultProfile: Omit<UserProfile, 'id'> = {
         name: 'Usuario',
         avatar: '😊',
         avatarType: 'emoji',
       };
+      // Use setDoc to create the document with the user's UID as the ID.
       setDocumentNonBlocking(userProfileRef, defaultProfile, {});
     }
-  }, [user, userProfileRef, isProfileLoading, userProfile]);
-  
+  }, [user, userProfile, isUserLoading, isProfileLoading, userProfileRef]);
+
 
   const setUserProfile = (profile: Omit<UserProfile, 'id'>) => {
     if (!userProfileRef) return;
@@ -71,6 +78,8 @@ export default function EmotionExplorer() {
       avatar: profile.avatar,
       avatarType: profile.avatarType,
     };
+    // Use setDoc with merge:true. This will CREATE the document if it doesn't exist,
+    // or UPDATE it if it does. This is the key to solving the persistence issue.
     setDocumentNonBlocking(userProfileRef, profileToSave, { merge: true });
   };
 
@@ -205,7 +214,8 @@ export default function EmotionExplorer() {
     return <LoginView />;
   }
   
-  // This is the crucial change. We wait for BOTH user and profile loading to complete.
+  // Wait for the profile to finish loading before rendering the main app.
+  // This prevents rendering components that depend on the profile before it's available.
   if (isProfileLoading) {
      return <div className="flex h-screen w-screen items-center justify-center">Cargando perfil...</div>;
   }
