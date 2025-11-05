@@ -19,21 +19,29 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
   const [position, setPosition] = useState<{ top: number; left: number; width: number; height: number }>({ top: 0, left: 0, width: 0, height: 0 });
   const [popupPosition, setPopupPosition] = useState<{ top: number, left: number }>({ top: 0, left: 0 });
   const { isMobile, setOpenMobile, openMobile } = useSidebar();
+  const animationFrameId = useRef<number>();
 
-  const calculateAndSetPosition = () => {
+  const calculateAndSetPosition = (retries = 0) => {
     if (step === 0) {
       setPosition({ top: 0, left: 0, width: 0, height: 0 });
-      return false;
+      return;
     }
   
     const currentStepData = steps[step - 1];
-    if (!currentStepData) return false;
+    if (!currentStepData) return;
   
     const targetRef = refs[currentStepData.refKey];
     const targetElement = targetRef?.current;
   
     if (targetElement) {
       const rect = targetElement.getBoundingClientRect();
+      
+      // On mobile, the collapsed item width is small. We wait for it to expand.
+      // An expanded item will be much wider than 60px.
+      if (isMobile && rect.width < 60 && retries < 15) {
+        animationFrameId.current = requestAnimationFrame(() => calculateAndSetPosition(retries + 1));
+        return;
+      }
   
       if (rect.width > 0 && rect.height > 0) {
         setPosition({
@@ -60,13 +68,28 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
   
           setPopupPosition({ top, left });
         }
-        return true; // Position calculated successfully
+      } else if (retries < 15) {
+        animationFrameId.current = requestAnimationFrame(() => calculateAndSetPosition(retries + 1));
       }
+    } else if (retries < 15) {
+      animationFrameId.current = requestAnimationFrame(() => calculateAndSetPosition(retries + 1));
     }
-    return false; // Element not ready
   };
 
   useEffect(() => {
+    // Cleanup any pending animation frame on unmount or before re-running
+    return () => {
+      if (animationFrameId.current) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (animationFrameId.current) {
+      cancelAnimationFrame(animationFrameId.current);
+    }
+    
     if (step === 0) {
       setPosition({ top: 0, left: 0, width: 0, height: 0 });
       return;
@@ -74,23 +97,18 @@ export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps)
 
     const currentStepData = steps[step - 1];
     if (!currentStepData) return;
-    
-    // On mobile, if the menu is closed and the step requires it, open it first.
+
     if (isMobile && !openMobile && refs[currentStepData.refKey]) {
       setOpenMobile(true);
-      // We return here. The effect will re-run when openMobile changes.
+      // The effect will re-run because openMobile changes, so we wait.
       return;
     }
+    
+    // Start trying to calculate position
+    calculateAndSetPosition();
 
-    // If we're on mobile and the menu is open, or we're on desktop, calculate position.
-    // A small delay gives the UI time to settle, especially for animations.
-    const timer = setTimeout(() => {
-      calculateAndSetPosition();
-    }, isMobile ? 150 : 0); // A bit more delay for mobile animation
-
-    return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, isMobile, openMobile, refs]);
+  }, [step, isMobile, openMobile]);
 
 
   const handleNext = () => {
