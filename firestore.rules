@@ -9,8 +9,8 @@ service cloud.firestore {
 
     // User Profile: a user can read/write to their own profile
     match /users/{userId} {
-      allow read: if isOwner(userId);
-      allow write: if isOwner(userId)
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId)
         && request.resource.data.keys().hasAll(['name', 'avatar', 'avatarType'])
         && request.resource.data.size() == 3
         && request.resource.data.name is string

@@ -57,23 +57,22 @@ export default function EmotionExplorer() {
       const defaultProfile: Omit<UserProfile, 'id'> = {
         name: 'Usuario',
         avatar: '😊',
-        avatarType: 'emoji'
+        avatarType: 'emoji',
       };
-      setDocumentNonBlocking(userProfileRef, defaultProfile, { merge: true });
+      setDocumentNonBlocking(userProfileRef, defaultProfile, {});
     }
   }, [user, userProfileRef, isProfileLoading, userProfile]);
+  
 
   const setUserProfile = (profile: Omit<UserProfile, 'id'>) => {
     if (!userProfileRef) return;
-    // This logic ensures that if a profile doesn't exist, it's created with `setDoc`.
-    // If it already exists, `setDoc` with `merge: true` will update it without overwriting other fields.
     const profileToSave: UserProfile = {
       name: profile.name,
       avatar: profile.avatar,
-      avatarType: profile.avatarType
+      avatarType: profile.avatarType,
     };
     setDocumentNonBlocking(userProfileRef, profileToSave, { merge: true });
-  }
+  };
 
   const saveEmotion = (emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string }) => {
     if (!user) return;
@@ -206,6 +205,7 @@ export default function EmotionExplorer() {
     return <LoginView />;
   }
   
+  // This is the crucial change. We wait for BOTH user and profile loading to complete.
   if (isProfileLoading) {
      return <div className="flex h-screen w-screen items-center justify-center">Cargando perfil...</div>;
   }
