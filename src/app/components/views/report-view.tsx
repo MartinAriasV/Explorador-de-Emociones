@@ -45,13 +45,11 @@ export function ReportView({ diaryEntries, emotionsList }: ReportViewProps) {
 
   const getEntriesForDay = (day: number) => {
     return diaryEntries.filter(entry => {
-      // The entry.date is a 'YYYY-MM-DD' string. We need to parse it carefully to avoid timezone issues.
-      // Splitting the string and creating a UTC date ensures consistency.
-      const [year, month, entryDay] = entry.date.split('-').map(Number);
+      const entryDate = new Date(entry.date);
       return (
-        year === currentDate.getFullYear() &&
-        (month - 1) === currentDate.getMonth() &&
-        entryDay === day
+        entryDate.getUTCFullYear() === currentDate.getFullYear() &&
+        entryDate.getUTCMonth() === currentDate.getMonth() &&
+        entryDate.getUTCDate() === day
       );
     });
   };
@@ -74,56 +72,79 @@ export function ReportView({ diaryEntries, emotionsList }: ReportViewProps) {
         </div>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col min-h-0">
-        <div className="grid grid-cols-7 gap-2 text-center font-semibold text-muted-foreground">
+        <div className="grid grid-cols-7 gap-2 text-center font-bold text-muted-foreground">
           {weekdays.map(day => <div key={day}>{day}</div>)}
         </div>
         <ScrollArea className="flex-grow mt-2">
             <div className="grid grid-cols-7 gap-2">
+            <TooltipProvider>
             {calendarDays.map((day, index) => {
                 if (!day) return <div key={`empty-${index}`} />;
                 
                 const dayEntries = getEntriesForDay(day);
 
-                // Compare year, month, and day for `isToday` to avoid timezone issues.
                 const today = new Date();
                 const isToday = today.getFullYear() === currentDate.getFullYear() &&
                                 today.getMonth() === currentDate.getMonth() &&
                                 today.getDate() === day;
+                
+                const isPast = new Date(currentDate.getFullYear(), currentDate.getMonth(), day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
                 return (
-                <div
-                    key={day}
-                    className={cn(
-                    "border rounded-lg p-2 flex flex-col items-center justify-start aspect-square overflow-hidden",
-                    isToday && "border-primary border-2"
-                    )}
-                >
-                    <span className="font-bold">{day}</span>
-                    <div className="flex flex-wrap items-center justify-center gap-1 mt-2 flex-grow">
-                    {dayEntries.length > 0 ? (
-                        <TooltipProvider>
-                        {dayEntries.map(entry => {
-                        const emotion = getEmotionById(entry.emotionId);
-                        return (
-                            <Tooltip key={entry.id}>
-                            <TooltipTrigger>
-                                <span className="text-xl">{emotion?.icon || '❓'}</span>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p className="font-bold" style={{color: emotion?.color}}>{emotion?.name}</p>
-                                <p className="text-sm max-w-xs truncate">{entry.text}</p>
-                            </TooltipContent>
-                            </Tooltip>
-                        );
-                        })}
-                        </TooltipProvider>
-                    ) : (
-                        <span className="text-2xl opacity-20">😶</span>
-                    )}
+                <Tooltip key={day} delayDuration={100}>
+                  <TooltipTrigger asChild>
+                    <div
+                        className={cn(
+                        "border rounded-lg p-2 flex flex-col items-center justify-between aspect-square overflow-hidden transition-all duration-200",
+                        isToday && "ring-2 ring-primary",
+                        dayEntries.length === 0 && isPast && "bg-muted/50",
+                        dayEntries.length > 0 && "hover:scale-105 hover:shadow-md cursor-pointer",
+                        )}
+                        style={dayEntries.length > 0 ? { borderColor: getEmotionById(dayEntries[0].emotionId)?.color } : {}}
+                    >
+                        <span className={cn("font-bold self-start", dayEntries.length === 0 && 'text-muted-foreground')}>{day}</span>
+                        
+                        <div className="flex flex-col items-center justify-center flex-grow">
+                          {dayEntries.length > 0 ? (
+                            <span className="text-4xl">{getEmotionById(dayEntries[0].emotionId)?.icon || '❓'}</span>
+                          ) : (
+                            isPast && <div className="w-2 h-2 rounded-full bg-muted-foreground/20"></div>
+                          )}
+                        </div>
+
+                        <div className="h-4">
+                           {dayEntries.length > 1 && (
+                            <div className="flex space-x-1">
+                              {dayEntries.slice(0, 3).map((_, i) => (
+                                <div key={i} className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: getEmotionById(dayEntries[0].emotionId)?.color || 'grey'}}></div>
+                              ))}
+                            </div>
+                           )}
+                        </div>
                     </div>
-                </div>
+                  </TooltipTrigger>
+                  {dayEntries.length > 0 && (
+                    <TooltipContent className="p-4 bg-card border-primary">
+                        <div className="flex flex-col gap-3">
+                        {dayEntries.map(entry => {
+                            const emotion = getEmotionById(entry.emotionId);
+                            return (
+                                <div key={entry.id} className="max-w-xs">
+                                <p className="font-bold flex items-center gap-2" style={{color: emotion?.color}}>
+                                    <span className="text-xl">{emotion?.icon}</span>
+                                    {emotion?.name}
+                                </p>
+                                <p className="text-sm text-muted-foreground mt-1">{entry.text}</p>
+                                </div>
+                            );
+                        })}
+                        </div>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
                 );
             })}
+            </TooltipProvider>
             </div>
         </ScrollArea>
       </CardContent>
