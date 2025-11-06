@@ -31,8 +31,6 @@ function AppGate() {
   );
   
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
-
-  const [isNewUser, setIsNewUser] = useState(false);
   
   useEffect(() => {
     // This effect runs when auth and profile loading states change.
@@ -42,9 +40,9 @@ function AppGate() {
       return;
     }
 
+    // This is the critical condition:
+    // ONLY create a profile if loading is complete, we have a user, and there is NO profile.
     if (user && !userProfile) {
-      // If loading is finished and we have a user but no profile,
-      // it means this is a new user.
       const newProfile: UserProfile = {
         id: user.uid,
         name: user.email?.split('@')[0] || defaultProfile.name,
@@ -54,12 +52,9 @@ function AppGate() {
         emotionCount: 0,
       };
       
-      // Create the profile document in Firestore.
       if (userProfileRef) {
-        setDoc(userProfileRef, newProfile, { merge: true }).then(() => {
-          // After the profile is successfully created, we set the flag.
-          setIsNewUser(true);
-        }).catch(console.error);
+        // This will only run ONCE for a new user. For existing users, `userProfile` will be defined.
+        setDoc(userProfileRef, newProfile).catch(console.error);
       }
     }
   }, [user, isUserLoading, isProfileLoading, userProfile, userProfileRef]);
@@ -73,6 +68,10 @@ function AppGate() {
       </div>
     );
   }
+
+  // A new user is determined by having a profile but no unlocked animals yet.
+  // This is more reliable than a temporary state flag.
+  const isNewUser = !!userProfile && (!userProfile.unlockedAnimalIds || userProfile.unlockedAnimalIds.length === 0);
 
   // Pass a key to EmotionExplorer to ensure it remounts if the user changes,
   // and pass the isNewUser flag to trigger the welcome tour.
