@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, createRef } from 'react';
+import React, { useState, useEffect, createRef } from 'react';
 import type { Emotion, View, TourStepData } from '@/lib/types';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar, MobileMenuButton } from './app-sidebar';
@@ -23,8 +23,6 @@ import { Crown, Map } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import LoginView from './views/login-view';
-import { useUser } from '@/firebase';
 import { useEmotionData } from '@/hooks/use-emotion-data';
 
 const rarityTextStyles: { [key: string]: string } = {
@@ -43,21 +41,19 @@ const rarityBorderStyles: { [key: string]: string } = {
     'Legendario': 'border-amber-400',
 }
 
-interface EmotionExplorerProps {
-  isNewUser: boolean;
-}
 
-export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
+export default function EmotionExplorer() {
   const [view, setView] = useState<View>('diary');
-  const { user, isUserLoading } = useUser();
   const { toast } = useToast();
 
   const {
+    user,
     userProfile,
     emotionsList,
     diaryEntries,
     newlyUnlockedReward,
     isLoading,
+    addProfileIfNotExists,
     setUserProfile,
     addDiaryEntry,
     updateDiaryEntry,
@@ -75,7 +71,19 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
   const [quizDate, setQuizDate] = useState<Date | null>(null);
   const [showQuiz, setShowQuiz] = useState(false);
 
+  // Profile creation logic is now handled here, once all data loading is complete.
+  useEffect(() => {
+    if (!isLoading && user && !userProfile) {
+      addProfileIfNotExists(user);
+    }
+  }, [isLoading, user, userProfile, addProfileIfNotExists]);
+
+  const isNewUser = !!userProfile && (!userProfile.unlockedAnimalIds || userProfile.unlockedAnimalIds.length === 0);
   const [showWelcome, setShowWelcome] = useState(isNewUser);
+   useEffect(() => {
+    setShowWelcome(isNewUser);
+  }, [isNewUser]);
+
   const [tourStep, setTourStep] = useState(0);
 
   const tourRefs = TOUR_STEPS.reduce((acc, step) => {
@@ -195,18 +203,16 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
       </div>
     );
   };
-
-  if (isUserLoading || isLoading) {
+  
+  // A single, robust loading state.
+  // It waits for the hook to finish loading AND for the profile to be created if it's a new user.
+  if (isLoading || !userProfile) {
     return (
         <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             <p className="text-lg text-primary">Cargando perfil...</p>
         </div>
     );
-  }
-
-  if (!user) {
-    return <LoginView />;
   }
   
   return (

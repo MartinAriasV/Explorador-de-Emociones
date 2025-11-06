@@ -107,6 +107,7 @@ export function useEmotionData() {
 
   // --- Data Mutation Functions ---
   const addProfileIfNotExists = useCallback((user: User) => {
+    if (!user) return;
     const newProfile: Omit<UserProfile, 'id'> = {
         name: user.email?.split('@')[0] || 'Usuario',
         avatar: '😊',
@@ -114,13 +115,14 @@ export function useEmotionData() {
         unlockedAnimalIds: [],
     };
     const ref = doc(firestore, 'users', user.uid);
-    // Use setDoc with merge:false as we are explicitly creating a new document.
-    // This is safe because we've already confirmed the document doesn't exist.
-    setDocumentNonBlocking(ref, newProfile, { merge: false });
+    // Use setDoc with merge:false to create a new document only if it doesn't exist.
+    // This is safe because it's only called when the profile is confirmed to be null.
+    setDocumentNonBlocking(ref, newProfile);
   }, [firestore]);
   
   const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
     if (!userProfileRef) return;
+    // This now uses updateDoc, which is safe for partial updates.
     updateDocumentNonBlocking(userProfileRef, profile);
   };
 
@@ -190,11 +192,13 @@ export function useEmotionData() {
   };
 
   return {
+    user,
     userProfile,
     emotionsList,
     diaryEntries,
     newlyUnlockedReward,
     isLoading,
+    addProfileIfNotExists,
     setUserProfile,
     addDiaryEntry,
     updateDiaryEntry,
@@ -204,6 +208,5 @@ export function useEmotionData() {
     handleShare,
     setNewlyUnlockedReward,
     handleQuizComplete,
-    addProfileIfNotExists,
   };
 }
