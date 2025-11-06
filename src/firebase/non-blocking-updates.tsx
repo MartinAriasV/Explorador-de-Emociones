@@ -20,7 +20,7 @@ import {FirestorePermissionError} from '@/firebase/errors';
  * This is for creating or overwriting a document with a specific ID.
  * Does NOT await the write operation internally.
  */
-export function setDocumentNonBlocking(docRef: DocumentReference, data: any, options: SetOptions = { merge: true }) {
+export function setDocumentNonBlocking(docRef: DocumentReference, data: any, options: SetOptions = {}) {
   // Execution continues immediately
   return setDoc(docRef, data, options).catch(error => {
     errorEmitter.emit(
@@ -62,6 +62,7 @@ export function addDocumentToCollectionNonBlocking<T>(colRef: CollectionReferenc
 /**
  * Initiates an updateDoc operation for a document reference.
  * Does NOT await the write operation internally.
+ * This is the correct, safe way to update fields in an existing document.
  */
 export function updateDocumentNonBlocking(docRef: DocumentReference, data: any) {
   return updateDoc(docRef, data)

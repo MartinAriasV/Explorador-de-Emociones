@@ -27,13 +27,9 @@ function AppGate() {
   
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-  // CRITICAL FIX: The logic for creating a new user profile has been moved
-  // directly into the component body and is guarded by a very strict condition.
-  // This useEffect was the source of the bug, as it could fire under race conditions
-  // where `isProfileLoading` was false but `userProfile` was transiently null.
+  // This is the safe, final logic for creating a new user profile.
+  // It only runs when we know for sure the user is new.
   if (!isUserLoading && !isProfileLoading && user && !userProfile) {
-    // This condition is now only met when we know for sure that a user is logged in
-    // and has no profile document in the database.
     const newProfile: Omit<UserProfile, 'id'> = {
       name: user.email?.split('@')[0] || 'Usuario',
       avatar: '😊',
@@ -42,7 +38,7 @@ function AppGate() {
     };
     if (userProfileRef) {
       // Use setDoc with merge:false because we are explicitly CREATING a new document.
-      // This is safe because of the !userProfile check.
+      // This is safe because the !userProfile check ensures the document doesn't exist.
       setDocumentNonBlocking(userProfileRef, newProfile, { merge: false });
     }
   }
