@@ -156,17 +156,17 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
 ];
 
 export const REWARDS: Reward[] = [
+    // Entry count based rewards
+    { id: 'entry-1', type: 'entry_count', value: 1, animal: SPIRIT_ANIMALS.find(a => a.id === 'agile-hummingbird')! },
+    { id: 'entry-25', type: 'entry_count', value: 25, animal: SPIRIT_ANIMALS.find(a => a.id === 'patient-turtle')! },
+    { id: 'entry-50', type: 'entry_count', value: 50, animal: SPIRIT_ANIMALS.find(a => a.id === 'empathetic-elephant')! },
+    { id: 'entry-100', type: 'entry_count', value: 100, animal: SPIRIT_ANIMALS.find(a => a.id === 'brave-eagle')! },
     // Streak based rewards
-    { id: 'streak-1', type: 'streak', value: 1, animal: SPIRIT_ANIMALS.find(a => a.id === 'agile-hummingbird')! },
     { id: 'streak-3', type: 'streak', value: 3, animal: SPIRIT_ANIMALS.find(a => a.id === 'cunning-fox')! },
     { id: 'streak-7', type: 'streak', value: 7, animal: SPIRIT_ANIMALS.find(a => a.id === 'loyal-wolf')! },
     { id: 'streak-14', type: 'streak', value: 14, animal: SPIRIT_ANIMALS.find(a => a.id === 'proud-lion')! },
     { id: 'streak-30', type: 'streak', value: 30, animal: SPIRIT_ANIMALS.find(a => a.id === 'wise-owl')! },
     { id: 'streak-60', type: 'streak', value: 60, animal: SPIRIT_ANIMALS.find(a => a.id === 'protective-dragon')! },
-    // Entry count based rewards
-    { id: 'entry-25', type: 'entry_count', value: 25, animal: SPIRIT_ANIMALS.find(a => a.id === 'patient-turtle')! },
-    { id: 'entry-50', type: 'entry_count', value: 50, animal: SPIRIT_ANIMALS.find(a => a.id === 'empathetic-elephant')! },
-    { id: 'entry-100', type: 'entry_count', value: 100, animal: SPIRIT_ANIMALS.find(a => a.id === 'brave-eagle')! },
     // Emotion count based rewards
     { id: 'emotion-10', type: 'emotion_count', value: 10, animal: SPIRIT_ANIMALS.find(a => a.id === 'loyal-dog')! },
     // Special rewards

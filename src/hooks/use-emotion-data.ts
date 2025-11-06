@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo } from 'react';
-import { useFirebase, useUser, useCollection, useDoc } from '@/firebase';
+import { useFirebase, useCollection, useDoc } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs } from 'firebase/firestore';
 import type { Emotion, DiaryEntry, UserProfile, Reward } from '@/lib/types';
 import { deleteDocumentNonBlocking, addDocumentToCollectionNonBlocking, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -9,9 +9,8 @@ import { calculateDailyStreak } from '@/lib/utils';
 import { REWARDS } from '@/lib/constants';
 import type { User } from 'firebase/auth';
 
-export function useEmotionData() {
+export function useEmotionData(user: User | null) {
   const { firestore } = useFirebase();
-  const { user } = useUser();
 
   // --- Firestore Data ---
   const userProfileRef = useMemo(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
@@ -50,9 +49,17 @@ export function useEmotionData() {
         let unlocked = false;
         switch(reward.type) {
           case 'streak':
+             if (trigger === 'addEntry' || trigger === 'recoverDay') {
+               unlocked = dailyStreak >= reward.value;
+             }
+             break;
           case 'entry_count':
             if (trigger === 'addEntry' || trigger === 'recoverDay') {
-               unlocked = reward.type === 'streak' ? dailyStreak >= reward.value : entryCount >= reward.value;
+                if (entryCount === 1 && reward.id === 'streak-1') { 
+                    unlocked = true;
+                } else {
+                    unlocked = entryCount >= reward.value;
+                }
             }
             break;
           case 'emotion_count':
@@ -115,14 +122,11 @@ export function useEmotionData() {
         unlockedAnimalIds: [],
     };
     const ref = doc(firestore, 'users', user.uid);
-    // Use setDoc with merge:false to create a new document only if it doesn't exist.
-    // This is safe because it's only called when the profile is confirmed to be null.
-    setDocumentNonBlocking(ref, newProfile);
+    setDocumentNonBlocking(ref, newProfile, { merge: false });
   }, [firestore]);
   
   const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
     if (!userProfileRef) return;
-    // This now uses updateDoc, which is safe for partial updates.
     updateDocumentNonBlocking(userProfileRef, profile);
   };
 
@@ -138,7 +142,6 @@ export function useEmotionData() {
     
     if (isNew) {
         promise.then(() => {
-            // We need to fetch the latest data to check rewards accurately
             const updatedEmotions = [...emotionsList, { ...emotionData, id: 'temp-id', userProfileId: user.uid } as Emotion];
             checkAndUnlockRewards('addEmotion', userProfile, diaryEntries || [], updatedEmotions);
         });
@@ -172,7 +175,6 @@ export function useEmotionData() {
     const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
     addDocumentToCollectionNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid })
       .then(() => {
-        // After adding the entry, get the most up-to-date data to check rewards
         const newEntry = { ...entryData, id: 'temp-id', userProfileId: user.uid } as DiaryEntry;
         const updatedDiaryEntries = [...(diaryEntries || []), newEntry];
         checkAndUnlockRewards(trigger, userProfile, updatedDiaryEntries, emotionsList);

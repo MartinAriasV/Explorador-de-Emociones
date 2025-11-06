@@ -8,8 +8,8 @@ import {
 } from '@/firebase';
 import LoginView from './components/views/login-view';
 
-// This component now handles the logic for checking/creating a profile
-// and then rendering the main application.
+// This component now ONLY handles the user authentication gate.
+// All profile logic has been moved to EmotionExplorer to prevent race conditions.
 function AppGate() {
   const { user, isUserLoading } = useUser();
 
@@ -26,15 +26,15 @@ function AppGate() {
     return <LoginView />;
   }
 
-  // Pass a key to EmotionExplorer to ensure it remounts if the user changes.
-  return <EmotionExplorer key={user.uid} />;
+  // Pass a key and the user object to EmotionExplorer.
+  // This ensures it remounts if the user changes and has the user data immediately.
+  return <EmotionExplorer key={user.uid} user={user} />;
 }
 
 export default function Home() {
   return (
     <main className="h-screen w-screen overflow-hidden">
       <FirebaseClientProvider>
-        {/* Suspense is a good practice for components with async data */}
         <Suspense
           fallback={
             <div className="flex h-screen w-screen items-center justify-center">

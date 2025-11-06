@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, createRef } from 'react';
-import type { Emotion, View, TourStepData } from '@/lib/types';
+import type { Emotion, View, TourStepData, UserProfile } from '@/lib/types';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar, MobileMenuButton } from './app-sidebar';
 import { DiaryView } from './views/diary-view';
@@ -24,6 +24,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useEmotionData } from '@/hooks/use-emotion-data';
+import type { User } from 'firebase/auth';
+
+interface EmotionExplorerProps {
+  user: User;
+}
 
 const rarityTextStyles: { [key: string]: string } = {
     'Común': 'text-gray-500 dark:text-gray-400',
@@ -42,12 +47,11 @@ const rarityBorderStyles: { [key: string]: string } = {
 }
 
 
-export default function EmotionExplorer() {
+export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const [view, setView] = useState<View>('diary');
   const { toast } = useToast();
 
   const {
-    user,
     userProfile,
     emotionsList,
     diaryEntries,
@@ -63,26 +67,28 @@ export default function EmotionExplorer() {
     handleShare,
     setNewlyUnlockedReward,
     handleQuizComplete,
-  } = useEmotionData();
+  } = useEmotionData(user);
 
   const [addingEmotionData, setAddingEmotionData] = useState<Partial<Emotion> | null>(null);
   const [editingEmotion, setEditingEmotion] = useState<Emotion | null>(null);
   
   const [quizDate, setQuizDate] = useState<Date | null>(null);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(false);
 
-  // Profile creation logic is now handled here, once all data loading is complete.
+  // This is the definitive logic for profile creation.
+  // It runs only once after the initial data load.
   useEffect(() => {
-    if (!isLoading && user && !userProfile) {
-      addProfileIfNotExists(user);
+    if (!isLoading) { // Wait for the initial load to complete
+      if (user && !userProfile) {
+        addProfileIfNotExists(user);
+      }
+      // Determine if it's a new user *after* the profile has been checked/created
+      if (userProfile && (!userProfile.unlockedAnimalIds || userProfile.unlockedAnimalIds.length === 0)) {
+        setShowWelcome(true);
+      }
     }
   }, [isLoading, user, userProfile, addProfileIfNotExists]);
-
-  const isNewUser = !!userProfile && (!userProfile.unlockedAnimalIds || userProfile.unlockedAnimalIds.length === 0);
-  const [showWelcome, setShowWelcome] = useState(isNewUser);
-   useEffect(() => {
-    setShowWelcome(isNewUser);
-  }, [isNewUser]);
 
   const [tourStep, setTourStep] = useState(0);
 
