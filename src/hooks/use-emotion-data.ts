@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs } from 'firebase/firestore';
 import type { Emotion, DiaryEntry, UserProfile, Reward } from '@/lib/types';
@@ -25,6 +25,8 @@ export function useEmotionData() {
   const [newlyUnlockedReward, setNewlyUnlockedReward] = useState<Reward | null>(null);
 
   const isLoading = isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading;
+  
+  const isInitialLoadComplete = useRef(false);
 
   // --- Reward Logic ---
   const checkAndUnlockRewards = (currentProfile: UserProfile, currentDiaryEntries: DiaryEntry[], currentEmotions: Emotion[]) => {
@@ -162,10 +164,20 @@ export function useEmotionData() {
     deleteDocumentNonBlocking(entryDoc);
   };
 
-  // Check rewards whenever data changes
+  // Check rewards whenever data changes, but only after the initial load of all data is complete.
   useEffect(() => {
+    // This effect will run whenever any of the data streams change.
+    // We check if all data is available before proceeding.
     if (userProfile && diaryEntries && emotionsList) {
-      checkAndUnlockRewards(userProfile, diaryEntries, emotionsList);
+        if(isInitialLoadComplete.current) {
+            // After the first load, check rewards on any subsequent data change.
+            checkAndUnlockRewards(userProfile, diaryEntries, emotionsList);
+        } else {
+            // On the very first time all data is available, mark the initial load as complete.
+            // We don't check rewards here to avoid the pop-up on login, letting the logic
+            // in the data mutation functions handle unlocks for new actions.
+            isInitialLoadComplete.current = true;
+        }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userProfile, diaryEntries, emotionsList]);
