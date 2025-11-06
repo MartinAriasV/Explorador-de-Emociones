@@ -1,21 +1,20 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Emotion } from '@/lib/types';
 import { PREDEFINED_EMOTIONS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { Lightbulb, CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle } from 'lucide-react';
 
 interface GuessEmotionGameProps {
   emotionsList: Emotion[];
 }
 
-// Function to shuffle an array
 const shuffleArray = <T,>(array: T[]): T[] => {
-  return array.sort(() => Math.random() - 0.5);
+  return [...array].sort(() => Math.random() - 0.5);
 };
 
 export function GuessEmotionGame({ emotionsList }: GuessEmotionGameProps) {
@@ -26,25 +25,29 @@ export function GuessEmotionGame({ emotionsList }: GuessEmotionGameProps) {
   const [score, setScore] = useState(0);
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
 
-  const availableEmotions = useMemo(() => {
-    // Use user's emotions if they have enough, otherwise use predefined
-    return emotionsList.length >= 4 ? emotionsList : PREDEFINED_EMOTIONS;
+  const allEmotions = useMemo(() => {
+    // Combine predefined emotions with user's custom emotions, ensuring no duplicates by name
+    const emotionMap = new Map<string, Emotion>();
+    PREDEFINED_EMOTIONS.forEach(p => emotionMap.set(p.name.toLowerCase(), { ...p, id: p.name, userProfileId: 'system' } as Emotion));
+    emotionsList.forEach(e => emotionMap.set(e.name.toLowerCase(), e));
+    return Array.from(emotionMap.values());
   }, [emotionsList]);
   
-  const generateQuestion = () => {
-    if (availableEmotions.length < 4) {
-      return; // Not enough emotions to generate a question
+  const generateQuestion = useCallback(() => {
+    if (allEmotions.length < 4) {
+      return; // Not enough emotions to play
     }
 
-    // 1. Select a random correct emotion
-    const correctEmotion = shuffleArray(availableEmotions)[0];
+    // 1. Select a random correct emotion *only* from the predefined list for quality questions
+    const correctEmotionPredefined = shuffleArray(PREDEFINED_EMOTIONS)[0];
+    // Find the full emotion object in case the user has customized it
+    const correctEmotion = allEmotions.find(e => e.name.toLowerCase() === correctEmotionPredefined.name.toLowerCase())!;
 
-    // 2. Get its description/example
-    const predefined = PREDEFINED_EMOTIONS.find(p => p.name === correctEmotion.name);
-    const questionText = predefined ? predefined.example || predefined.description : correctEmotion.description;
+    // 2. Get its description or example as the question
+    const questionText = correctEmotionPredefined.example || correctEmotionPredefined.description;
 
-    // 3. Select 3 other random incorrect emotions
-    const otherEmotions = availableEmotions.filter(e => e.id !== correctEmotion.id);
+    // 3. Select 3 other random incorrect emotions from the full list
+    const otherEmotions = allEmotions.filter(e => e.id !== correctEmotion.id);
     const incorrectOptions = shuffleArray(otherEmotions).slice(0, 3);
     
     // 4. Combine and shuffle options
@@ -57,12 +60,11 @@ export function GuessEmotionGame({ emotionsList }: GuessEmotionGameProps) {
     setOptions(allOptions);
     setIsAnswered(false);
     setSelectedAnswer(null);
-  };
+  }, [allEmotions]);
 
   useEffect(() => {
     generateQuestion();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableEmotions]);
+  }, [generateQuestion]);
 
   const handleAnswer = (answer: Emotion) => {
     if (isAnswered) return;
@@ -85,11 +87,11 @@ export function GuessEmotionGame({ emotionsList }: GuessEmotionGameProps) {
     generateQuestion();
   };
   
-  if (availableEmotions.length < 4) {
+  if (allEmotions.length < 4) {
       return (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
               <p className="text-lg font-semibold">¡Faltan Emociones!</p>
-              <p>Necesitas al menos 4 emociones en tu emocionario para jugar a este juego.</p>
+              <p>Necesitas al menos 4 emociones en total para jugar a este juego.</p>
               <p className="text-sm mt-2">Ve a "Descubrir" o "Emocionario" para añadir más.</p>
           </div>
       )
