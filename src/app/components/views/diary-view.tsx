@@ -11,6 +11,7 @@ import type { DiaryEntry, Emotion, View } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { suggestCalmingExercise } from '@/ai/flows/suggest-calming-exercise';
 import { Edit, Trash2 } from 'lucide-react';
+import { Label } from '@/components/ui/label';
 
 interface DiaryViewProps {
   emotionsList: Emotion[];
@@ -113,36 +114,49 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 h-full">
-                  <Input
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="w-full"
-                    required
-                  />
-                  <Select value={selectedEmotionId} onValueChange={setSelectedEmotionId} required>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Elige una emoción" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {emotionsList.map((emotion) => (
-                        <SelectItem key={emotion.id} value={emotion.id}>
-                          <div className="flex items-center gap-2">
-                            <span>{emotion.icon}</span>
-                            <span>{emotion.name}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Textarea
-                    placeholder="¿Qué pasó hoy?"
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    className="flex-grow"
-                    rows={6}
-                    required
-                  />
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="entry-date">Fecha</Label>
+                        <Input
+                            id="entry-date"
+                            type="date"
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
+                            className="w-full"
+                            required
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="entry-emotion">Emoción</Label>
+                        <Select value={selectedEmotionId} onValueChange={setSelectedEmotionId} required>
+                            <SelectTrigger id="entry-emotion" className="w-full">
+                            <SelectValue placeholder="Elige una emoción" />
+                            </SelectTrigger>
+                            <SelectContent>
+                            {emotionsList.map((emotion) => (
+                                <SelectItem key={emotion.id} value={emotion.id}>
+                                <div className="flex items-center gap-2">
+                                    <span>{emotion.icon}</span>
+                                    <span>{emotion.name}</span>
+                                </div>
+                                </SelectItem>
+                            ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                  </div>
+                  <div className="space-y-2 flex-grow flex flex-col">
+                    <Label htmlFor="entry-text">¿Qué pasó hoy?</Label>
+                    <Textarea
+                        id="entry-text"
+                        placeholder="Describe tu día, tus pensamientos, tus sentimientos..."
+                        value={text}
+                        onChange={(e) => setText(e.target.value)}
+                        className="flex-grow"
+                        rows={6}
+                        required
+                    />
+                  </div>
                   <div className="flex gap-2 mt-auto">
                     {editingEntry && (
                       <Button type="button" variant="outline" onClick={handleCancelEdit} className="w-full">
@@ -170,18 +184,21 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
                   {diaryEntries.slice().reverse().map((entry) => {
                     const emotion = getEmotionById(entry.emotionId);
                     return (
-                      <Card key={entry.id} className="p-4 group relative">
-                        <div className="flex items-start gap-3">
-                          <span className="text-2xl mt-1">{emotion?.icon}</span>
+                      <Card key={entry.id} className="p-4 group relative overflow-hidden">
+                        <div className="flex items-start gap-4">
+                          <span className="text-3xl mt-1">{emotion?.icon}</span>
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                                <p className="font-bold" style={{ color: emotion?.color }}>{emotion?.name}</p>
-                                <p className="text-xs text-muted-foreground">{new Date(entry.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}</p>
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <p className="font-bold text-lg" style={{ color: emotion?.color }}>{emotion?.name}</p>
+                                    <p className="text-xs text-muted-foreground">{new Date(entry.date).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })}</p>
+                                </div>
                             </div>
-                            <p className="text-sm text-foreground/80">{entry.text}</p>
+                            <p className="text-sm text-foreground/80 mt-2">{entry.text}</p>
                           </div>
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 bg-accent/80 hover:bg-accent text-accent-foreground" onClick={() => setEditingEntry(entry)}>
+                        </div>
+                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditingEntry(entry)}>
                               <Edit className="h-4 w-4" />
                             </Button>
                             <AlertDialog>
@@ -204,7 +221,6 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
                               </AlertDialogContent>
                             </AlertDialog>
                           </div>
-                        </div>
                       </Card>
                     );
                   })}
