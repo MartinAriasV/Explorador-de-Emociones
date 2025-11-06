@@ -44,7 +44,7 @@ export function GuessEmotionGame({ emotionsList }: GuessEmotionGameProps) {
     const questionText = predefined ? predefined.example || predefined.description : correctEmotion.description;
 
     // 3. Select 3 other random incorrect emotions
-    const otherEmotions = availableEmotions.filter(e => e.name !== correctEmotion.name);
+    const otherEmotions = availableEmotions.filter(e => e.id !== correctEmotion.id);
     const incorrectOptions = shuffleArray(otherEmotions).slice(0, 3);
     
     // 4. Combine and shuffle options
@@ -71,7 +71,7 @@ export function GuessEmotionGame({ emotionsList }: GuessEmotionGameProps) {
     setIsAnswered(true);
     setQuestionsAnswered(prev => prev + 1);
 
-    if (answer.name === currentQuestion.correctAnswer.name) {
+    if (answer.id === currentQuestion.correctAnswer.id) {
       setScore(prev => prev + 1);
     }
   };
@@ -123,12 +123,12 @@ export function GuessEmotionGame({ emotionsList }: GuessEmotionGameProps) {
       
       <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
         {options.map((option) => {
-            const isSelected = selectedAnswer?.name === option.name;
-            const isCorrect = currentQuestion?.correctAnswer.name === option.name;
+            const isSelected = selectedAnswer?.id === option.id;
+            const isCorrect = currentQuestion?.correctAnswer.id === option.id;
 
             return (
                  <Button
-                    key={option.name}
+                    key={option.id}
                     onClick={() => handleAnswer(option)}
                     disabled={isAnswered}
                     className={cn(
@@ -150,9 +150,9 @@ export function GuessEmotionGame({ emotionsList }: GuessEmotionGameProps) {
         <div className="flex flex-col items-center gap-4 animate-fade-in">
              <p className={cn(
                 "text-lg font-bold",
-                selectedAnswer?.name === currentQuestion?.correctAnswer.name ? 'text-green-600' : 'text-destructive'
+                selectedAnswer?.id === currentQuestion?.correctAnswer.id ? 'text-green-600' : 'text-destructive'
              )}>
-                {selectedAnswer?.name === currentQuestion?.correctAnswer.name ? '¡Correcto!' : `Incorrecto. La respuesta era: ${currentQuestion?.correctAnswer.name}`}
+                {selectedAnswer?.id === currentQuestion?.correctAnswer.id ? '¡Correcto!' : `Incorrecto. La respuesta era: ${currentQuestion?.correctAnswer.name}`}
             </p>
             <Button onClick={handleNext}>
                 {questionsAnswered >= 10 ? 'Ver Resultados' : 'Siguiente Pregunta'}
