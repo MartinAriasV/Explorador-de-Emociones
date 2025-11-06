@@ -41,7 +41,7 @@ export function setDocumentNonBlocking(docRef: DocumentReference, data: any, opt
  * Does NOT await the write operation internally.
  * Returns the Promise for the new doc ref, but typically not awaited by caller.
  */
-export function addDocumentToCollectionNonBlocking<T>(colRef: CollectionReference<T> , data: T) {
+export function addDocumentToCollectionNonBlocking<T>(colRef: CollectionReference<T> , data: any) {
   const promise = addDoc(colRef, data);
 
   promise.catch(error => {
@@ -61,12 +61,13 @@ export function addDocumentToCollectionNonBlocking<T>(colRef: CollectionReferenc
 
 /**
  * Initiates an updateDoc operation for a document reference.
- * Does NOT await the write operation internally.
  * This is the correct, safe way to update fields in an existing document.
+ * Does NOT await the write operation internally.
  */
-export function updateDocumentNonBlocking(docRef: DocumentReference, data: any) {
+export function updateDocumentNonBlocking(docRef: DocumentReference, data: Partial<any>) {
   return updateDoc(docRef, data)
     .catch(error => {
+      console.error("Update failed", error);
       errorEmitter.emit(
         'permission-error',
         new FirestorePermissionError({

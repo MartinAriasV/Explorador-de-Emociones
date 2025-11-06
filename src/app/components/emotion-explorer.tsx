@@ -75,18 +75,22 @@ export default function EmotionExplorer({ user, initialProfile }: EmotionExplore
   const [quizDate, setQuizDate] = useState<Date | null>(null);
   const [showQuiz, setShowQuiz] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // Show welcome tour only for new users
+  // Show welcome tour only for new users on initial load
   useEffect(() => {
-    // A new user is determined by not having any unlocked animals. This is a robust way to check.
-    if (userProfile && (!userProfile.unlockedAnimalIds || userProfile.unlockedAnimalIds.length === 0)) {
-        // Use a timeout to prevent the dialog from appearing too abruptly on first load.
+    if (isLoading) return; // Wait until loading is finished
+
+    if (isInitialLoad) {
+      if (userProfile && (!userProfile.unlockedAnimalIds || userProfile.unlockedAnimalIds.length === 0)) {
         const timer = setTimeout(() => {
-            setShowWelcome(true);
+          setShowWelcome(true);
         }, 500);
         return () => clearTimeout(timer);
+      }
+      setIsInitialLoad(false); // Mark initial load as complete
     }
-  }, [userProfile]);
+  }, [isLoading, isInitialLoad, userProfile]);
 
 
   const [tourStep, setTourStep] = useState(0);
