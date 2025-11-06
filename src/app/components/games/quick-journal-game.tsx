@@ -18,7 +18,7 @@ export function QuickJournalGame({ emotionsList }: GameProps) {
   const [score, setScore] = useState(0);
   const [selectedEmotionId, setSelectedEmotionId] = useState('');
   const [thought, setThought] = useState('');
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<number | null>(null);
 
   const availableEmotions = useMemo(() => {
     return [...emotionsList].sort((a, b) => a.name.localeCompare(b.name));
@@ -26,7 +26,7 @@ export function QuickJournalGame({ emotionsList }: GameProps) {
 
   useEffect(() => {
     if (isPlaying && timeLeft > 0) {
-      timerRef.current = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+      timerRef.current = window.setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
     } else if (timeLeft === 0) {
       setIsPlaying(false);
     }

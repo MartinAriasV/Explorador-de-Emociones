@@ -31,7 +31,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
   const [score, setScore] = useState(0);
   const [missed, setMissed] = useState(0);
   const gameLoopRef = useRef<number>();
-  const dropTimerRef = useRef<NodeJS.Timeout>();
+  const dropTimerRef = useRef<number>();
 
   const availableEmotions = useMemo(() => {
     const emotionMap = new Map<string, Emotion>();
@@ -53,7 +53,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
 
     gameLoopRef.current = requestAnimationFrame(gameLoop);
 
-    dropTimerRef.current = setInterval(() => {
+    dropTimerRef.current = window.setInterval(() => {
         addDrop();
     }, DROP_INTERVAL);
   };
@@ -179,4 +179,3 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     </div>
   );
 }
-
