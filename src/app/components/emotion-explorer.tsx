@@ -135,8 +135,7 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
 
   const startTour = () => {
     setShowWelcome(false);
-    const firstStepView = TOUR_STEPS[0].refKey.replace('Ref', '') as View;
-    setView(firstStepView);
+    setView(TOUR_STEPS[0].refKey.replace('Ref', '') as View);
     setTourStep(1);
   };
   
@@ -146,9 +145,8 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
   };
 
   const nextTourStep = () => {
-    const currentStepIndex = tourStep - 1;
-    if (currentStepIndex < TOUR_STEPS.length -1) {
-      const nextStepIndex = tourStep;
+    const nextStepIndex = tourStep; // Current step is `tourStep - 1`
+    if (nextStepIndex < TOUR_STEPS.length) {
       const nextView = TOUR_STEPS[nextStepIndex].refKey.replace('Ref', '') as View;
       setView(nextView);
       setTourStep(tourStep + 1);
