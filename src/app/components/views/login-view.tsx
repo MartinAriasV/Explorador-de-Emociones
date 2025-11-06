@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useFirebase } from '@/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
+import { Sparkles } from 'lucide-react';
 
 export default function LoginView() {
     const { auth } = useFirebase();
@@ -34,7 +35,6 @@ export default function LoginView() {
         setIsSubmitting(true);
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            // Successful sign-in is handled by the onAuthStateChanged listener
         } catch (error: any) {
             if (error.code === 'auth/invalid-credential') {
                 toast({
@@ -75,7 +75,6 @@ export default function LoginView() {
         setIsSubmitting(true);
         try {
             await createUserWithEmailAndPassword(auth, email, password);
-            // Success is handled by the onAuthStateChanged listener
         } catch (error: any) {
              if (error.code === 'auth/email-already-in-use') {
                 toast({
@@ -96,11 +95,17 @@ export default function LoginView() {
     };
 
     return (
-        <div className="flex items-center justify-center h-screen bg-background">
-            <Card className="w-full max-w-sm mx-auto">
-                <CardHeader className="text-center">
-                    <CardTitle className="text-2xl font-bold text-primary">Diario de Emociones</CardTitle>
-                    <CardDescription>Inicia sesión o crea una cuenta para continuar</CardDescription>
+        <div className="flex items-center justify-center h-screen w-screen relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-accent/20 animate-gradient-slow z-0"></div>
+            <div className="absolute inset-0 bg-grid-pattern opacity-5 dark:opacity-10 z-0"></div>
+            
+            <Card className="w-full max-w-sm mx-auto z-10 bg-card/80 backdrop-blur-lg border-white/20 shadow-2xl animate-fade-in-up">
+                <CardHeader className="text-center space-y-4">
+                    <Sparkles className="w-12 h-12 text-primary mx-auto" />
+                    <div className="space-y-1">
+                        <CardTitle className="text-3xl font-bold text-primary">Diario de Emociones</CardTitle>
+                        <CardDescription>Inicia sesión o crea una cuenta para continuar</CardDescription>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
@@ -108,19 +113,19 @@ export default function LoginView() {
                             <div className="space-y-2">
                                 <div>
                                     <Label htmlFor="email">Email</Label>
-                                    <Input id="email" type="email" placeholder="m@example.com" required value={email} onChange={e => setEmail(e.target.value)} />
+                                    <Input id="email" type="email" placeholder="m@example.com" required value={email} onChange={e => setEmail(e.target.value)} className="bg-background/70"/>
                                 </div>
                                 <div>
-                                    <Label htmlFor="password">Password</Label>
-                                    <Input id="password" type="password" required value={password} onChange={e => setPassword(e.target.value)} />
+                                    <Label htmlFor="password">Contraseña</Label>
+                                    <Input id="password" type="password" required value={password} onChange={e => setPassword(e.target.value)} className="bg-background/70" />
                                 </div>
                             </div>
-                            <div className="flex gap-2">
-                                <Button type="submit" variant="outline" onClick={handleEmailSignIn} disabled={isSubmitting} className="w-full">
-                                    {isSubmitting ? 'Iniciando...' : 'Iniciar Sesión'}
-                                </Button>
+                            <div className="flex flex-col gap-2">
                                 <Button type="submit" onClick={handleEmailSignUp} disabled={isSubmitting} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
                                     {isSubmitting ? 'Creando...' : 'Crear Cuenta'}
+                                </Button>
+                                <Button type="submit" variant="outline" onClick={handleEmailSignIn} disabled={isSubmitting} className="w-full">
+                                    {isSubmitting ? 'Iniciando...' : 'Iniciar Sesión'}
                                 </Button>
                             </div>
                         </form>

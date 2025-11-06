@@ -123,6 +123,15 @@ body {
     animation-iteration-count: infinite;
     animation-timing-function: ease-in-out;
   }
+  .bg-grid-pattern {
+    background-image: linear-gradient(to right, hsl(var(--border)) 1px, transparent 1px),
+                      linear-gradient(to bottom, hsl(var(--border)) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .animate-gradient-slow {
+    background-size: 200% 200%;
+    animation: gradient-animation 15s ease infinite;
+  }
 }
 
 @keyframes fade-in {
@@ -175,5 +184,17 @@ body {
   50% {
     transform: scale(1.1) rotate(1deg);
     color: #fbbf24; /* amber-400 */
+  }
+}
+
+@keyframes gradient-animation {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
   }
 }
