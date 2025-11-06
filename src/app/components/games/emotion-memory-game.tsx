@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Emotion, EmotionMemoryGameProps } from '@/lib/types';
+import type { Emotion, GameProps } from '@/lib/types';
 import { PREDEFINED_EMOTIONS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -23,7 +23,7 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 
 const CARD_COUNT = 8; // Creates 8 pairs, 16 cards total
 
-export function EmotionMemoryGame({ emotionsList }: EmotionMemoryGameProps) {
+export function EmotionMemoryGame({ emotionsList }: GameProps) {
   const [cards, setCards] = useState<MemoryCard[]>([]);
   const [flippedCards, setFlippedCards] = useState<number[]>([]);
   const [moves, setMoves] = useState(0);
@@ -163,7 +163,7 @@ export function EmotionMemoryGame({ emotionsList }: EmotionMemoryGameProps) {
           >
             {/* Card Back */}
             <div className={cn(
-              "absolute w-full h-full [backface-visibility:hidden] flex items-center justify-center rounded-lg",
+              "absolute inset-0 w-full h-full [backface-visibility:hidden] flex items-center justify-center rounded-lg",
               "bg-primary/10 border-2 border-primary",
               card.isMatched ? "bg-green-500/20 border-green-500" : ""
             )}>
@@ -171,7 +171,7 @@ export function EmotionMemoryGame({ emotionsList }: EmotionMemoryGameProps) {
             
             {/* Card Front */}
             <div className={cn(
-               "absolute w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] flex items-center justify-center text-center p-2 rounded-lg",
+               "absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] flex items-center justify-center text-center p-2 rounded-lg",
                "bg-background",
                card.isMatched ? "border-2 border-green-500 opacity-70" : "border-2"
             )}>

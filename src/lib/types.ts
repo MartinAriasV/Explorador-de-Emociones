@@ -21,7 +21,6 @@ export type UserProfile = {
   avatar: string; // Can be an emoji or a URL for generated avatar
   avatarType: 'emoji' | 'generated';
   unlockedAnimalIds?: string[];
-  emotionCount?: number;
 };
 
 export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary' | 'games';
@@ -63,10 +62,6 @@ export interface QuizQuestion {
   difficulty: 'Fácil' | 'Medio' | 'Difícil' | 'Experto';
 }
 
-export interface GuessEmotionGameProps {
-  emotionsList: Emotion[];
-}
-
-export interface EmotionMemoryGameProps {
+export interface GameProps {
   emotionsList: Emotion[];
 }

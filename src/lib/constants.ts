@@ -29,6 +29,20 @@ export const PREDEFINED_EMOTIONS: PredefinedEmotion[] = [
   { name: 'Inspiración', icon: '💡', description: 'Estímulo o lucidez repentina que siente una persona.', example: 'La naturaleza fue su mayor fuente de inspiración.' }
 ];
 
+export const EMOTION_ANTONYMS: [string, string][] = [
+    ['Alegría', 'Tristeza'],
+    ['Ira', 'Calma'],
+    ['Miedo', 'Confianza'],
+    ['Ansiedad', 'Serenidad'],
+    ['Orgullo', 'Vergüenza'],
+    ['Euforia', 'Decepción'],
+    ['Esperanza', 'Frustración'],
+    ['Entusiasmo', 'Nostalgia'],
+    ['Valentía', 'Miedo'],
+    ['Motivación', 'Frustración'],
+];
+
+
 export const AVATAR_EMOJIS = ['😊', '😎', '🤔', '😂', '🥰', '😇', '🥳', '🤯', '🤩', '😴', '🌞', '⭐', '😄', '😢', '😠', '😨', '😌', '😟', '😮', '🤗', '🙏', '🦁', '😳', '✨', '😤', '😍', '😕', '😞', '💪', '😜', '😥', '😭', '🙄', '🤢', '🤐', '🥴', '🥺', '🤡', '👻', '👽', '🤖', '👾', '🎃', '😈', '👿', '🔥', '💯', '❤️', '💔', '👍', '👎'];
 
 
