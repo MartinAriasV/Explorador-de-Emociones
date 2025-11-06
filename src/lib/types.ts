@@ -24,7 +24,7 @@ export type UserProfile = {
   emotionCount?: number;
 };
 
-export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary';
+export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary' | 'games';
 
 export type PredefinedEmotion = {
   name: string;

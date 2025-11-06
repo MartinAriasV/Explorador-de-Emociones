@@ -18,6 +18,7 @@ import { TourPopup } from './tour/tour-popup';
 import { TOUR_STEPS } from '@/lib/constants';
 import { StreakView } from './views/streak-view';
 import { SanctuaryView } from './views/sanctuary-view';
+import { GamesView } from './views/games-view';
 import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Crown, Map } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -66,7 +67,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     handleShare,
     setNewlyUnlockedReward,
     handleQuizComplete,
-    addProfileIfNotExists, // Get the function from the hook
+    addProfileIfNotExists,
   } = useEmotionData(user);
 
   const [addingEmotionData, setAddingEmotionData] = useState<Partial<Emotion> | null>(null);
@@ -188,6 +189,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
                      />;
             case 'discover':
               return <DiscoverView onAddEmotion={handleOpenAddEmotionModal} />;
+            case 'games':
+                return <GamesView emotionsList={emotionsList || []} />;
             case 'calm':
               return <CalmView />;
             case 'streak':
