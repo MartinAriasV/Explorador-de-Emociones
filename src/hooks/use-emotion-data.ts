@@ -7,6 +7,7 @@ import type { Emotion, DiaryEntry, UserProfile, Reward } from '@/lib/types';
 import { deleteDocumentNonBlocking, addDocumentToCollectionNonBlocking, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak } from '@/lib/utils';
 import { REWARDS } from '@/lib/constants';
+import type { User } from 'firebase/auth';
 
 export function useEmotionData() {
   const { firestore } = useFirebase();
@@ -82,8 +83,6 @@ export function useEmotionData() {
       }
     
       if (newUnlockedIds.length > (currentProfile.unlockedAnimalIds?.length || 0)) {
-        // CRITICAL FIX: Only update the unlockedAnimalIds field.
-        // This prevents overwriting the user's name and avatar.
         updateDocumentNonBlocking(userProfileRef, { unlockedAnimalIds: newUnlockedIds });
         if (justUnlockedReward) {
           setNewlyUnlockedReward(justUnlockedReward);
@@ -107,10 +106,21 @@ export function useEmotionData() {
   };
 
   // --- Data Mutation Functions ---
+  const addProfileIfNotExists = useCallback((user: User) => {
+    const newProfile: Omit<UserProfile, 'id'> = {
+        name: user.email?.split('@')[0] || 'Usuario',
+        avatar: '😊',
+        avatarType: 'emoji',
+        unlockedAnimalIds: [],
+    };
+    const ref = doc(firestore, 'users', user.uid);
+    // Use setDoc with merge:false as we are explicitly creating a new document.
+    // This is safe because we've already confirmed the document doesn't exist.
+    setDocumentNonBlocking(ref, newProfile, { merge: false });
+  }, [firestore]);
+  
   const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
     if (!userProfileRef) return;
-    // CRITICAL FIX: Use updateDocumentNonBlocking to only update fields, not overwrite the document.
-    // This prevents accidental deletion of other profile fields.
     updateDocumentNonBlocking(userProfileRef, profile);
   };
 
@@ -194,5 +204,6 @@ export function useEmotionData() {
     handleShare,
     setNewlyUnlockedReward,
     handleQuizComplete,
+    addProfileIfNotExists,
   };
 }

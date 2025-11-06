@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useEffect } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import { doc } from 'firebase/firestore';
 import EmotionExplorer from '@/app/components/emotion-explorer';
 import {
@@ -11,40 +11,43 @@ import {
   useMemoFirebase,
 } from '@/firebase';
 import type { UserProfile } from '@/lib/types';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useEmotionData } from '@/hooks/use-emotion-data';
 
 
 // This component now handles the logic for checking/creating a profile
 // and then rendering the main application.
 function AppGate() {
   const { user, isUserLoading } = useUser();
-  const firestore = useFirestore();
+  const { addProfileIfNotExists } = useEmotionData();
   
   const userProfileRef = useMemoFirebase(
-    () => (user ? doc(firestore, 'users', user.uid) : null),
-    [firestore, user]
+    () => (user ? doc(useFirestore(), 'users', user.uid) : null),
+    [user]
   );
   
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+  const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
 
-  // This is the safe, final logic for creating a new user profile.
-  // It only runs when we know for sure the user is new.
-  if (!isUserLoading && !isProfileLoading && user && !userProfile) {
-    const newProfile: Omit<UserProfile, 'id'> = {
-      name: user.email?.split('@')[0] || 'Usuario',
-      avatar: '😊',
-      avatarType: 'emoji',
-      unlockedAnimalIds: [],
-    };
-    if (userProfileRef) {
-      // Use setDoc with merge:false because we are explicitly CREATING a new document.
-      // This is safe because the !userProfile check ensures the document doesn't exist.
-      setDocumentNonBlocking(userProfileRef, newProfile, { merge: false });
+  useEffect(() => {
+    // When loading is finished, we can mark that the check has been performed.
+    if (!isProfileLoading) {
+      setHasCheckedProfile(true);
     }
-  }
+  }, [isProfileLoading]);
 
+  useEffect(() => {
+    // This effect runs only when the necessary data is available and confirmed.
+    // It creates a profile ONLY IF:
+    // 1. All loading is done.
+    // 2. We have an authenticated user.
+    // 3. The profile check has completed.
+    // 4. The result of that check is that the profile is null (doesn't exist).
+    if (!isUserLoading && user && hasCheckedProfile && !userProfile) {
+      addProfileIfNotExists(user);
+    }
+  }, [isUserLoading, user, hasCheckedProfile, userProfile, addProfileIfNotExists]);
 
-  if (isUserLoading || (user && isProfileLoading)) {
+  if (isUserLoading || (user && isProfileLoading && !hasCheckedProfile)) {
     return (
       <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
         <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
