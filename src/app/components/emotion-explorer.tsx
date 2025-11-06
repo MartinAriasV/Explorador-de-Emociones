@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, createRef } from 'react';
-import type { Emotion, View, TourStepData, UserProfile } from '@/lib/types';
+import type { Emotion, View, TourStepData, UserProfile, DiaryEntry } from '@/lib/types';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar, MobileMenuButton } from './app-sidebar';
 import { DiaryView } from './views/diary-view';
@@ -28,6 +28,7 @@ import type { User } from 'firebase/auth';
 
 interface EmotionExplorerProps {
   user: User;
+  initialProfile: UserProfile;
 }
 
 const rarityTextStyles: { [key: string]: string } = {
@@ -47,7 +48,7 @@ const rarityBorderStyles: { [key: string]: string } = {
 }
 
 
-export default function EmotionExplorer({ user }: EmotionExplorerProps) {
+export default function EmotionExplorer({ user, initialProfile }: EmotionExplorerProps) {
   const [view, setView] = useState<View>('diary');
   const { toast } = useToast();
 
@@ -57,7 +58,6 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     diaryEntries,
     newlyUnlockedReward,
     isLoading,
-    addProfileIfNotExists,
     setUserProfile,
     addDiaryEntry,
     updateDiaryEntry,
@@ -67,7 +67,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     handleShare,
     setNewlyUnlockedReward,
     handleQuizComplete,
-  } = useEmotionData(user);
+  } = useEmotionData(user, initialProfile);
 
   const [addingEmotionData, setAddingEmotionData] = useState<Partial<Emotion> | null>(null);
   const [editingEmotion, setEditingEmotion] = useState<Emotion | null>(null);
@@ -76,21 +76,17 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const [showQuiz, setShowQuiz] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
 
-  // This is the definitive logic for profile creation and showing the welcome tour.
-  // It runs only once after the initial data load for the user.
+  // Show welcome tour only for new users
   useEffect(() => {
-    // We only want to run this check once the initial loading is complete.
-    if (!isLoading) {
-      // If after loading, there is still no user profile, it means it's a brand new user.
-      if (user && !userProfile) {
-        addProfileIfNotExists(user);
-        // Because it's a new user, show the welcome tour dialog.
-        setShowWelcome(true);
-      }
+    // A new user is determined by not having any unlocked animals. This is a robust way to check.
+    if (userProfile && (!userProfile.unlockedAnimalIds || userProfile.unlockedAnimalIds.length === 0)) {
+        // Use a timeout to prevent the dialog from appearing too abruptly on first load.
+        const timer = setTimeout(() => {
+            setShowWelcome(true);
+        }, 500);
+        return () => clearTimeout(timer);
     }
-    // We only want this effect to run when `isLoading` changes from true to false.
-    // We include the other dependencies to satisfy the linter, but the logic is protected by the `!isLoading` check.
-  }, [isLoading, user, userProfile, addProfileIfNotExists]);
+  }, [userProfile]);
 
 
   const [tourStep, setTourStep] = useState(0);
@@ -218,7 +214,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     return (
         <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-lg text-primary">Cargando perfil...</p>
+            <p className="text-lg text-primary">Cargando datos...</p>
         </div>
     );
   }

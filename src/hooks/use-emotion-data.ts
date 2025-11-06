@@ -1,18 +1,19 @@
 "use client";
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useFirebase, useCollection, useDoc } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs } from 'firebase/firestore';
 import type { Emotion, DiaryEntry, UserProfile, Reward } from '@/lib/types';
-import { deleteDocumentNonBlocking, addDocumentToCollectionNonBlocking, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { deleteDocumentNonBlocking, addDocumentToCollectionNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak } from '@/lib/utils';
 import { REWARDS } from '@/lib/constants';
 import type { User } from 'firebase/auth';
 
-export function useEmotionData(user: User | null) {
+export function useEmotionData(user: User | null, initialProfile: UserProfile) {
   const { firestore } = useFirebase();
 
   // --- Firestore Data ---
+  // The profile is now managed by a live listener via useDoc.
   const userProfileRef = useMemo(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
@@ -24,6 +25,8 @@ export function useEmotionData(user: User | null) {
 
   const [newlyUnlockedReward, setNewlyUnlockedReward] = useState<Reward | null>(null);
 
+  // We consider it loading if any of the core data streams are not ready.
+  // The profile loading is the most important one.
   const isLoading = isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading;
   
   // --- Reward Logic ---
@@ -90,6 +93,7 @@ export function useEmotionData(user: User | null) {
       }
     
       if (newUnlockedIds.length > (currentProfile.unlockedAnimalIds?.length || 0)) {
+        // Use the secure update function that only touches the `unlockedAnimalIds` field.
         updateDocumentNonBlocking(userProfileRef, { unlockedAnimalIds: newUnlockedIds });
         if (justUnlockedReward) {
           setNewlyUnlockedReward(justUnlockedReward);
@@ -113,22 +117,9 @@ export function useEmotionData(user: User | null) {
   };
 
   // --- Data Mutation Functions ---
-  const addProfileIfNotExists = useCallback((user: User) => {
-    if (!user) return;
-    const newProfile: Omit<UserProfile, 'id'> = {
-        name: user.email?.split('@')[0] || 'Usuario',
-        avatar: '😊',
-        avatarType: 'emoji',
-        unlockedAnimalIds: [],
-    };
-    const ref = doc(firestore, 'users', user.uid);
-    // Use merge: false to ensure it only creates, not overwrites.
-    // Firestore's setDoc with merge:false on a non-existent doc is a create operation.
-    setDocumentNonBlocking(ref, newProfile, { merge: false });
-  }, [firestore]);
-  
   const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
     if (!userProfileRef) return;
+    // This now uses a secure update function that CANNOT overwrite the whole document.
     updateDocumentNonBlocking(userProfileRef, profile);
   };
 
@@ -197,12 +188,12 @@ export function useEmotionData(user: User | null) {
 
   return {
     user,
-    userProfile,
+    // Return the live profile from useDoc, which will always be up-to-date.
+    userProfile: userProfile ?? initialProfile,
     emotionsList,
     diaryEntries,
     newlyUnlockedReward,
     isLoading,
-    addProfileIfNotExists,
     setUserProfile,
     addDiaryEntry,
     updateDiaryEntry,
