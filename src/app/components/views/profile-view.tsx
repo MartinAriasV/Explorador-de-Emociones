@@ -17,19 +17,11 @@ interface ProfileViewProps {
   setUserProfile: (profile: Partial<Omit<UserProfile, 'id'>>) => void;
 }
 
-const defaultProfile: Omit<UserProfile, 'id'> = {
-  name: 'Usuario',
-  avatar: '😊',
-  avatarType: 'emoji',
-  unlockedAnimalIds: [],
-  emotionCount: 0,
-};
-
 export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
-  // Use local state to manage form fields, initialized from userProfile or defaults
-  const [localName, setLocalName] = useState(userProfile?.name || defaultProfile.name);
-  const [localAvatar, setLocalAvatar] = useState(userProfile?.avatar || defaultProfile.avatar);
-  const [localAvatarType, setLocalAvatarType] = useState(userProfile?.avatarType || defaultProfile.avatarType);
+  // Local state to manage form fields, initialized from userProfile
+  const [localName, setLocalName] = useState(userProfile?.name || '');
+  const [localAvatar, setLocalAvatar] = useState(userProfile?.avatar || '');
+  const [localAvatarType, setLocalAvatarType] = useState(userProfile?.avatarType || 'emoji');
   const [saved, setSaved] = useState(false);
   const { toast } = useToast();
 
@@ -39,11 +31,6 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
       setLocalName(userProfile.name);
       setLocalAvatar(userProfile.avatar);
       setLocalAvatarType(userProfile.avatarType);
-    } else {
-      // If profile is null (new user), reset to defaults
-      setLocalName(defaultProfile.name);
-      setLocalAvatar(defaultProfile.avatar);
-      setLocalAvatarType(defaultProfile.avatarType);
     }
   }, [userProfile]);
 
@@ -57,7 +44,7 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
       });
       return;
     }
-    // This function now handles both CREATING and UPDATING the document in Firestore
+    // This function now handles UPDATING the document in Firestore
     setUserProfile({ name: localName, avatar: localAvatar, avatarType: localAvatarType });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -67,6 +54,15 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
     setLocalAvatar(avatar);
     setLocalAvatarType(type);
   };
+
+  if (!userProfile) {
+    return (
+        <Card className="w-full max-w-2xl mx-auto h-full shadow-lg flex flex-col items-center justify-center">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <p className="mt-4 text-primary">Cargando perfil...</p>
+        </Card>
+    );
+  }
 
   return (
     <Card className="w-full max-w-2xl mx-auto h-full shadow-lg flex flex-col">

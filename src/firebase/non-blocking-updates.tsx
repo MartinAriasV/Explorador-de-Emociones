@@ -15,7 +15,8 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import {FirestorePermissionError} from '@/firebase/errors';
 
 /**
- * Initiates a setDoc operation for a document reference, merging data by default.
+ * Initiates a setDoc operation for a document reference.
+ * If merge is true, it merges data; otherwise, it overwrites.
  * This is for creating or overwriting a document with a specific ID.
  * Does NOT await the write operation internally.
  */
@@ -36,6 +37,7 @@ export function setDocumentNonBlocking(docRef: DocumentReference, data: any, opt
 
 /**
  * Initiates an addDoc operation within a collection. This is for when Firestore should generate the ID.
+ * This function can ONLY operate on a CollectionReference.
  * Does NOT await the write operation internally.
  * Returns the Promise for the new doc ref, but typically not awaited by caller.
  */

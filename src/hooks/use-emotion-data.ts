@@ -102,8 +102,7 @@ export function useEmotionData() {
             date: date.toISOString(),
             emotionId: emotionsList.find(e => e.name.toLowerCase() === 'calma')?.id || emotionsList[0].id,
             text: 'Día recuperado completando el desafío de la racha. ¡Buen trabajo!',
-          });
-        checkAndUnlockRewards('recoverDay', userProfile, diaryEntries, emotionsList);
+          }, 'recoverDay');
     }
   };
 
@@ -155,7 +154,7 @@ export function useEmotionData() {
     }
   };
 
-  const addDiaryEntry = (entryData: Omit<DiaryEntry, 'id' | 'userProfileId'>) => {
+  const addDiaryEntry = (entryData: Omit<DiaryEntry, 'id' | 'userProfileId'>, trigger: 'addEntry' | 'recoverDay' = 'addEntry') => {
     if (!user || !userProfile || !emotionsList || !diaryEntries) return;
     const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
     addDocumentToCollectionNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid })
@@ -163,7 +162,7 @@ export function useEmotionData() {
         if (userProfile && emotionsList && diaryEntries) {
             const newEntry = { ...entryData, id: 'temp-id', userProfileId: user.uid } as DiaryEntry;
             const newDiaryEntries = [...(diaryEntries || []), newEntry];
-            checkAndUnlockRewards('addEntry', userProfile, newDiaryEntries, emotionsList);
+            checkAndUnlockRewards(trigger, userProfile, newDiaryEntries, emotionsList);
         }
       });
   };
