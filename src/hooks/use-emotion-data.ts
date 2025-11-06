@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs } from 'firebase/firestore';
 import type { Emotion, DiaryEntry, UserProfile, Reward } from '@/lib/types';
-import { deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { deleteDocumentNonBlocking, addDocumentToCollectionNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak } from '@/lib/utils';
 import { REWARDS } from '@/lib/constants';
 
@@ -110,7 +110,6 @@ export function useEmotionData() {
   // --- Data Mutation Functions ---
   const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
     if (!userProfileRef) return;
-    // This function only saves the profile. It does NOT trigger reward checks.
     updateDocumentNonBlocking(userProfileRef, profile);
   };
 
@@ -122,12 +121,11 @@ export function useEmotionData() {
 
     const promise = emotionData.id
       ? updateDocumentNonBlocking(doc(emotionsCollection, emotionData.id), { ...emotionData, userProfileId: user.uid })
-      : addDocumentNonBlocking(emotionsCollection, { ...emotionData, userProfileId: user.uid });
+      : addDocumentToCollectionNonBlocking(emotionsCollection, { ...emotionData, userProfileId: user.uid });
     
     if (isNew) {
         promise.then(() => {
             if (userProfile && diaryEntries && emotionsList) {
-                // After a new emotion is successfully added, check for rewards.
                 const newEmotionsList = [...emotionsList, { ...emotionData, id: 'temp-id', userProfileId: user.uid } as Emotion];
                 checkAndUnlockRewards('addEmotion', userProfile, diaryEntries, newEmotionsList);
             }
@@ -160,10 +158,9 @@ export function useEmotionData() {
   const addDiaryEntry = (entryData: Omit<DiaryEntry, 'id' | 'userProfileId'>) => {
     if (!user || !userProfile || !emotionsList || !diaryEntries) return;
     const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
-    addDocumentNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid })
+    addDocumentToCollectionNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid })
       .then(() => {
         if (userProfile && emotionsList && diaryEntries) {
-            // After a new entry is successfully added, check for rewards.
             const newEntry = { ...entryData, id: 'temp-id', userProfileId: user.uid } as DiaryEntry;
             const newDiaryEntries = [...(diaryEntries || []), newEntry];
             checkAndUnlockRewards('addEntry', userProfile, newDiaryEntries, emotionsList);

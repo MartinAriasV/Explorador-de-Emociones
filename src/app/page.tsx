@@ -1,7 +1,7 @@
 'use client';
 
-import React, { Suspense, useEffect } from 'react';
-import { doc } from 'firebase/firestore';
+import React, { Suspense } from 'react';
+import { collection, doc } from 'firebase/firestore';
 import EmotionExplorer from '@/app/components/emotion-explorer';
 import {
   FirebaseClientProvider,
@@ -11,13 +11,8 @@ import {
   useMemoFirebase,
 } from '@/firebase';
 import type { UserProfile } from '@/lib/types';
-import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
-const defaultProfile: Omit<UserProfile, 'id' | 'unlockedAnimalIds' | 'emotionCount'> = {
-  name: 'Usuario',
-  avatar: '😊',
-  avatarType: 'emoji',
-};
 
 // This component now handles the logic for checking/creating a profile
 // and then rendering the main application.
@@ -33,19 +28,19 @@ function AppGate() {
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
   // This is the critical condition:
-  // ONLY create a profile if loading is complete, we have a user, and there is NO profile.
+  // ONLY create a profile if loading is complete, we have a user, and there is NO profile document.
   if (!isUserLoading && !isProfileLoading && user && !userProfile) {
       const newProfile: Omit<UserProfile, 'id'> = {
-        name: user.email?.split('@')[0] || defaultProfile.name,
-        avatar: defaultProfile.avatar,
+        name: user.email?.split('@')[0] || 'Usuario',
+        avatar: '😊',
         avatarType: 'emoji',
         unlockedAnimalIds: [],
         emotionCount: 0,
       };
       if (userProfileRef) {
-        // We use setDoc here because this is a one-time creation of a document with a specific ID.
-        // This runs only ONCE for a new user.
-        addDocumentNonBlocking(userProfileRef, newProfile);
+        // Use setDoc here because this is a one-time creation of a document with a specific ID.
+        // This runs only ONCE for a new user and won't overwrite existing data on subsequent loads.
+        setDocumentNonBlocking(userProfileRef, newProfile, { merge: false }); // Explicitly don't merge on creation
       }
   }
 
