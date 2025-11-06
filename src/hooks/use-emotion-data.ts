@@ -33,7 +33,7 @@ export function useEmotionData() {
     currentDiaryEntries: DiaryEntry[], 
     currentEmotions: Emotion[]
   ) => {
-      if (!currentProfile) return;
+      if (!currentProfile || !userProfileRef) return;
     
       const previouslyUnlocked = new Set(currentProfile.unlockedAnimalIds || []);
       let newUnlockedIds = [...(currentProfile.unlockedAnimalIds || [])];
@@ -82,7 +82,7 @@ export function useEmotionData() {
       }
     
       if (newUnlockedIds.length > (currentProfile.unlockedAnimalIds?.length || 0)) {
-        setDocumentNonBlocking(userProfileRef!, { unlockedAnimalIds: newUnlockedIds }, { merge: true });
+        setDocumentNonBlocking(userProfileRef, { unlockedAnimalIds: newUnlockedIds }, { merge: true });
         if (justUnlockedReward) {
           setNewlyUnlockedReward(justUnlockedReward);
         }
@@ -108,6 +108,7 @@ export function useEmotionData() {
   // --- Data Mutation Functions ---
   const setUserProfile = (profile: Partial<UserProfile>) => {
     if (!userProfileRef) return;
+    // This function only saves the profile. It does NOT trigger reward checks.
     setDocumentNonBlocking(userProfileRef, profile, { merge: true });
   };
 
@@ -123,6 +124,7 @@ export function useEmotionData() {
     
     if (isNew) {
         promise.then(() => {
+            // After a new emotion is successfully added, check for rewards.
             const newEmotionsList = [...emotionsList, { ...emotionData, id: 'temp-id', userProfileId: user.uid } as Emotion];
             checkAndUnlockRewards('addEmotion', userProfile, diaryEntries, newEmotionsList);
         });
@@ -156,6 +158,7 @@ export function useEmotionData() {
     const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
     addDocumentNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid })
       .then(() => {
+        // After a new entry is successfully added, check for rewards.
         const newEntry = { ...entryData, id: 'temp-id', userProfileId: user.uid } as DiaryEntry;
         const newDiaryEntries = [...(diaryEntries || []), newEntry];
         checkAndUnlockRewards('addEntry', userProfile, newDiaryEntries, emotionsList);

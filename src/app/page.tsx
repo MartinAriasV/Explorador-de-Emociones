@@ -1,7 +1,7 @@
 'use client';
 
-import React, { Suspense, useEffect, useState } from 'react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import React, { Suspense, useEffect } from 'react';
+import { doc, setDoc } from 'firebase/firestore';
 import EmotionExplorer from '@/app/components/emotion-explorer';
 import {
   FirebaseClientProvider,
@@ -11,7 +11,6 @@ import {
   useMemoFirebase,
 } from '@/firebase';
 import type { UserProfile } from '@/lib/types';
-import type { User } from 'firebase/auth';
 
 const defaultProfile: Omit<UserProfile, 'id' | 'unlockedAnimalIds' | 'emotionCount'> = {
   name: 'Usuario',
@@ -70,11 +69,10 @@ function AppGate() {
   }
 
   // A new user is determined by having a profile but no unlocked animals yet.
-  // This is more reliable than a temporary state flag.
+  // This is passed to EmotionExplorer which will decide if the tour should start.
   const isNewUser = !!userProfile && (!userProfile.unlockedAnimalIds || userProfile.unlockedAnimalIds.length === 0);
 
-  // Pass a key to EmotionExplorer to ensure it remounts if the user changes,
-  // and pass the isNewUser flag to trigger the welcome tour.
+  // Pass a key to EmotionExplorer to ensure it remounts if the user changes.
   return <EmotionExplorer key={user?.uid} isNewUser={isNewUser} />;
 }
 
