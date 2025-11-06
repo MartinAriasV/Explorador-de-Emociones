@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { Emotion } from '@/lib/types';
+import type { Emotion, EmotionMemoryGameProps } from '@/lib/types';
 import { PREDEFINED_EMOTIONS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -15,10 +15,6 @@ interface MemoryCard {
   emotionId: string;
   isFlipped: boolean;
   isMatched: boolean;
-}
-
-interface EmotionMemoryGameProps {
-  emotionsList: Emotion[];
 }
 
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -40,11 +36,16 @@ export function EmotionMemoryGame({ emotionsList }: EmotionMemoryGameProps) {
     emotionsList.forEach(e => emotionMap.set(e.name.toLowerCase(), e));
     return Array.from(emotionMap.values());
   }, [emotionsList]);
-
+  
   const setupGame = () => {
     setIsGameOver(false);
     setMoves(0);
     setFlippedCards([]);
+    
+    if (availableEmotions.length < CARD_COUNT) {
+        setCards([]);
+        return;
+    }
     
     const gameEmotions = shuffleArray(availableEmotions).slice(0, CARD_COUNT);
 
@@ -150,51 +151,39 @@ export function EmotionMemoryGame({ emotionsList }: EmotionMemoryGameProps) {
           <RefreshCw className="h-4 w-4" />
         </Button>
       </div>
-      <div className="grid grid-cols-4 gap-4 w-full max-w-2xl">
+      <div className="grid grid-cols-4 gap-4 w-full max-w-2xl [perspective:1000px]">
         {cards.map((card, index) => (
-          <Card
+          <div
             key={card.id}
             onClick={() => handleCardClick(index)}
             className={cn(
-              "aspect-square flex items-center justify-center cursor-pointer transition-transform duration-300",
-              "transform-style-3d",
-              card.isFlipped ? 'rotate-y-180' : ''
+              "relative aspect-square transition-transform duration-500 cursor-pointer [transform-style:preserve-3d]",
+              card.isFlipped ? '[transform:rotateY(180deg)]' : ''
             )}
           >
+            {/* Card Back */}
             <div className={cn(
-              "absolute w-full h-full backface-hidden flex items-center justify-center",
-              "bg-primary/10 border-2 border-primary rounded-lg",
+              "absolute w-full h-full [backface-visibility:hidden] flex items-center justify-center rounded-lg",
+              "bg-primary/10 border-2 border-primary",
               card.isMatched ? "bg-green-500/20 border-green-500" : ""
             )}>
-              {/* This is the back of the card */}
             </div>
+            
+            {/* Card Front */}
             <div className={cn(
-              "absolute w-full h-full backface-hidden rotate-y-180 flex items-center justify-center text-center p-2",
-               "bg-background rounded-lg",
+               "absolute w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] flex items-center justify-center text-center p-2 rounded-lg",
+               "bg-background",
                card.isMatched ? "border-2 border-green-500 opacity-70" : "border-2"
             )}>
-                {/* This is the front of the card */}
                 {card.type === 'icon' ? (
                     <span className="text-4xl md:text-5xl">{card.content}</span>
                 ) : (
                     <span className="text-sm md:text-base font-semibold">{card.content}</span>
                 )}
             </div>
-          </Card>
+          </div>
         ))}
       </div>
-       <style jsx>{`
-        .transform-style-3d {
-          transform-style: preserve-3d;
-        }
-        .rotate-y-180 {
-          transform: rotateY(180deg);
-        }
-        .backface-hidden {
-          backface-visibility: hidden;
-          -webkit-backface-visibility: hidden;
-        }
-      `}</style>
     </div>
   );
 }

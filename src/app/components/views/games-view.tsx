@@ -4,7 +4,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { GuessEmotionGame } from '../games/guess-emotion-game';
-import type { Emotion } from '@/lib/types';
+import type { Emotion, GuessEmotionGameProps } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Brain, Puzzle } from 'lucide-react';
 import { EmotionMemoryGame } from '../games/emotion-memory-game';

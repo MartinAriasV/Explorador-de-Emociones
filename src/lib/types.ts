@@ -62,3 +62,11 @@ export interface QuizQuestion {
   correctAnswer: string;
   difficulty: 'Fácil' | 'Medio' | 'Difícil' | 'Experto';
 }
+
+export interface GuessEmotionGameProps {
+  emotionsList: Emotion[];
+}
+
+export interface EmotionMemoryGameProps {
+  emotionsList: Emotion[];
+}
