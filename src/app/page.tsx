@@ -37,12 +37,12 @@ function AppGate() {
   useEffect(() => {
     // This effect runs when auth and profile loading states change.
     // It's responsible for creating a profile for a new user.
-    if (!user || isUserLoading || isProfileLoading) {
-      // If we are still loading or have no user, do nothing.
+    if (isUserLoading || isProfileLoading) {
+      // If we are still loading, do nothing and wait for the next run.
       return;
     }
 
-    if (!userProfile) {
+    if (user && !userProfile) {
       // If loading is finished and we have a user but no profile,
       // it means this is a new user.
       const newProfile: UserProfile = {
@@ -55,10 +55,12 @@ function AppGate() {
       };
       
       // Create the profile document in Firestore.
-      setDoc(userProfileRef!, newProfile, { merge: true }).then(() => {
-        // After the profile is successfully created, we set the flag.
-        setIsNewUser(true);
-      }).catch(console.error);
+      if (userProfileRef) {
+        setDoc(userProfileRef, newProfile, { merge: true }).then(() => {
+          // After the profile is successfully created, we set the flag.
+          setIsNewUser(true);
+        }).catch(console.error);
+      }
     }
   }, [user, isUserLoading, isProfileLoading, userProfile, userProfileRef]);
 
