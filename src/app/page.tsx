@@ -39,7 +39,6 @@ function AppGate() {
       avatar: '😊',
       avatarType: 'emoji',
       unlockedAnimalIds: [],
-      emotionCount: 0,
     };
     if (userProfileRef) {
       // Use setDoc with merge:false because we are explicitly CREATING a new document.

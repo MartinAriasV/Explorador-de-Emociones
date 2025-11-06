@@ -97,7 +97,7 @@ export function useEmotionData() {
   };
   
   const handleQuizComplete = (success: boolean, date: Date | null) => {
-    if (success && date && userProfile && diaryEntries && emotionsList) {
+    if (success && date && userProfile && emotionsList) {
         addDiaryEntry({
             date: date.toISOString(),
             emotionId: emotionsList.find(e => e.name.toLowerCase() === 'calma')?.id || emotionsList[0].id,
@@ -126,11 +126,9 @@ export function useEmotionData() {
     
     if (isNew) {
         promise.then(() => {
-            if (userProfile && diaryEntries && emotionsList) {
-                // We need to get the latest list of emotions to check the count accurately
-                const updatedEmotions = [...emotionsList, { ...emotionData, id: 'temp-id', userProfileId: user.uid } as Emotion];
-                checkAndUnlockRewards('addEmotion', userProfile, diaryEntries, updatedEmotions);
-            }
+            // We need to fetch the latest data to check rewards accurately
+            const updatedEmotions = [...emotionsList, { ...emotionData, id: 'temp-id', userProfileId: user.uid } as Emotion];
+            checkAndUnlockRewards('addEmotion', userProfile, diaryEntries || [], updatedEmotions);
         });
     }
   };
@@ -163,11 +161,9 @@ export function useEmotionData() {
     addDocumentToCollectionNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid })
       .then(() => {
         // After adding the entry, get the most up-to-date data to check rewards
-        if (userProfile && emotionsList && diaryEntries) {
-            const newEntry = { ...entryData, id: 'temp-id', userProfileId: user.uid } as DiaryEntry;
-            const updatedDiaryEntries = [...(diaryEntries || []), newEntry];
-            checkAndUnlockRewards(trigger, userProfile, updatedDiaryEntries, emotionsList);
-        }
+        const newEntry = { ...entryData, id: 'temp-id', userProfileId: user.uid } as DiaryEntry;
+        const updatedDiaryEntries = [...(diaryEntries || []), newEntry];
+        checkAndUnlockRewards(trigger, userProfile, updatedDiaryEntries, emotionsList);
       });
   };
   
