@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback } from 'react';
-import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { useState, useCallback, useMemo } from 'react';
+import { useFirebase, useUser, useCollection, useDoc } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs } from 'firebase/firestore';
 import type { Emotion, DiaryEntry, UserProfile, Reward } from '@/lib/types';
 import { deleteDocumentNonBlocking, addDocumentToCollectionNonBlocking, updateDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -14,13 +14,13 @@ export function useEmotionData() {
   const { user } = useUser();
 
   // --- Firestore Data ---
-  const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
+  const userProfileRef = useMemo(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-  const emotionsQuery = useMemoFirebase(() => (user ? collection(firestore, 'users', user.uid, 'emotions') : null), [firestore, user]);
+  const emotionsQuery = useMemo(() => (user ? collection(firestore, 'users', user.uid, 'emotions') : null), [firestore, user]);
   const { data: emotionsList, isLoading: areEmotionsLoading } = useCollection<Emotion>(emotionsQuery);
   
-  const diaryEntriesQuery = useMemoFirebase(() => (user ? collection(firestore, 'users', user.uid, 'diaryEntries') : null), [firestore, user]);
+  const diaryEntriesQuery = useMemo(() => (user ? collection(firestore, 'users', user.uid, 'diaryEntries') : null), [firestore, user]);
   const { data: diaryEntries, isLoading: areDiaryEntriesLoading } = useCollection<DiaryEntry>(diaryEntriesQuery);
 
   const [newlyUnlockedReward, setNewlyUnlockedReward] = useState<Reward | null>(null);

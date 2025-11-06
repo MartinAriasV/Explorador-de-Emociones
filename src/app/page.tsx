@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState, useMemo } from 'react';
 import { doc } from 'firebase/firestore';
 import EmotionExplorer from '@/app/components/emotion-explorer';
 import {
@@ -8,7 +8,6 @@ import {
   useUser,
   useFirestore,
   useDoc,
-  useMemoFirebase,
 } from '@/firebase';
 import type { UserProfile } from '@/lib/types';
 import { useEmotionData } from '@/hooks/use-emotion-data';
@@ -18,27 +17,32 @@ import { useEmotionData } from '@/hooks/use-emotion-data';
 // and then rendering the main application.
 function AppGate() {
   const { user, isUserLoading } = useUser();
+  const firestore = useFirestore();
   const { addProfileIfNotExists } = useEmotionData();
+  const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
   
-  const userProfileRef = useMemoFirebase(
-    () => (user ? doc(useFirestore(), 'users', user.uid) : null),
-    [user]
+  const userProfileRef = useMemo(
+    () => (user ? doc(firestore, 'users', user.uid) : null),
+    [user, firestore]
   );
   
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
   
   useEffect(() => {
-    // This effect runs only when the necessary data is available and confirmed.
-    // It creates a profile ONLY IF:
-    // 1. All loading is done.
-    // 2. We have an authenticated user.
-    // 3. The result of that check is that the profile is null (doesn't exist).
-    if (!isUserLoading && !isProfileLoading && user && !userProfile) {
+    // This effect runs only when loading is fully complete.
+    if (!isUserLoading && !isProfileLoading) {
+      setHasCheckedProfile(true);
+    }
+  }, [isUserLoading, isProfileLoading]);
+
+  useEffect(() => {
+    // This effect handles profile creation, but only after the initial check is confirmed.
+    if (hasCheckedProfile && user && !userProfile) {
       addProfileIfNotExists(user);
     }
-  }, [isUserLoading, isProfileLoading, user, userProfile, addProfileIfNotExists]);
+  }, [hasCheckedProfile, user, userProfile, addProfileIfNotExists]);
 
-  if (isUserLoading || (user && isProfileLoading)) {
+  if (isUserLoading || (user && isProfileLoading && !hasCheckedProfile)) {
     return (
       <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
         <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -48,7 +52,6 @@ function AppGate() {
   }
 
   // A new user is determined by having a profile but no unlocked animals yet.
-  // This is passed to EmotionExplorer which will decide if the tour should start.
   const isNewUser = !!userProfile && (!userProfile.unlockedAnimalIds || userProfile.unlockedAnimalIds.length === 0);
 
   // Pass a key to EmotionExplorer to ensure it remounts if the user changes.
