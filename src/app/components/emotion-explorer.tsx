@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useRef, createRef, useEffect } from 'react';
-import type { Emotion, View, TourStepData, Reward } from '@/lib/types';
+import React, { useState, useRef, createRef } from 'react';
+import type { Emotion, View, TourStepData } from '@/lib/types';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar, MobileMenuButton } from './app-sidebar';
 import { DiaryView } from './views/diary-view';
@@ -66,6 +66,7 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
     deleteEmotion,
     handleShare,
     setNewlyUnlockedReward,
+    handleQuizComplete,
   } = useEmotionData();
 
   const [addingEmotionData, setAddingEmotionData] = useState<Partial<Emotion> | null>(null);
@@ -101,29 +102,16 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
     setShowQuiz(true);
   };
 
-  const handleQuizComplete = (success: boolean) => {
+  const onQuizComplete = (success: boolean) => {
     setShowQuiz(false);
-    if (success && quizDate) {
-      const defaultEmotion = emotionsList?.find(e => e.name.toLowerCase() === 'calma') || emotionsList?.[0];
-      if (defaultEmotion) {
-        addDiaryEntry({
-          date: quizDate.toISOString(),
-          emotionId: defaultEmotion.id,
-          text: 'Día recuperado completando el desafío de la racha. ¡Buen trabajo!',
-        });
-
-        toast({
-          title: "¡Día Recuperado!",
-          description: "Has superado el desafío y recuperado tu racha.",
-        });
-      } else {
-        toast({
-          title: "Error de Recuperación",
-          description: "No se pudo recuperar el día. Necesitas al menos una emoción en tu emocionario.",
-          variant: "destructive",
-        });
-      }
-    } else if (!success) {
+    handleQuizComplete(success, quizDate);
+    
+    if (success) {
+      toast({
+        title: "¡Día Recuperado!",
+        description: "Has superado el desafío y recuperado tu racha.",
+      });
+    } else {
       toast({
         title: "Desafío No Superado",
         description: "No has alcanzado la puntuación necesaria. ¡Inténtalo de nuevo!",
@@ -132,6 +120,7 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
     }
     setQuizDate(null);
   };
+
 
   const startTour = () => {
     setShowWelcome(false);
@@ -244,7 +233,7 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
       {showQuiz && (
         <QuizModal 
           onClose={() => setShowQuiz(false)} 
-          onComplete={handleQuizComplete} 
+          onComplete={onQuizComplete} 
         />
       )}
 

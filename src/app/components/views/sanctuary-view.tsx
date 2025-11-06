@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SPIRIT_ANIMALS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import type { SpiritAnimal } from '@/lib/types';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 
 interface SanctuaryViewProps {
@@ -63,17 +63,19 @@ function AnimalCard({ animal, isUnlocked }: { animal: SpiritAnimal; isUnlocked: 
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-2xl text-primary">{isUnlocked ? animal.name : 'Animal Bloqueado'}</DialogTitle>
+          <DialogDescription className="pt-2">
             {isUnlocked ? (
-                <div className="space-y-1 pt-2">
-                    <span className="block font-bold text-lg text-primary">{animal.emotion}</span>
+                <div className="space-y-1">
+                    <span className="block font-bold text-lg" style={{ color: `hsl(var(--primary))` }}>{animal.emotion}</span>
                     <span className="block text-sm text-muted-foreground mt-1">{animal.description}</span>
                 </div>
             ) : (
-                <div className="space-y-1 pt-2">
-                    <span className="block font-bold text-lg text-primary">¿Cómo desbloquear?</span>
+                <div className="space-y-1">
+                    <span className="block font-bold text-lg" style={{ color: `hsl(var(--primary))` }}>¿Cómo desbloquear?</span>
                     <span className="block text-sm text-muted-foreground mt-1">{animal.unlockHint}</span>
                 </div>
             )}
+          </DialogDescription>
         </DialogHeader>
       </DialogContent>
     </Dialog>

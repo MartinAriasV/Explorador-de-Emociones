@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs } from 'firebase/firestore';
 import type { Emotion, DiaryEntry, UserProfile, Reward } from '@/lib/types';
@@ -27,69 +27,81 @@ export function useEmotionData() {
   const isLoading = isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading;
   
   // --- Reward Logic ---
-  const checkAndUnlockRewards = (currentProfile: UserProfile, currentDiaryEntries: DiaryEntry[], currentEmotions: Emotion[]) => {
-    if (!currentProfile) return;
-  
-    const previouslyUnlocked = new Set(currentProfile.unlockedAnimalIds || []);
-    let newUnlockedIds = [...(currentProfile.unlockedAnimalIds || [])];
-    let justUnlockedReward: Reward | null = null;
+  const checkAndUnlockRewards = useCallback((
+    trigger: 'addEntry' | 'addEmotion' | 'share' | 'recoverDay', 
+    currentProfile: UserProfile, 
+    currentDiaryEntries: DiaryEntry[], 
+    currentEmotions: Emotion[]
+  ) => {
+      if (!currentProfile) return;
     
-    const dailyStreak = calculateDailyStreak(currentDiaryEntries);
-    const entryCount = currentDiaryEntries.length;
-    const emotionCount = currentEmotions.length;
+      const previouslyUnlocked = new Set(currentProfile.unlockedAnimalIds || []);
+      let newUnlockedIds = [...(currentProfile.unlockedAnimalIds || [])];
+      let justUnlockedReward: Reward | null = null;
+      
+      const dailyStreak = calculateDailyStreak(currentDiaryEntries);
+      const entryCount = currentDiaryEntries.length;
+      const emotionCount = currentEmotions.length;
+
+      for (const reward of REWARDS) {
+        if (previouslyUnlocked.has(reward.animal.id)) continue;
     
-    for (const reward of REWARDS) {
-      if (previouslyUnlocked.has(reward.animal.id)) continue;
-  
-      let unlocked = false;
-      switch(reward.type) {
-        case 'streak':
-          unlocked = dailyStreak >= reward.value;
-          break;
-        case 'entry_count':
-          unlocked = entryCount >= reward.value;
-          break;
-        case 'emotion_count':
-          unlocked = emotionCount >= reward.value;
-          break;
-        case 'share':
-          // This is handled by handleShare
-          break;
-        case 'special':
-            if (reward.id === 'phoenix-reward') {
-                // This is handled in handleQuizComplete
+        let unlocked = false;
+        switch(reward.type) {
+          case 'streak':
+          case 'entry_count':
+            if (trigger === 'addEntry') {
+               unlocked = reward.type === 'streak' ? dailyStreak >= reward.value : entryCount >= reward.value;
             }
             break;
-      }
-  
-      if (unlocked) {
-        if (!newUnlockedIds.includes(reward.animal.id)) {
-            newUnlockedIds.push(reward.animal.id);
-            if (!justUnlockedReward) {
-                justUnlockedReward = reward;
+          case 'emotion_count':
+            if (trigger === 'addEmotion') {
+               unlocked = emotionCount >= reward.value;
             }
+            break;
+          case 'share':
+            if (trigger === 'share') {
+                unlocked = true;
+            }
+            break;
+          case 'special':
+            if (trigger === 'recoverDay' && reward.id === 'phoenix-reward') {
+                unlocked = true;
+            }
+            break;
+        }
+    
+        if (unlocked) {
+          if (!newUnlockedIds.includes(reward.animal.id)) {
+              newUnlockedIds.push(reward.animal.id);
+              if (!justUnlockedReward) {
+                  justUnlockedReward = reward;
+              }
+          }
         }
       }
-    }
-  
-    if (newUnlockedIds.length > (currentProfile.unlockedAnimalIds?.length || 0)) {
-      setUserProfile({ unlockedAnimalIds: newUnlockedIds });
-      if (justUnlockedReward) {
-        setNewlyUnlockedReward(justUnlockedReward);
+    
+      if (newUnlockedIds.length > (currentProfile.unlockedAnimalIds?.length || 0)) {
+        setDocumentNonBlocking(userProfileRef!, { unlockedAnimalIds: newUnlockedIds }, { merge: true });
+        if (justUnlockedReward) {
+          setNewlyUnlockedReward(justUnlockedReward);
+        }
       }
-    }
-  };
+  }, [userProfileRef]);
 
   const handleShare = () => {
-    if (!userProfile) return;
-    const shareReward = REWARDS.find(r => r.id === 'share-1');
-    if (shareReward && !userProfile.unlockedAnimalIds?.includes(shareReward.animal.id)) {
-      const currentUnlocked = userProfile.unlockedAnimalIds || [];
-      if (!currentUnlocked.includes(shareReward.animal.id)) {
-        const newUnlockedIds = [...currentUnlocked, shareReward.animal.id];
-        setUserProfile({ unlockedAnimalIds: newUnlockedIds });
-        setNewlyUnlockedReward(shareReward);
-      }
+    if (!userProfile || !diaryEntries || !emotionsList) return;
+    checkAndUnlockRewards('share', userProfile, diaryEntries, emotionsList);
+  };
+  
+  const handleQuizComplete = (success: boolean, date: Date | null) => {
+    if (success && date && userProfile && diaryEntries && emotionsList) {
+        addDiaryEntry({
+            date: date.toISOString(),
+            emotionId: emotionsList.find(e => e.name.toLowerCase() === 'calma')?.id || emotionsList[0].id,
+            text: 'Día recuperado completando el desafío de la racha. ¡Buen trabajo!',
+          });
+        checkAndUnlockRewards('recoverDay', userProfile, diaryEntries, emotionsList);
     }
   };
 
@@ -103,18 +115,18 @@ export function useEmotionData() {
     if (!user || !userProfile || !diaryEntries || !emotionsList) return;
     const emotionsCollection = collection(firestore, 'users', user.uid, 'emotions');
     
+    const isNew = !emotionData.id;
+
     const promise = emotionData.id
       ? setDocumentNonBlocking(doc(emotionsCollection, emotionData.id), { ...emotionData, userProfileId: user.uid }, { merge: true })
       : addDocumentNonBlocking(emotionsCollection, { ...emotionData, userProfileId: user.uid });
     
-    promise.then(() => {
-        const currentEmotions = emotionsList || [];
-        const newEmotionsList = emotionData.id 
-            ? currentEmotions.map(e => e.id === emotionData.id ? {...e, ...emotionData} : e)
-            : [...currentEmotions, { ...emotionData, id: 'temp-id', userProfileId: user.uid } as Emotion];
-        
-        checkAndUnlockRewards(userProfile, diaryEntries || [], newEmotionsList);
-    });
+    if (isNew) {
+        promise.then(() => {
+            const newEmotionsList = [...emotionsList, { ...emotionData, id: 'temp-id', userProfileId: user.uid } as Emotion];
+            checkAndUnlockRewards('addEmotion', userProfile, diaryEntries, newEmotionsList);
+        });
+    }
   };
   
   const deleteEmotion = async (emotionId: string) => {
@@ -146,7 +158,7 @@ export function useEmotionData() {
       .then(() => {
         const newEntry = { ...entryData, id: 'temp-id', userProfileId: user.uid } as DiaryEntry;
         const newDiaryEntries = [...(diaryEntries || []), newEntry];
-        checkAndUnlockRewards(userProfile, newDiaryEntries, emotionsList);
+        checkAndUnlockRewards('addEntry', userProfile, newDiaryEntries, emotionsList);
       });
   };
   
@@ -175,6 +187,7 @@ export function useEmotionData() {
     saveEmotion,
     deleteEmotion,
     handleShare,
-    setNewlyUnlockedReward
+    setNewlyUnlockedReward,
+    handleQuizComplete,
   };
 }
