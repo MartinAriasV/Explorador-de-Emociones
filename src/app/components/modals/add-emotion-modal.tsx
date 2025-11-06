@@ -64,7 +64,7 @@ export function AddEmotionModal({ initialData, onSave, onClose }: AddEmotionModa
     <Dialog open={!!initialData} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-3 text-2xl">
+          <DialogTitle className="flex items-center gap-3 text-2xl" style={{ color }}>
             <span className="text-3xl">{icon || initialData.icon}</span>
             Añadir "{name || initialData.name}"
           </DialogTitle>

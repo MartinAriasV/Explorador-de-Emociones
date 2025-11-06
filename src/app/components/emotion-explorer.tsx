@@ -74,7 +74,7 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
   const [quizDate, setQuizDate] = useState<Date | null>(null);
   const [showQuiz, setShowQuiz] = useState(false);
 
-  const [isNewUserFlow, setIsNewUserFlow] = useState(isNewUser);
+  const [showWelcome, setShowWelcome] = useState(isNewUser);
   const [tourStep, setTourStep] = useState(0);
 
   const tourRefs = TOUR_STEPS.reduce((acc, step) => {
@@ -134,21 +134,22 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
   };
 
   const startTour = () => {
-    setIsNewUserFlow(false);
+    setShowWelcome(false);
     const firstStepView = TOUR_STEPS[0].refKey.replace('Ref', '') as View;
     setView(firstStepView);
     setTourStep(1);
   };
   
   const skipTour = () => {
-    setIsNewUserFlow(false);
+    setShowWelcome(false);
     setTourStep(0);
   };
 
   const nextTourStep = () => {
     const currentStepIndex = tourStep - 1;
     if (currentStepIndex < TOUR_STEPS.length -1) {
-      const nextView = TOUR_STEPS[currentStepIndex + 1].refKey.replace('Ref', '') as View;
+      const nextStepIndex = tourStep;
+      const nextView = TOUR_STEPS[nextStepIndex].refKey.replace('Ref', '') as View;
       setView(nextView);
       setTourStep(tourStep + 1);
     } else {
@@ -207,12 +208,6 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
       </div>
     );
   };
-  
-  useEffect(() => {
-    if(isNewUser) {
-      setIsNewUserFlow(true);
-    }
-  }, [isNewUser]);
 
   if (isUserLoading || isLoading) {
     return (
@@ -256,7 +251,7 @@ export default function EmotionExplorer({ isNewUser }: EmotionExplorerProps) {
       )}
 
       <WelcomeDialog
-        open={isNewUserFlow}
+        open={showWelcome}
         onStartTour={startTour}
         onSkipTour={skipTour}
       />

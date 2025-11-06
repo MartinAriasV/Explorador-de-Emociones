@@ -24,11 +24,11 @@ export function WelcomeDialog({ open, onStartTour, onSkipTour }: WelcomeDialogPr
                         ¿Te gustaría hacer un tour rápido para conocer las funciones principales?
                     </DialogDescription>
                 </DialogHeader>
-                <DialogFooter className="sm:justify-center pt-4">
+                <DialogFooter className="sm:justify-center pt-4 flex-row gap-2">
                     <Button type="button" variant="ghost" onClick={onSkipTour}>
                         Saltar Tour
                     </Button>
-                    <Button type="button" onClick={onStartTour} className="bg-primary hover:bg-primary/90">
+                    <Button type="button" onClick={onStartTour} className="bg-accent text-accent-foreground hover:bg-accent/90">
                         Empezar Tour
                     </Button>
                 </DialogFooter>

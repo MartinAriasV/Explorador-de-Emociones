@@ -27,22 +27,27 @@ export function ShareView({ diaryEntries, emotionsList, userProfile, onShare }: 
 
   const reportText = useMemo(() => {
     let text = `Diario de Emociones de ${userProfile?.name || 'Usuario'}\n`;
-    if (startDate && endDate) {
+    const hasDateRange = startDate && endDate;
+
+    if (hasDateRange) {
       const start = new Date(startDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
       const end = new Date(endDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
       text += `Periodo: ${start} - ${end}\n`;
+    } else {
+      text += `Periodo: Todas las entradas\n`;
     }
+    
     text += "========================================\n\n";
     text += "--- Mis Entradas ---\n\n";
 
     const filteredEntries = diaryEntries.filter(entry => {
-        if (!startDate || !endDate) return true;
+        if (!hasDateRange) return true;
         const entryDate = new Date(entry.date);
-        // Add one day to endDate to include it in the range
+        const startRangeDate = new Date(startDate);
         const endRangeDate = new Date(endDate);
-        endRangeDate.setUTCDate(endRangeDate.getUTCDate() + 1);
+        endRangeDate.setUTCDate(endRangeDate.getUTCDate() + 1); // Include the end date in the range
 
-        return entryDate >= new Date(startDate) && entryDate < endRangeDate;
+        return entryDate >= startRangeDate && entryDate < endRangeDate;
     });
 
     if (filteredEntries.length > 0) {
@@ -60,7 +65,7 @@ export function ShareView({ diaryEntries, emotionsList, userProfile, onShare }: 
 
     text += "\n--- Mi Emocionario ---\n\n";
     (emotionsList || []).forEach(emotion => {
-        text += `${emotion.icon} ${emotion.name}: ${emotion.description}\n`;
+        text += `${emotion.icon} ${emotion.name}: ${emotion.description || 'Sin descripción.'}\n`;
     });
 
     if (!emotionsList || emotionsList.length === 0) {
@@ -85,7 +90,7 @@ export function ShareView({ diaryEntries, emotionsList, userProfile, onShare }: 
     <Card className="w-full max-w-3xl mx-auto h-full shadow-lg flex flex-col">
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-primary">Compartir Diario</CardTitle>
-        <CardDescription>Copia un resumen de tu diario en formato de texto para compartirlo con quien quieras.</CardDescription>
+        <CardDescription>Copia un resumen de tu diario en formato de texto para compartirlo con quien quieras. Puedes filtrar por fechas.</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col gap-4 overflow-hidden">
         <div className="flex flex-col sm:flex-row gap-4">
@@ -96,6 +101,7 @@ export function ShareView({ diaryEntries, emotionsList, userProfile, onShare }: 
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
+                    max={endDate || undefined}
                 />
             </div>
             <div className="flex-1 space-y-2">
@@ -105,6 +111,7 @@ export function ShareView({ diaryEntries, emotionsList, userProfile, onShare }: 
                     type="date"
                     value={endDate}
                     onChange={(e) => setEndDate(e.target.value)}
+                    min={startDate || undefined}
                 />
             </div>
         </div>

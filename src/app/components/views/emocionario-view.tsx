@@ -31,6 +31,13 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
   const [isAiLoading, setIsAiLoading] = useState(false);
   const { toast } = useToast();
 
+  const resetForm = () => {
+    setName('');
+    setIcon('');
+    setColor('#8B5CF6');
+    setDescription('');
+  }
+
   useEffect(() => {
     if (editingEmotion) {
       setName(editingEmotion.name);
@@ -38,11 +45,7 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
       setColor(editingEmotion.color);
       setDescription(editingEmotion.description || '');
     } else {
-      // Reset form when not editing
-      setName('');
-      setIcon('');
-      setColor('#8B5CF6');
-      setDescription('');
+      resetForm();
     }
   }, [editingEmotion]);
 
@@ -90,10 +93,7 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
     if (editingEmotion) {
       onCancelEdit();
     } else {
-      setName('');
-      setIcon('');
-      setColor('#8B5CF6');
-      setDescription('');
+      resetForm();
     }
   };
 
@@ -101,7 +101,9 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
     <div className="grid lg:grid-cols-2 gap-6 h-full">
       <Card className="w-full shadow-lg flex flex-col transition-all duration-300 hover:shadow-xl">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-primary">{editingEmotion ? 'Editar Emoción' : 'Añadir Emoción'}</CardTitle>
+          <CardTitle className="text-2xl font-bold" style={{ color: editingEmotion ? color : 'var(--primary)' }}>
+            {editingEmotion ? 'Editar Emoción' : 'Añadir Emoción'}
+          </CardTitle>
           <CardDescription>{editingEmotion ? `Modificando "${editingEmotion.name}"` : 'Crea una nueva emoción para tu diario.'}</CardDescription>
         </CardHeader>
         <CardContent className="flex-grow flex flex-col gap-4 overflow-y-auto">

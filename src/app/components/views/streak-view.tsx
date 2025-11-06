@@ -98,7 +98,7 @@ export function StreakView({ diaryEntries, onRecoverDay }: StreakViewProps) {
                         status === 'completed' && "bg-amber-100 dark:bg-amber-900/40 border-amber-300 dark:border-amber-800",
                         status === 'missed' && "bg-gray-100 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 opacity-60 hover:opacity-100",
                         status === 'today' && "border-primary border-2 ring-4 ring-primary/20",
-                        status === 'future' && "bg-background dark:bg-muted/50",
+                        status === 'future' && "bg-background dark:bg-muted/30",
                         canRecover && "cursor-pointer"
                       )}
                       onClick={canRecover ? () => onRecoverDay(calendarDateObj) : undefined}
@@ -117,7 +117,7 @@ export function StreakView({ diaryEntries, onRecoverDay }: StreakViewProps) {
                              <RotateCcw className="w-6 h-6 text-primary hidden group-hover:block" />
                            </div>
                         ) : (
-                           <div className="w-5 h-5 rounded-full bg-gray-700 dark:bg-gray-900" /> // Ember
+                           <div className="w-5 h-5 rounded-full bg-muted-foreground/20 dark:bg-gray-700" /> // Ember for future days
                         )}
                       </div>
                     </div>
