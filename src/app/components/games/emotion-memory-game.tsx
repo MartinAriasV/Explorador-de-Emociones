@@ -1,11 +1,10 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Emotion } from '@/lib/types';
 import { PREDEFINED_EMOTIONS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { RefreshCw } from 'lucide-react';
 
@@ -16,6 +15,10 @@ interface MemoryCard {
   emotionId: string;
   isFlipped: boolean;
   isMatched: boolean;
+}
+
+interface EmotionMemoryGameProps {
+  emotionsList: Emotion[];
 }
 
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -43,17 +46,14 @@ export function EmotionMemoryGame({ emotionsList }: EmotionMemoryGameProps) {
     setMoves(0);
     setFlippedCards([]);
     
-    // Select unique emotions for the game
     const gameEmotions = shuffleArray(availableEmotions).slice(0, CARD_COUNT);
 
-    // Create pairs of cards (icon and name)
     const gameCards: Omit<MemoryCard, 'id' | 'isFlipped' | 'isMatched'>[] = [];
     gameEmotions.forEach((emotion) => {
       gameCards.push({ type: 'icon', content: emotion.icon, emotionId: emotion.id });
       gameCards.push({ type: 'name', content: emotion.name, emotionId: emotion.id });
     });
 
-    // Shuffle and assign unique IDs
     const shuffledCards = shuffleArray(gameCards).map((card, index) => ({
       ...card,
       id: `${card.emotionId}-${card.type}-${index}`,
@@ -66,11 +66,10 @@ export function EmotionMemoryGame({ emotionsList }: EmotionMemoryGameProps) {
 
   useEffect(() => {
     setupGame();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableEmotions]);
 
   const handleCardClick = (index: number) => {
-    if (isChecking || cards[index].isFlipped || cards[index].isMatched) {
+    if (isChecking || cards[index].isFlipped || flippedCards.length >= 2) {
       return;
     }
 
@@ -83,7 +82,7 @@ export function EmotionMemoryGame({ emotionsList }: EmotionMemoryGameProps) {
 
     if (newFlippedCards.length === 2) {
       setMoves(moves + 1);
-      setIsChecking(true); // Prevent more clicks while checking
+      setIsChecking(true);
       const [firstIndex, secondIndex] = newFlippedCards;
       const firstCard = newCards[firstIndex];
       const secondCard = newCards[secondIndex];
@@ -97,6 +96,7 @@ export function EmotionMemoryGame({ emotionsList }: EmotionMemoryGameProps) {
             updatedCards[secondIndex].isMatched = true;
             return updatedCards;
           });
+          setFlippedCards([]);
           setIsChecking(false);
         }, 800);
       } else {
@@ -108,16 +108,15 @@ export function EmotionMemoryGame({ emotionsList }: EmotionMemoryGameProps) {
             updatedCards[secondIndex].isFlipped = false;
             return updatedCards;
           });
+          setFlippedCards([]);
           setIsChecking(false);
         }, 1200);
       }
-      setFlippedCards([]);
     }
   };
 
   useEffect(() => {
-    const allMatched = cards.every(card => card.isMatched);
-    if (cards.length > 0 && allMatched) {
+    if (cards.length > 0 && cards.every(card => card.isMatched)) {
       setIsGameOver(true);
     }
   }, [cards]);
@@ -159,12 +158,13 @@ export function EmotionMemoryGame({ emotionsList }: EmotionMemoryGameProps) {
             className={cn(
               "aspect-square flex items-center justify-center cursor-pointer transition-transform duration-300",
               "transform-style-3d",
-              card.isFlipped || card.isMatched ? 'rotate-y-180' : ''
+              card.isFlipped ? 'rotate-y-180' : ''
             )}
           >
             <div className={cn(
               "absolute w-full h-full backface-hidden flex items-center justify-center",
-              "bg-primary/10 border-2 border-primary rounded-lg"
+              "bg-primary/10 border-2 border-primary rounded-lg",
+              card.isMatched ? "bg-green-500/20 border-green-500" : ""
             )}>
               {/* This is the back of the card */}
             </div>
@@ -198,4 +198,3 @@ export function EmotionMemoryGame({ emotionsList }: EmotionMemoryGameProps) {
     </div>
   );
 }
-
