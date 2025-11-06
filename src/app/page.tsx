@@ -26,28 +26,19 @@ function AppGate() {
   );
   
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
-  const [hasCheckedProfile, setHasCheckedProfile] = useState(false);
-
-  useEffect(() => {
-    // When loading is finished, we can mark that the check has been performed.
-    if (!isProfileLoading) {
-      setHasCheckedProfile(true);
-    }
-  }, [isProfileLoading]);
-
+  
   useEffect(() => {
     // This effect runs only when the necessary data is available and confirmed.
     // It creates a profile ONLY IF:
     // 1. All loading is done.
     // 2. We have an authenticated user.
-    // 3. The profile check has completed.
-    // 4. The result of that check is that the profile is null (doesn't exist).
-    if (!isUserLoading && user && hasCheckedProfile && !userProfile) {
+    // 3. The result of that check is that the profile is null (doesn't exist).
+    if (!isUserLoading && !isProfileLoading && user && !userProfile) {
       addProfileIfNotExists(user);
     }
-  }, [isUserLoading, user, hasCheckedProfile, userProfile, addProfileIfNotExists]);
+  }, [isUserLoading, isProfileLoading, user, userProfile, addProfileIfNotExists]);
 
-  if (isUserLoading || (user && isProfileLoading && !hasCheckedProfile)) {
+  if (isUserLoading || (user && isProfileLoading)) {
     return (
       <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
         <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
