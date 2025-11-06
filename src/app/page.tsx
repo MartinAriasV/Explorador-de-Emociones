@@ -1,7 +1,7 @@
 'use client';
 
 import React, { Suspense, useEffect } from 'react';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 import EmotionExplorer from '@/app/components/emotion-explorer';
 import {
   FirebaseClientProvider,
@@ -11,6 +11,7 @@ import {
   useMemoFirebase,
 } from '@/firebase';
 import type { UserProfile } from '@/lib/types';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 const defaultProfile: Omit<UserProfile, 'id' | 'unlockedAnimalIds' | 'emotionCount'> = {
   name: 'Usuario',
@@ -30,33 +31,23 @@ function AppGate() {
   );
   
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
-  
-  useEffect(() => {
-    // This effect runs when auth and profile loading states change.
-    // It's responsible for creating a profile for a new user.
-    if (isUserLoading || isProfileLoading) {
-      // If we are still loading, do nothing and wait for the next run.
-      return;
-    }
 
-    // This is the critical condition:
-    // ONLY create a profile if loading is complete, we have a user, and there is NO profile.
-    if (user && !userProfile) {
-      const newProfile: UserProfile = {
-        id: user.uid,
+  // This is the critical condition:
+  // ONLY create a profile if loading is complete, we have a user, and there is NO profile.
+  if (!isUserLoading && !isProfileLoading && user && !userProfile) {
+      const newProfile: Omit<UserProfile, 'id'> = {
         name: user.email?.split('@')[0] || defaultProfile.name,
         avatar: defaultProfile.avatar,
         avatarType: defaultProfile.avatarType,
         unlockedAnimalIds: [],
         emotionCount: 0,
       };
-      
       if (userProfileRef) {
-        // This will only run ONCE for a new user. For existing users, `userProfile` will be defined.
-        setDoc(userProfileRef, newProfile).catch(console.error);
+        // We use setDoc here because this is a one-time creation of a document with a specific ID.
+        // This runs only ONCE for a new user.
+        addDocumentNonBlocking(userProfileRef, newProfile);
       }
-    }
-  }, [user, isUserLoading, isProfileLoading, userProfile, userProfileRef]);
+  }
 
 
   if (isUserLoading || (user && isProfileLoading)) {

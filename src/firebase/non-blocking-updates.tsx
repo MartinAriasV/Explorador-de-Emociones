@@ -32,17 +32,20 @@ export function setDocumentNonBlocking(docRef: DocumentReference, data: any, opt
 
 
 /**
- * Initiates an addDoc operation for a collection reference.
+ * Initiates an addDoc operation. For a specific ID, use setDocumentNonBlocking.
  * Does NOT await the write operation internally.
  * Returns the Promise for the new doc ref, but typically not awaited by caller.
  */
-export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
-  const promise = addDoc(colRef, data)
-    .catch(error => {
+export function addDocumentNonBlocking<T>(colRefOrDocRef: CollectionReference<T> | DocumentReference<T> , data: T) {
+  const promise = colRefOrDocRef.type === 'collection' 
+    ? addDoc(colRefOrDocRef as CollectionReference<T>, data)
+    : setDoc(colRefOrDocRef as DocumentReference<T>, data);
+
+  promise.catch(error => {
       errorEmitter.emit(
         'permission-error',
         new FirestorePermissionError({
-          path: colRef.path,
+          path: colRefOrDocRef.path,
           operation: 'create',
           requestResourceData: data,
         })

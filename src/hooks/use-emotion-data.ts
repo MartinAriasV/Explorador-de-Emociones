@@ -2,9 +2,9 @@
 
 import { useState, useCallback } from 'react';
 import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, writeBatch, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, writeBatch, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import type { Emotion, DiaryEntry, UserProfile, Reward } from '@/lib/types';
-import { deleteDocumentNonBlocking, setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak } from '@/lib/utils';
 import { REWARDS } from '@/lib/constants';
 
@@ -82,7 +82,9 @@ export function useEmotionData() {
       }
     
       if (newUnlockedIds.length > (currentProfile.unlockedAnimalIds?.length || 0)) {
-        setDocumentNonBlocking(userProfileRef, { unlockedAnimalIds: newUnlockedIds }, { merge: true });
+        // CRITICAL FIX: Only update the unlockedAnimalIds field.
+        // This prevents overwriting the user's name and avatar.
+        updateDocumentNonBlocking(userProfileRef, { unlockedAnimalIds: newUnlockedIds });
         if (justUnlockedReward) {
           setNewlyUnlockedReward(justUnlockedReward);
         }
@@ -106,10 +108,10 @@ export function useEmotionData() {
   };
 
   // --- Data Mutation Functions ---
-  const setUserProfile = (profile: Partial<UserProfile>) => {
+  const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
     if (!userProfileRef) return;
     // This function only saves the profile. It does NOT trigger reward checks.
-    setDocumentNonBlocking(userProfileRef, profile, { merge: true });
+    updateDocumentNonBlocking(userProfileRef, profile);
   };
 
   const saveEmotion = (emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string }) => {
@@ -119,14 +121,16 @@ export function useEmotionData() {
     const isNew = !emotionData.id;
 
     const promise = emotionData.id
-      ? setDocumentNonBlocking(doc(emotionsCollection, emotionData.id), { ...emotionData, userProfileId: user.uid }, { merge: true })
+      ? updateDocumentNonBlocking(doc(emotionsCollection, emotionData.id), { ...emotionData, userProfileId: user.uid })
       : addDocumentNonBlocking(emotionsCollection, { ...emotionData, userProfileId: user.uid });
     
     if (isNew) {
         promise.then(() => {
-            // After a new emotion is successfully added, check for rewards.
-            const newEmotionsList = [...emotionsList, { ...emotionData, id: 'temp-id', userProfileId: user.uid } as Emotion];
-            checkAndUnlockRewards('addEmotion', userProfile, diaryEntries, newEmotionsList);
+            if (userProfile && diaryEntries && emotionsList) {
+                // After a new emotion is successfully added, check for rewards.
+                const newEmotionsList = [...emotionsList, { ...emotionData, id: 'temp-id', userProfileId: user.uid } as Emotion];
+                checkAndUnlockRewards('addEmotion', userProfile, diaryEntries, newEmotionsList);
+            }
         });
     }
   };
@@ -158,17 +162,19 @@ export function useEmotionData() {
     const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
     addDocumentNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid })
       .then(() => {
-        // After a new entry is successfully added, check for rewards.
-        const newEntry = { ...entryData, id: 'temp-id', userProfileId: user.uid } as DiaryEntry;
-        const newDiaryEntries = [...(diaryEntries || []), newEntry];
-        checkAndUnlockRewards('addEntry', userProfile, newDiaryEntries, emotionsList);
+        if (userProfile && emotionsList && diaryEntries) {
+            // After a new entry is successfully added, check for rewards.
+            const newEntry = { ...entryData, id: 'temp-id', userProfileId: user.uid } as DiaryEntry;
+            const newDiaryEntries = [...(diaryEntries || []), newEntry];
+            checkAndUnlockRewards('addEntry', userProfile, newDiaryEntries, emotionsList);
+        }
       });
   };
   
   const updateDiaryEntry = (updatedEntry: DiaryEntry) => {
     if (!user) return;
     const entryDoc = doc(firestore, 'users', user.uid, 'diaryEntries', updatedEntry.id);
-    setDocumentNonBlocking(entryDoc, updatedEntry, { merge: true });
+    updateDocumentNonBlocking(entryDoc, updatedEntry);
   };
   
   const deleteDiaryEntry = (entryId: string) => {
