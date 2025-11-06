@@ -28,7 +28,6 @@ import type { User } from 'firebase/auth';
 
 interface EmotionExplorerProps {
   user: User;
-  initialProfile: UserProfile;
 }
 
 const rarityTextStyles: { [key: string]: string } = {
@@ -48,7 +47,7 @@ const rarityBorderStyles: { [key: string]: string } = {
 }
 
 
-export default function EmotionExplorer({ user, initialProfile }: EmotionExplorerProps) {
+export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const [view, setView] = useState<View>('diary');
   const { toast } = useToast();
 
@@ -67,7 +66,8 @@ export default function EmotionExplorer({ user, initialProfile }: EmotionExplore
     handleShare,
     setNewlyUnlockedReward,
     handleQuizComplete,
-  } = useEmotionData(user, initialProfile);
+    addProfileIfNotExists, // Get the function from the hook
+  } = useEmotionData(user);
 
   const [addingEmotionData, setAddingEmotionData] = useState<Partial<Emotion> | null>(null);
   const [editingEmotion, setEditingEmotion] = useState<Emotion | null>(null);
@@ -77,20 +77,22 @@ export default function EmotionExplorer({ user, initialProfile }: EmotionExplore
   const [showWelcome, setShowWelcome] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // Show welcome tour only for new users on initial load
+  // This useEffect runs ONCE after the initial data load.
+  // It's responsible for checking if a profile exists and creating one if it doesn't.
+  // It also handles showing the welcome tour for brand new users.
   useEffect(() => {
-    if (isLoading) return; // Wait until loading is finished
-
-    if (isInitialLoad) {
-      if (userProfile && (!userProfile.unlockedAnimalIds || userProfile.unlockedAnimalIds.length === 0)) {
-        const timer = setTimeout(() => {
-          setShowWelcome(true);
-        }, 500);
-        return () => clearTimeout(timer);
-      }
+    if (!isLoading && isInitialLoad) {
+      addProfileIfNotExists().then(isNewUser => {
+        if (isNewUser) {
+          const timer = setTimeout(() => {
+            setShowWelcome(true);
+          }, 500);
+          return () => clearTimeout(timer);
+        }
+      });
       setIsInitialLoad(false); // Mark initial load as complete
     }
-  }, [isLoading, isInitialLoad, userProfile]);
+  }, [isLoading, isInitialLoad, addProfileIfNotExists]);
 
 
   const [tourStep, setTourStep] = useState(0);

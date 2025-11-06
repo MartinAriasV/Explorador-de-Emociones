@@ -1,19 +1,18 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useFirebase, useCollection, useDoc } from '@/firebase';
-import { collection, doc, writeBatch, query, where, getDocs } from 'firebase/firestore';
+import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc } from 'firebase/firestore';
 import type { Emotion, DiaryEntry, UserProfile, Reward } from '@/lib/types';
-import { deleteDocumentNonBlocking, addDocumentToCollectionNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { addDocumentToCollectionNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak } from '@/lib/utils';
 import { REWARDS } from '@/lib/constants';
 import type { User } from 'firebase/auth';
 
-export function useEmotionData(user: User | null, initialProfile: UserProfile) {
+export function useEmotionData(user: User | null) {
   const { firestore } = useFirebase();
 
-  // --- Firestore Data ---
-  // The profile is now managed by a live listener via useDoc.
+  // --- Firestore Data Hooks ---
   const userProfileRef = useMemo(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
@@ -25,21 +24,48 @@ export function useEmotionData(user: User | null, initialProfile: UserProfile) {
 
   const [newlyUnlockedReward, setNewlyUnlockedReward] = useState<Reward | null>(null);
 
-  // We consider it loading if any of the core data streams are not ready.
-  // The profile loading is the most important one.
   const isLoading = isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading;
   
+  // --- Profile Creation Logic ---
+  const addProfileIfNotExists = useCallback(async (): Promise<boolean> => {
+    if (!user || !userProfileRef) return false;
+  
+    const docSnap = await getDoc(userProfileRef);
+    if (!docSnap.exists()) {
+      console.log("No profile found for user, creating one...");
+      const newProfile: Omit<UserProfile, 'id'> = {
+        name: user.email?.split('@')[0] || 'Usuario',
+        avatar: '😊',
+        avatarType: 'emoji',
+        unlockedAnimalIds: [],
+      };
+      await setDoc(userProfileRef, newProfile);
+      return true; // Indicates a new user was created
+    }
+    return false; // Indicates user already existed
+  }, [user, userProfileRef]);
+
+
   // --- Reward Logic ---
-  const checkAndUnlockRewards = useCallback((
-    trigger: 'addEntry' | 'addEmotion' | 'share' | 'recoverDay', 
-    currentProfile: UserProfile, 
-    currentDiaryEntries: DiaryEntry[], 
-    currentEmotions: Emotion[]
+  const checkAndUnlockRewards = useCallback(async (
+    trigger: 'addEntry' | 'addEmotion' | 'share' | 'recoverDay'
   ) => {
-      if (!currentProfile || !userProfileRef) return;
-    
-      const previouslyUnlocked = new Set(currentProfile.unlockedAnimalIds || []);
-      let newUnlockedIds = [...(currentProfile.unlockedAnimalIds || [])];
+      if (!userProfileRef) return;
+
+      // Get the most up-to-date data directly from Firestore to avoid state inconsistencies
+      const freshProfileSnap = await getDoc(userProfileRef);
+      const freshProfile = freshProfileSnap.data() as UserProfile;
+      const diaryEntriesCollection = collection(firestore, 'users', user!.uid, 'diaryEntries');
+      const emotionsCollection = collection(firestore, 'users', user!.uid, 'emotions');
+
+      const diarySnapshot = await getDocs(diaryEntriesCollection);
+      const currentDiaryEntries = diarySnapshot.docs.map(d => d.data() as DiaryEntry);
+      
+      const emotionSnapshot = await getDocs(emotionsCollection);
+      const currentEmotions = emotionSnapshot.docs.map(d => d.data() as Emotion);
+
+      const previouslyUnlocked = new Set(freshProfile.unlockedAnimalIds || []);
+      let newUnlockedIds = [...(freshProfile.unlockedAnimalIds || [])];
       let justUnlockedReward: Reward | null = null;
       
       const dailyStreak = calculateDailyStreak(currentDiaryEntries);
@@ -58,11 +84,7 @@ export function useEmotionData(user: User | null, initialProfile: UserProfile) {
              break;
           case 'entry_count':
             if (trigger === 'addEntry' || trigger === 'recoverDay') {
-                if (entryCount === 1 && reward.id === 'entry-1') { 
-                    unlocked = true;
-                } else {
-                    unlocked = entryCount >= reward.value;
-                }
+                unlocked = entryCount >= reward.value;
             }
             break;
           case 'emotion_count':
@@ -92,18 +114,16 @@ export function useEmotionData(user: User | null, initialProfile: UserProfile) {
         }
       }
     
-      if (newUnlockedIds.length > (currentProfile.unlockedAnimalIds?.length || 0)) {
-        // Use the secure update function that only touches the `unlockedAnimalIds` field.
-        updateDocumentNonBlocking(userProfileRef, { unlockedAnimalIds: newUnlockedIds });
+      if (newUnlockedIds.length > (freshProfile.unlockedAnimalIds?.length || 0)) {
+        await updateDoc(userProfileRef, { unlockedAnimalIds: newUnlockedIds });
         if (justUnlockedReward) {
           setNewlyUnlockedReward(justUnlockedReward);
         }
       }
-  }, [userProfileRef]);
+  }, [user, firestore, userProfileRef]);
 
   const handleShare = () => {
-    if (!userProfile || !diaryEntries || !emotionsList) return;
-    checkAndUnlockRewards('share', userProfile, diaryEntries, emotionsList);
+    checkAndUnlockRewards('share');
   };
   
   const handleQuizComplete = (success: boolean, date: Date | null) => {
@@ -117,27 +137,26 @@ export function useEmotionData(user: User | null, initialProfile: UserProfile) {
   };
 
   // --- Data Mutation Functions ---
-  const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
+  const setUserProfile = async (profile: Partial<Omit<UserProfile, 'id'>>) => {
     if (!userProfileRef) return;
-    // This now uses a secure update function that CANNOT overwrite the whole document.
-    updateDocumentNonBlocking(userProfileRef, profile);
+    // Use updateDoc for safe, non-destructive updates.
+    await updateDoc(userProfileRef, profile);
   };
 
-  const saveEmotion = (emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string }) => {
-    if (!user || !userProfile || !diaryEntries || !emotionsList) return;
+  const saveEmotion = async (emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string }) => {
+    if (!user) return;
     const emotionsCollection = collection(firestore, 'users', user.uid, 'emotions');
     
     const isNew = !emotionData.id;
 
-    const promise = emotionData.id
-      ? updateDocumentNonBlocking(doc(emotionsCollection, emotionData.id), { ...emotionData, userProfileId: user.uid })
-      : addDocumentToCollectionNonBlocking(emotionsCollection, { ...emotionData, userProfileId: user.uid });
+    if (emotionData.id) {
+      await updateDoc(doc(emotionsCollection, emotionData.id), { ...emotionData, userProfileId: user.uid });
+    } else {
+      await addDocumentToCollectionNonBlocking(emotionsCollection, { ...emotionData, userProfileId: user.uid });
+    }
     
     if (isNew) {
-        promise.then(() => {
-            const updatedEmotions = [...emotionsList, { ...emotionData, id: 'temp-id', userProfileId: user.uid } as Emotion];
-            checkAndUnlockRewards('addEmotion', userProfile, diaryEntries || [], updatedEmotions);
-        });
+      await checkAndUnlockRewards('addEmotion');
     }
   };
   
@@ -163,33 +182,28 @@ export function useEmotionData(user: User | null, initialProfile: UserProfile) {
     }
   };
 
-  const addDiaryEntry = (entryData: Omit<DiaryEntry, 'id' | 'userProfileId'>, trigger: 'addEntry' | 'recoverDay' = 'addEntry') => {
-    if (!user || !userProfile || !emotionsList || !diaryEntries) return;
+  const addDiaryEntry = async (entryData: Omit<DiaryEntry, 'id' | 'userProfileId'>, trigger: 'addEntry' | 'recoverDay' = 'addEntry') => {
+    if (!user) return;
     const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
-    addDocumentToCollectionNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid })
-      .then(() => {
-        const newEntry = { ...entryData, id: 'temp-id', userProfileId: user.uid } as DiaryEntry;
-        const updatedDiaryEntries = [...(diaryEntries || []), newEntry];
-        checkAndUnlockRewards(trigger, userProfile, updatedDiaryEntries, emotionsList);
-      });
+    await addDocumentToCollectionNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid });
+    await checkAndUnlockRewards(trigger);
   };
   
-  const updateDiaryEntry = (updatedEntry: DiaryEntry) => {
+  const updateDiaryEntry = async (updatedEntry: DiaryEntry) => {
     if (!user) return;
     const entryDoc = doc(firestore, 'users', user.uid, 'diaryEntries', updatedEntry.id);
-    updateDocumentNonBlocking(entryDoc, updatedEntry);
+    await updateDoc(entryDoc, { ...updatedEntry });
   };
   
-  const deleteDiaryEntry = (entryId: string) => {
+  const deleteDiaryEntry = async (entryId: string) => {
     if (!user) return;
     const entryDoc = doc(firestore, 'users', user.uid, 'diaryEntries', entryId);
-    deleteDocumentNonBlocking(entryDoc);
+    await deleteDoc(entryDoc);
   };
 
   return {
     user,
-    // Return the live profile from useDoc, which will always be up-to-date.
-    userProfile: userProfile ?? initialProfile,
+    userProfile,
     emotionsList,
     diaryEntries,
     newlyUnlockedReward,
@@ -203,5 +217,6 @@ export function useEmotionData(user: User | null, initialProfile: UserProfile) {
     handleShare,
     setNewlyUnlockedReward,
     handleQuizComplete,
+    addProfileIfNotExists,
   };
 }
