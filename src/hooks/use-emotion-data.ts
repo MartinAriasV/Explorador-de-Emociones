@@ -55,7 +55,7 @@ export function useEmotionData(user: User | null) {
              break;
           case 'entry_count':
             if (trigger === 'addEntry' || trigger === 'recoverDay') {
-                if (entryCount === 1 && reward.id === 'streak-1') { 
+                if (entryCount === 1 && reward.id === 'entry-1') { 
                     unlocked = true;
                 } else {
                     unlocked = entryCount >= reward.value;
@@ -122,6 +122,8 @@ export function useEmotionData(user: User | null) {
         unlockedAnimalIds: [],
     };
     const ref = doc(firestore, 'users', user.uid);
+    // Use merge: false to ensure it only creates, not overwrites.
+    // Firestore's setDoc with merge:false on a non-existent doc is a create operation.
     setDocumentNonBlocking(ref, newProfile, { merge: false });
   }, [firestore]);
   

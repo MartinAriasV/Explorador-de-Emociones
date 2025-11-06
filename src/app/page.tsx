@@ -9,7 +9,6 @@ import {
 import LoginView from './components/views/login-view';
 
 // This component now ONLY handles the user authentication gate.
-// All profile logic has been moved to EmotionExplorer to prevent race conditions.
 function AppGate() {
   const { user, isUserLoading } = useUser();
 

@@ -76,19 +76,22 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const [showQuiz, setShowQuiz] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
 
-  // This is the definitive logic for profile creation.
-  // It runs only once after the initial data load.
+  // This is the definitive logic for profile creation and showing the welcome tour.
+  // It runs only once after the initial data load for the user.
   useEffect(() => {
-    if (!isLoading) { // Wait for the initial load to complete
+    // We only want to run this check once the initial loading is complete.
+    if (!isLoading) {
+      // If after loading, there is still no user profile, it means it's a brand new user.
       if (user && !userProfile) {
         addProfileIfNotExists(user);
-      }
-      // Determine if it's a new user *after* the profile has been checked/created
-      if (userProfile && (!userProfile.unlockedAnimalIds || userProfile.unlockedAnimalIds.length === 0)) {
+        // Because it's a new user, show the welcome tour dialog.
         setShowWelcome(true);
       }
     }
+    // We only want this effect to run when `isLoading` changes from true to false.
+    // We include the other dependencies to satisfy the linter, but the logic is protected by the `!isLoading` check.
   }, [isLoading, user, userProfile, addProfileIfNotExists]);
+
 
   const [tourStep, setTourStep] = useState(0);
 
@@ -211,7 +214,6 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   };
   
   // A single, robust loading state.
-  // It waits for the hook to finish loading AND for the profile to be created if it's a new user.
   if (isLoading || !userProfile) {
     return (
         <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
