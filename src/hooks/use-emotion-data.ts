@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useFirebase, useUser, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, writeBatch, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { collection, doc, writeBatch, query, where, getDocs } from 'firebase/firestore';
 import type { Emotion, DiaryEntry, UserProfile, Reward } from '@/lib/types';
 import { deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak } from '@/lib/utils';

@@ -38,7 +38,7 @@ function AppGate() {
       const newProfile: Omit<UserProfile, 'id'> = {
         name: user.email?.split('@')[0] || defaultProfile.name,
         avatar: defaultProfile.avatar,
-        avatarType: defaultProfile.avatarType,
+        avatarType: 'emoji',
         unlockedAnimalIds: [],
         emotionCount: 0,
       };
