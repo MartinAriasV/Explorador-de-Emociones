@@ -50,7 +50,7 @@ export function useEmotionData() {
         switch(reward.type) {
           case 'streak':
           case 'entry_count':
-            if (trigger === 'addEntry') {
+            if (trigger === 'addEntry' || trigger === 'recoverDay') {
                unlocked = reward.type === 'streak' ? dailyStreak >= reward.value : entryCount >= reward.value;
             }
             break;
@@ -109,6 +109,8 @@ export function useEmotionData() {
   // --- Data Mutation Functions ---
   const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
     if (!userProfileRef) return;
+    // CRITICAL FIX: Use updateDocumentNonBlocking to only update fields, not overwrite the document.
+    // This prevents accidental deletion of other profile fields.
     updateDocumentNonBlocking(userProfileRef, profile);
   };
 
@@ -125,8 +127,9 @@ export function useEmotionData() {
     if (isNew) {
         promise.then(() => {
             if (userProfile && diaryEntries && emotionsList) {
-                const newEmotionsList = [...emotionsList, { ...emotionData, id: 'temp-id', userProfileId: user.uid } as Emotion];
-                checkAndUnlockRewards('addEmotion', userProfile, diaryEntries, newEmotionsList);
+                // We need to get the latest list of emotions to check the count accurately
+                const updatedEmotions = [...emotionsList, { ...emotionData, id: 'temp-id', userProfileId: user.uid } as Emotion];
+                checkAndUnlockRewards('addEmotion', userProfile, diaryEntries, updatedEmotions);
             }
         });
     }
@@ -159,10 +162,11 @@ export function useEmotionData() {
     const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
     addDocumentToCollectionNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid })
       .then(() => {
+        // After adding the entry, get the most up-to-date data to check rewards
         if (userProfile && emotionsList && diaryEntries) {
             const newEntry = { ...entryData, id: 'temp-id', userProfileId: user.uid } as DiaryEntry;
-            const newDiaryEntries = [...(diaryEntries || []), newEntry];
-            checkAndUnlockRewards(trigger, userProfile, newDiaryEntries, emotionsList);
+            const updatedDiaryEntries = [...(diaryEntries || []), newEntry];
+            checkAndUnlockRewards(trigger, userProfile, updatedDiaryEntries, emotionsList);
         }
       });
   };

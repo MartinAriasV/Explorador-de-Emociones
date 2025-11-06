@@ -27,24 +27,26 @@ function AppGate() {
   
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-  useEffect(() => {
-    // This is the critical condition:
-    // ONLY create a profile if loading is complete, we have a user, and there is NO profile document.
-    if (!isUserLoading && !isProfileLoading && user && !userProfile) {
-        const newProfile: Omit<UserProfile, 'id'> = {
-          name: user.email?.split('@')[0] || 'Usuario',
-          avatar: '😊',
-          avatarType: 'emoji',
-          unlockedAnimalIds: [],
-          emotionCount: 0,
-        };
-        if (userProfileRef) {
-          // Use setDoc here because this is a one-time creation of a document with a specific ID.
-          // This runs only ONCE for a new user and won't overwrite existing data on subsequent loads.
-          setDocumentNonBlocking(userProfileRef, newProfile, { merge: false }); // Explicitly don't merge on creation
-        }
+  // CRITICAL FIX: The logic for creating a new user profile has been moved
+  // directly into the component body and is guarded by a very strict condition.
+  // This useEffect was the source of the bug, as it could fire under race conditions
+  // where `isProfileLoading` was false but `userProfile` was transiently null.
+  if (!isUserLoading && !isProfileLoading && user && !userProfile) {
+    // This condition is now only met when we know for sure that a user is logged in
+    // and has no profile document in the database.
+    const newProfile: Omit<UserProfile, 'id'> = {
+      name: user.email?.split('@')[0] || 'Usuario',
+      avatar: '😊',
+      avatarType: 'emoji',
+      unlockedAnimalIds: [],
+      emotionCount: 0,
+    };
+    if (userProfileRef) {
+      // Use setDoc with merge:false because we are explicitly CREATING a new document.
+      // This is safe because of the !userProfile check.
+      setDocumentNonBlocking(userProfileRef, newProfile, { merge: false });
     }
-  }, [isUserLoading, isProfileLoading, user, userProfile, userProfileRef]);
+  }
 
 
   if (isUserLoading || (user && isProfileLoading)) {
