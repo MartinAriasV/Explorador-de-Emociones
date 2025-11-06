@@ -26,8 +26,6 @@ export function useEmotionData() {
 
   const isLoading = isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading;
   
-  const isInitialLoadComplete = useRef(false);
-
   // --- Reward Logic ---
   const checkAndUnlockRewards = (currentProfile: UserProfile, currentDiaryEntries: DiaryEntry[], currentEmotions: Emotion[]) => {
     if (!currentProfile) return;
@@ -163,24 +161,6 @@ export function useEmotionData() {
     const entryDoc = doc(firestore, 'users', user.uid, 'diaryEntries', entryId);
     deleteDocumentNonBlocking(entryDoc);
   };
-
-  // Check rewards whenever data changes, but only after the initial load of all data is complete.
-  useEffect(() => {
-    // This effect will run whenever any of the data streams change.
-    // We check if all data is available before proceeding.
-    if (userProfile && diaryEntries && emotionsList) {
-        if(isInitialLoadComplete.current) {
-            // After the first load, check rewards on any subsequent data change.
-            checkAndUnlockRewards(userProfile, diaryEntries, emotionsList);
-        } else {
-            // On the very first time all data is available, mark the initial load as complete.
-            // We don't check rewards here to avoid the pop-up on login, letting the logic
-            // in the data mutation functions handle unlocks for new actions.
-            isInitialLoadComplete.current = true;
-        }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userProfile, diaryEntries, emotionsList]);
 
   return {
     userProfile,
