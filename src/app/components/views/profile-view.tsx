@@ -14,13 +14,15 @@ import { useToast } from '@/hooks/use-toast';
 
 interface ProfileViewProps {
   userProfile: UserProfile | null;
-  setUserProfile: (profile: Omit<UserProfile, 'id'>) => void;
+  setUserProfile: (profile: Partial<Omit<UserProfile, 'id'>>) => void;
 }
 
 const defaultProfile: Omit<UserProfile, 'id'> = {
   name: 'Usuario',
   avatar: '😊',
   avatarType: 'emoji',
+  unlockedAnimalIds: [],
+  emotionCount: 0,
 };
 
 export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
