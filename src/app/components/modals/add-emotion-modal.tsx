@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface AddEmotionModalProps {
   initialData: (Partial<Emotion>) | null;
-  onSave: (emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string }) => void;
+  onSave: (emotionData: Omit<Emotion, 'id' | 'userProfileId' | 'isCustom'> & { id?: string, isCustom: boolean }) => void;
   onClose: () => void;
 }
 
@@ -44,18 +44,16 @@ export function AddEmotionModal({ initialData, onSave, onClose }: AddEmotionModa
     }
     if (!initialData) return;
     
-    const dataToSave: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string } = {
+    const dataToSave = {
         name,
         icon,
         description,
         color,
+        isCustom: initialData.isCustom ?? true,
     };
 
-    if (initialData.id) {
-        dataToSave.id = initialData.id;
-    }
-
     onSave(dataToSave);
+    onClose();
   };
 
   if (!initialData) return null;

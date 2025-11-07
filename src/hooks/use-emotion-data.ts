@@ -157,7 +157,14 @@ export function useEmotionData(user: User | null) {
       const emotionRef = doc(emotionsCollection, emotionData.id);
       await updateDocumentNonBlocking(emotionRef, dataToSave);
     } else {
-      await addDocumentToCollectionNonBlocking(emotionsCollection, dataToSave);
+      // Check if a non-custom emotion with the same name already exists
+      const q = query(emotionsCollection, where("name", "==", dataToSave.name), where("isCustom", "==", false));
+      const existing = await getDocs(q);
+      if (existing.empty) {
+        await addDocumentToCollectionNonBlocking(emotionsCollection, dataToSave);
+      } else {
+        console.log(`Predefined emotion "${dataToSave.name}" already exists. Skipping.`);
+      }
     }
     
     if (isNew) {

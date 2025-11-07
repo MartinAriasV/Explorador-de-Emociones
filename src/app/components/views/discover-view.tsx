@@ -39,7 +39,7 @@ export function DiscoverView({ onAddEmotion }: DiscoverViewProps) {
                         onClick={() => onAddEmotion({ 
                           name: emotion.name, 
                           icon: emotion.icon, 
-                          description: `${emotion.description} Ejemplo: ${emotion.example}`,
+                          description: `${emotion.description} Ejemplo: "${emotion.example}"`,
                           isCustom: false, // Mark as not custom
                         })}
                         className="w-full bg-primary hover:bg-primary/90"
