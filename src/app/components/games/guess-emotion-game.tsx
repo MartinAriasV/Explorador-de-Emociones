@@ -148,8 +148,6 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     )
   }
 
-  const correctEmotionDetails = allPredefinedEmotions.find(e => e.name.toLowerCase() === currentQuestion.correctAnswer.toLowerCase());
-
   return (
     <div className="flex flex-col items-center justify-center h-full gap-6">
       <div className="text-center w-full max-w-2xl">
@@ -171,7 +169,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
       <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
         {options.map((option) => {
             const isSelected = selectedAnswer?.id === option.id;
-            const isCorrect = correctEmotionDetails?.id === option.id;
+            const isCorrect = option.name.toLowerCase() === currentQuestion.correctAnswer.toLowerCase();
 
             return (
                  <Button
