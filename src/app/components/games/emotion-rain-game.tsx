@@ -14,6 +14,7 @@ interface Drop {
   y: number;
   speed: number;
   color: string; // The current color of the emoji
+  isRevealed: boolean; // New state to track if the true form is shown
 }
 
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -24,7 +25,8 @@ const GAME_WIDTH = 500;
 const GAME_HEIGHT = 400;
 const DROP_INTERVAL = 1200; // ms
 const MAX_LIVES = 5;
-const VISUAL_UPDATE_INTERVAL = 1200; // ms for color/icon change
+const VISUAL_UPDATE_INTERVAL = 2500; // ms for color/icon change (slowed down)
+const REVEAL_THRESHOLD = GAME_HEIGHT - 60; // When to reveal the true form
 
 export function EmotionRainGame({ emotionsList }: GameProps) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -35,6 +37,8 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
   const [lives, setLives] = useState(MAX_LIVES);
   
   const gameLoopRef = useRef<number>();
+  const dropTimerRef = useRef<number>();
+  const visualUpdateTimerRef = useRef<number>();
 
   const availableEmotions = useMemo(() => {
     const uniqueEmotions = Array.from(new Map(emotionsList.map(e => [e.name, e])).values());
@@ -47,18 +51,17 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
   }, [availableEmotions]);
 
   const selectNewTarget = useCallback(() => {
-    setTargetEmotion(prev => {
-        if (availableEmotions.length === 0) return null;
-        let nextTarget;
-        const otherEmotions = availableEmotions.filter(e => e.id !== prev?.id);
-        if (otherEmotions.length > 0) {
-            nextTarget = shuffleArray(otherEmotions)[0];
-        } else {
-            nextTarget = availableEmotions[0];
-        }
-        return nextTarget;
-    });
-  }, [availableEmotions]);
+    if (availableEmotions.length === 0) return null;
+    let nextTarget;
+    const otherEmotions = availableEmotions.filter(e => e.id !== targetEmotion?.id);
+    if (otherEmotions.length > 0) {
+        nextTarget = shuffleArray(otherEmotions)[0];
+    } else {
+        nextTarget = availableEmotions[0];
+    }
+    setTargetEmotion(nextTarget);
+    return nextTarget;
+  }, [availableEmotions, targetEmotion]);
 
   const handleDropClick = useCallback((clickedDropId: number) => {
     if (!isPlaying) return;
@@ -77,29 +80,37 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     });
   }, [isPlaying, selectNewTarget, targetEmotion]);
   
+  const stopGame = useCallback(() => {
+      setIsPlaying(false);
+      if(gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
+      if(dropTimerRef.current) clearInterval(dropTimerRef.current);
+      if(visualUpdateTimerRef.current) clearInterval(visualUpdateTimerRef.current);
+  }, []);
+  
   const startGame = useCallback(() => {
     if (availableEmotions.length < 5) return;
     setScore(0);
     setLives(MAX_LIVES);
     setDrops([]);
     setIsGameOver(false);
-    selectNewTarget();
-    setIsPlaying(true);
+    
+    // Ensure we have a target before starting the game
+    const initialTarget = selectNewTarget();
+    if(initialTarget) {
+        setIsPlaying(true);
+    }
   }, [availableEmotions.length, selectNewTarget]);
 
 
   useEffect(() => {
     if (lives <= 0 && isPlaying) {
-      setIsPlaying(false);
+      stopGame();
       setIsGameOver(true);
     }
-  }, [lives, isPlaying]);
+  }, [lives, isPlaying, stopGame]);
 
   useEffect(() => {
     if (!isPlaying) {
-      if (gameLoopRef.current) {
-        cancelAnimationFrame(gameLoopRef.current);
-      }
       return;
     }
 
@@ -107,7 +118,22 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     const gameLoop = () => {
       setDrops(prevDrops => {
         const newDrops = prevDrops
-            .map(drop => ({ ...drop, y: drop.y + drop.speed }))
+            .map(drop => {
+                const newY = drop.y + drop.speed;
+                let isRevealed = drop.isRevealed;
+                // Reveal the true form if it's a target and near the bottom
+                if (drop.emotion.id === targetEmotion?.id && newY > REVEAL_THRESHOLD && !drop.isRevealed) {
+                    isRevealed = true;
+                }
+
+                return { 
+                    ...drop, 
+                    y: newY,
+                    isRevealed,
+                    displayEmotion: isRevealed ? drop.emotion : drop.displayEmotion,
+                    color: isRevealed ? drop.emotion.color : drop.color,
+                };
+            })
             .filter(drop => {
                 if (drop.y > GAME_HEIGHT) {
                     if (drop.emotion.id === targetEmotion?.id) {
@@ -124,12 +150,12 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     gameLoopRef.current = requestAnimationFrame(gameLoop);
 
     // --- Drop Creation Interval ---
-    const dropTimer = setInterval(() => {
+    dropTimerRef.current = window.setInterval(() => {
         setDrops(prev => {
             if (!targetEmotion || availableEmotions.length === 0) return prev;
 
             let emotionForDrop: Emotion;
-            if (Math.random() < 0.4) {
+            if (Math.random() < 0.4) { // 40% chance to be the target
                 emotionForDrop = targetEmotion;
             } else {
                 const otherEmotions = availableEmotions.filter(e => e.id !== targetEmotion.id);
@@ -144,19 +170,22 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
                 y: -40,
                 speed: 1 + Math.random() * 1.5,
                 color: emotionForDrop.color,
+                isRevealed: false,
             };
             return [...prev, newDrop];
         });
     }, DROP_INTERVAL);
 
     // --- Visual Update Interval ---
-    const visualUpdateTimer = setInterval(() => {
+    visualUpdateTimerRef.current = window.setInterval(() => {
         setDrops(prev => 
             prev.map(drop => {
-                if (drop.emotion.id === targetEmotion?.id && availableEmotions.length > 1) {
+                // Only change appearance if it's a target and not yet revealed
+                if (drop.emotion.id === targetEmotion?.id && !drop.isRevealed && availableEmotions.length > 1) {
+                    const otherEmotions = availableEmotions.filter(e => e.id !== drop.emotion.id);
                     return {
                         ...drop,
-                        displayEmotion: shuffleArray(availableEmotions)[0],
+                        displayEmotion: shuffleArray(otherEmotions)[0],
                         color: shuffleArray(allColors)[0]
                     };
                 }
@@ -167,8 +196,8 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
 
     return () => {
       if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
-      clearInterval(dropTimer);
-      clearInterval(visualUpdateTimer);
+      if (dropTimerRef.current) clearInterval(dropTimerRef.current);
+      if (visualUpdateTimerRef.current) clearInterval(visualUpdateTimerRef.current);
     };
   }, [isPlaying, targetEmotion, availableEmotions, allColors]);
 
