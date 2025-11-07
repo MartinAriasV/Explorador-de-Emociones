@@ -7,7 +7,7 @@ import { EMOTION_ANTONYMS, PREDEFINED_EMOTIONS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Zap } from 'lucide-react';
 
 const shuffleArray = <T,>(array: T[]): T[] => {
   return [...array].sort(() => Math.random() - 0.5);
@@ -20,12 +20,11 @@ export function AntonymGame({ emotionsList }: GameProps) {
   const [isAnswered, setIsAnswered] = useState(false);
   const [score, setScore] = useState(0);
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const allEmotions = useMemo(() => {
     const emotionMap = new Map<string, Emotion>();
-    // First, add all predefined emotions as non-custom
     PREDEFINED_EMOTIONS.forEach(p => emotionMap.set(p.name.toLowerCase(), { ...p, id: p.name, userProfileId: 'system', isCustom: false } as Emotion));
-    // Then, overwrite with user's emotions, which might include customized versions of predefined ones
     emotionsList.forEach(e => emotionMap.set(e.name.toLowerCase(), e));
     return Array.from(emotionMap.values());
   }, [emotionsList]);
@@ -48,7 +47,6 @@ export function AntonymGame({ emotionsList }: GameProps) {
     
     if (!questionEmotion || !antonymEmotion) return;
 
-    // Incorrect options can be from all emotions (custom or not)
     const otherEmotions = allEmotions.filter(e => e.id !== questionEmotion!.id && e.id !== antonymEmotion!.id);
     const incorrectOptions = shuffleArray(otherEmotions).slice(0, 3);
     
@@ -61,8 +59,10 @@ export function AntonymGame({ emotionsList }: GameProps) {
   }, [allEmotions]);
 
   useEffect(() => {
-    generateQuestion();
-  }, [generateQuestion]);
+    if (isPlaying) {
+        generateQuestion();
+    }
+  }, [generateQuestion, isPlaying]);
 
   const handleAnswer = (answer: Emotion) => {
     if (isAnswered) return;
@@ -77,11 +77,19 @@ export function AntonymGame({ emotionsList }: GameProps) {
 
   const handleNext = () => {
     if (questionsAnswered >= 10) {
-      setScore(0);
-      setQuestionsAnswered(0);
+      setIsPlaying(false);
+    } else {
+      generateQuestion();
     }
-    generateQuestion();
   };
+
+  const startGame = () => {
+    setScore(0);
+    setQuestionsAnswered(0);
+    setIsAnswered(false);
+    setSelectedAnswer(null);
+    setIsPlaying(true);
+  }
   
   if (allEmotions.filter(e => !e.isCustom).length < 4) {
       return (
@@ -93,13 +101,21 @@ export function AntonymGame({ emotionsList }: GameProps) {
       );
   }
 
-  if (questionsAnswered >= 10) {
+  if (!isPlaying) {
     return (
         <div className="flex flex-col items-center justify-center h-full text-center p-8">
-            <h2 className="text-2xl font-bold text-primary">¡Juego Terminado!</h2>
-            <p className="text-5xl font-bold my-4">{score} / 10</p>
-            <p className="text-muted-foreground mb-6">¡Entender los opuestos es clave para el equilibrio emocional!</p>
-            <Button onClick={handleNext}>Jugar de Nuevo</Button>
+            <h2 className="text-2xl font-bold text-primary">Guerra de Antónimos</h2>
+            <p className="text-muted-foreground my-4 max-w-md">Encuentra la emoción opuesta (antónimo) a la que se muestra. Entender los opuestos es clave para el equilibrio.</p>
+            {questionsAnswered >= 10 && (
+                <>
+                    <p className="text-lg my-2">¡Partida terminada!</p>
+                    <p className="text-5xl font-bold mb-6">{score} / 10</p>
+                </>
+            )}
+            <Button onClick={startGame} size="lg">
+                <Zap className="mr-2" />
+                {questionsAnswered >= 10 ? 'Jugar de Nuevo' : 'Empezar'}
+            </Button>
         </div>
     );
   }

@@ -107,7 +107,7 @@ export function QuickJournalGame({ emotionsList }: GameProps) {
             <p className="text-muted-foreground mb-6">entradas registradas.</p>
           </>
         ) : (
-          <p className="text-muted-foreground my-4 max-w-md">Una emoción y una palabra clave aparecerán. Escribe un pensamiento que incluya la palabra clave para ganar tiempo extra.</p>
+          <p className="text-muted-foreground my-4 max-w-md">El objetivo es escribir un pensamiento rápido sobre la emoción que aparece. Si usas la "Palabra Clave", ¡ganas tiempo extra! Anota tantos como puedas.</p>
         )}
         <Button onClick={startGame} size="lg">
           <Zap className="mr-2" />

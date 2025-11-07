@@ -1,10 +1,11 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Emotion, GameProps } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Zap } from 'lucide-react';
 
 interface MemoryCard {
   id: string;
@@ -27,6 +28,7 @@ export function EmotionMemoryGame({ emotionsList }: GameProps) {
   const [moves, setMoves] = useState(0);
   const [isGameOver, setIsGameOver] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const availableEmotions = useMemo(() => {
     // Prioritize verified emotions, but allow custom ones if not enough verified ones are available.
@@ -39,6 +41,7 @@ export function EmotionMemoryGame({ emotionsList }: GameProps) {
     setIsGameOver(false);
     setMoves(0);
     setFlippedCards([]);
+    setIsPlaying(true);
     
     if (availableEmotions.length < CARD_COUNT) {
         setCards([]);
@@ -64,9 +67,11 @@ export function EmotionMemoryGame({ emotionsList }: GameProps) {
   };
 
   useEffect(() => {
-    setupGame();
+    if (isPlaying) {
+      setupGame();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [emotionsList]);
+  }, [isPlaying]);
 
   const handleCardClick = (index: number) => {
     if (isChecking || cards[index].isFlipped || flippedCards.length >= 2) {
@@ -118,6 +123,7 @@ export function EmotionMemoryGame({ emotionsList }: GameProps) {
   useEffect(() => {
     if (cards.length > 0 && cards.every(card => card.isMatched)) {
       setIsGameOver(true);
+      setIsPlaying(false);
     }
   }, [cards]);
 
@@ -131,13 +137,21 @@ export function EmotionMemoryGame({ emotionsList }: GameProps) {
     );
   }
 
-  if (isGameOver) {
+  if (!isPlaying) {
       return (
         <div className="flex flex-col items-center justify-center h-full text-center p-8">
-            <h2 className="text-2xl font-bold text-primary">¡Felicidades!</h2>
-            <p className="text-lg my-2">Completaste el juego en</p>
-            <p className="text-5xl font-bold mb-6">{moves} movimientos</p>
-            <Button onClick={setupGame}>Jugar de Nuevo</Button>
+            <h2 className="text-2xl font-bold text-primary">Memoria de Emociones</h2>
+            <p className="text-muted-foreground my-4 max-w-md">Encuentra los pares de emojis y sus nombres correspondientes. ¡Pon a prueba tu memoria emocional!</p>
+            {isGameOver && (
+                <>
+                    <p className="text-lg my-2">¡Partida terminada!</p>
+                    <p className="text-5xl font-bold mb-6">{moves} movimientos</p>
+                </>
+            )}
+            <Button onClick={() => setIsPlaying(true)} size="lg">
+                <Zap className="mr-2" />
+                {isGameOver ? 'Jugar de Nuevo' : 'Empezar'}
+            </Button>
         </div>
       )
   }

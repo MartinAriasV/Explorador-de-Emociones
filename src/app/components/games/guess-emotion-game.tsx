@@ -7,7 +7,7 @@ import { QUIZ_QUESTIONS, PREDEFINED_EMOTIONS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Zap } from 'lucide-react';
 
 const shuffleArray = <T,>(array: T[]): T[] => {
   let currentIndex = array.length;
@@ -42,6 +42,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
   const [difficultyIndex, setDifficultyIndex] = useState(0);
   const [questionHistory, setQuestionHistory] = useState<string[]>([]);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const allUserEmotions = useMemo(() => {
     const emotionMap = new Map<string, Emotion>();
@@ -65,26 +66,17 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
         return difficultyMatch && answerExists && notInHistory;
     });
 
-    // Fallback: If no unique questions for the current difficulty, try with all questions of that difficulty
     if (possibleQuestions.length === 0) {
         possibleQuestions = QUIZ_QUESTIONS.filter(q => {
              const difficultyMatch = q.difficulty === currentDifficulty;
              const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
              return difficultyMatch && answerExists;
         });
-    }
-
-    // Fallback 2: If still zero, try with an easier difficulty
-    if (possibleQuestions.length === 0 && difficultyIndex > 0) {
-        possibleQuestions = QUIZ_QUESTIONS.filter(q => {
-             const difficultyMatch = q.difficulty === difficulties[difficultyIndex - 1];
-             const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
-             return difficultyMatch && answerExists;
-        });
+        setQuestionHistory([]); // Reset history if we ran out of unique questions
     }
     
     if (possibleQuestions.length === 0) {
-        console.error("No valid quiz questions could be generated. The user may be missing key predefined emotions.");
+        console.error("No valid quiz questions could be generated.");
         setCurrentQuestion(null);
         return;
     }
@@ -94,7 +86,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
 
     if (!correctEmotion) {
         console.error(`Could not find correct emotion "${randomQuestion.correctAnswer}" in predefined list.`);
-        generateQuestion(); // Try again with another question
+        generateQuestion();
         return;
     }
 
@@ -112,11 +104,11 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
 
 
   useEffect(() => {
-    if (allUserEmotions.length >= 4 && questionsAnswered < QUESTIONS_PER_GAME) {
+    if (isPlaying && questionsAnswered < QUESTIONS_PER_GAME) {
       generateQuestion();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questionsAnswered]);
+  }, [questionsAnswered, isPlaying]);
 
   const handleAnswer = (answer: Emotion) => {
     if (isAnswered) return;
@@ -133,22 +125,17 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
   };
 
   const handleNext = () => {
-    if (questionsAnswered >= QUESTIONS_PER_GAME - 1) {
-       setQuestionsAnswered(prev => prev + 1); // Go to the final screen
-    } else {
-       setQuestionsAnswered(prev => prev + 1);
-       setIsAnswered(false); // Reset for the next question
-       setSelectedAnswer(null);
-    }
+    setQuestionsAnswered(prev => prev + 1);
   };
 
-  const restartGame = () => {
+  const startGame = () => {
     setScore(0);
     setQuestionsAnswered(0);
     setDifficultyIndex(0);
     setQuestionHistory([]);
     setIsAnswered(false);
     setSelectedAnswer(null);
+    setIsPlaying(true);
   };
   
   if (allUserEmotions.length < 4) {
@@ -161,15 +148,28 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
       )
   }
 
-  if (questionsAnswered >= QUESTIONS_PER_GAME) {
+  if (!isPlaying) {
     return (
         <div className="flex flex-col items-center justify-center h-full text-center p-8">
-            <h2 className="text-2xl font-bold text-primary">¡Juego Terminado!</h2>
-            <p className="text-5xl font-bold my-4">{score} / {QUESTIONS_PER_GAME}</p>
-            <p className="text-muted-foreground mb-6">¡Sigue practicando para mejorar tu inteligencia emocional!</p>
-            <Button onClick={restartGame}>Jugar de Nuevo</Button>
+            <h2 className="text-2xl font-bold text-primary">Adivina la Emoción</h2>
+            <p className="text-muted-foreground my-4 max-w-md">Lee la situación y elige la emoción que mejor la describe. ¡Demuestra tu inteligencia emocional!</p>
+            {questionsAnswered >= QUESTIONS_PER_GAME && (
+                <>
+                    <p className="text-lg my-2">¡Partida terminada!</p>
+                    <p className="text-5xl font-bold mb-6">{score} / {QUESTIONS_PER_GAME}</p>
+                </>
+            )}
+            <Button onClick={startGame} size="lg">
+                <Zap className="mr-2" />
+                {questionsAnswered >= QUESTIONS_PER_GAME ? 'Jugar de Nuevo' : 'Empezar'}
+            </Button>
         </div>
-    )
+    );
+  }
+  
+  if (questionsAnswered >= QUESTIONS_PER_GAME) {
+    setIsPlaying(false);
+    return null; // Will be re-rendered into the start screen
   }
   
   if (!currentQuestion) {

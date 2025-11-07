@@ -52,10 +52,19 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     selectNewTarget();
 
     const addDrop = () => {
-      if (availableEmotions.length === 0) return;
+      if (!targetEmotion || availableEmotions.length === 0) return;
+      
+      let emotionForDrop: Emotion;
+      // Make the target emotion appear more frequently
+      if (Math.random() > 0.4) { // 60% chance to be the target emotion
+          emotionForDrop = targetEmotion;
+      } else {
+          emotionForDrop = shuffleArray(availableEmotions.filter(e => e.id !== targetEmotion.id))[0] || targetEmotion;
+      }
+
       const newDrop: Drop = {
         id: Date.now() + Math.random(),
-        emotion: shuffleArray(availableEmotions)[0],
+        emotion: emotionForDrop,
         x: Math.random() * (GAME_WIDTH - 40),
         y: -40,
         speed: 1 + Math.random() * 1.5,
@@ -84,24 +93,13 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     gameLoopRef.current = requestAnimationFrame(gameLoop);
     dropTimerRef.current = window.setInterval(addDrop, DROP_INTERVAL);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableEmotions, selectNewTarget]);
+  }, [availableEmotions, selectNewTarget, targetEmotion]);
   
   const stopGame = useCallback(() => {
     setIsPlaying(false);
     if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
     if (dropTimerRef.current) clearInterval(dropTimerRef.current);
   }, []);
-
-  const handleDropClick = (clickedDrop: Drop) => {
-    if (!isPlaying) return;
-    if (clickedDrop.emotion.id === targetEmotion?.id) {
-      setScore(s => s + 1);
-      selectNewTarget();
-    } else {
-      setLives(l => l - 1);
-    }
-    setDrops(prev => prev.filter(d => d.id !== clickedDrop.id));
-  };
 
   useEffect(() => {
     if (lives <= 0) {
@@ -117,7 +115,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
         <p className="text-lg font-semibold">¡Faltan Emociones!</p>
-        <p>Necesitas al menos 5 emociones para jugar a este juego.</p>
+        <p>Necesitas al menos 5 emociones diferentes para jugar a este juego.</p>
       </div>
     );
   }
@@ -133,7 +131,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
             <p className="text-muted-foreground mb-6 -mt-4">puntos</p>
           </>
         ) : (
-          <p className="text-muted-foreground my-4 max-w-md">¡Reflejos rápidos! Haz clic en los emojis correctos a medida que caen. ¡No dejes que se te escapen! Tienes {MAX_LIVES} vidas.</p>
+          <p className="text-muted-foreground my-4 max-w-md">El objetivo es hacer clic en el emoji que corresponde a la emoción que se te pide. ¡Cuidado! Si dejas escapar la emoción correcta o haces clic en la incorrecta, pierdes una vida.</p>
         )}
         <Button onClick={startGame} size="lg">
           {score > 0 || lives < MAX_LIVES ? <RotateCw className="mr-2" /> : <Play className="mr-2" />}
