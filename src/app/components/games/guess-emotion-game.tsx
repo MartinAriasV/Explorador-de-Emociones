@@ -32,21 +32,27 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
   }, [emotionsList]);
   
   const generateQuestion = useCallback(() => {
-    const currentDifficulty = difficulties[difficultyIndex];
-    const questionsOfDifficulty = QUIZ_QUESTIONS.filter(q => q.difficulty === currentDifficulty);
-    const randomQuestion = shuffleArray(questionsOfDifficulty)[0];
+    let questionsOfDifficulty = QUIZ_QUESTIONS.filter(q => q.difficulty === difficulties[difficultyIndex]);
+
+    // Fallback: If no questions for the current difficulty, try with 'Fácil'
+    if (questionsOfDifficulty.length === 0) {
+        questionsOfDifficulty = QUIZ_QUESTIONS.filter(q => q.difficulty === 'Fácil');
+    }
     
-    if (!randomQuestion) {
-      // Fallback if no questions for that difficulty
-      setCurrentQuestion(null);
-      return;
+    // If still no questions, something is wrong with constants.
+    if (questionsOfDifficulty.length === 0) {
+        console.error("No quiz questions found, even for 'Fácil' difficulty.");
+        setCurrentQuestion(null);
+        return;
     }
 
+    const randomQuestion = shuffleArray(questionsOfDifficulty)[0];
     const correctEmotion = allEmotions.find(e => e.name.toLowerCase() === randomQuestion.correctAnswer.toLowerCase());
     
     if (!correctEmotion) {
-        // Fallback if correct emotion not found (shouldn't happen with PREDEFINED_EMOTIONS)
-        setCurrentQuestion(null);
+        // This can happen if a predefined emotion for a question is missing.
+        // To recover, let's just try generating a different question.
+        generateQuestion();
         return;
     }
 
@@ -64,7 +70,8 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     if (allEmotions.length >= 4) {
       generateQuestion();
     }
-  }, [generateQuestion, allEmotions.length]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allEmotions.length]); // Only re-run when the number of emotions changes.
 
   const handleAnswer = (answer: Emotion) => {
     if (isAnswered) return;
@@ -89,6 +96,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
       setQuestionsAnswered(0);
       setDifficultyIndex(0); // Reset difficulty
     }
+    // We call generateQuestion directly which is now memoized
     generateQuestion();
   };
   
