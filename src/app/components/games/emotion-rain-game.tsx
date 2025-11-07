@@ -65,11 +65,8 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     });
   }, [availableEmotions]);
 
-  const stopGame = useCallback((gameOver: boolean) => {
+  const stopGame = useCallback(() => {
     setIsPlaying(false);
-    if (gameOver) {
-      setIsGameOver(true);
-    }
     if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
     if (dropTimerRef.current) clearInterval(dropTimerRef.current);
     if (visualUpdateTimerRef.current) clearInterval(visualUpdateTimerRef.current);
@@ -104,14 +101,9 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     setLives(MAX_LIVES);
     setDrops([]);
     setIsGameOver(false);
-    
-    // Set an initial target so the game can start correctly
-    if (!targetEmotionRef.current) {
-        setTargetEmotion(shuffleArray(availableEmotions)[0]);
-    }
+    selectNewTarget();
     setIsPlaying(true);
-
-  }, [availableEmotions]);
+  }, [availableEmotions, selectNewTarget]);
 
   const gameLoop = useCallback(() => {
     if (!isPlayingRef.current) return;
@@ -134,12 +126,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
 
   useEffect(() => {
     if (isPlaying) {
-        // Ensure we have a target emotion to start
-        if (!targetEmotion) {
-            selectNewTarget();
-            // The rest of the logic will run in the next render cycle after state update
-            return;
-        }
+        if (!targetEmotionRef.current) return;
 
         gameLoopRef.current = requestAnimationFrame(gameLoop);
 
@@ -169,36 +156,37 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
         }, DROP_INTERVAL);
 
         visualUpdateTimerRef.current = setInterval(() => {
-            if (!isPlayingRef.current || availableEmotions.length < 2) return;
+            if (!isPlayingRef.current || availableEmotions.length < 2 || !targetEmotionRef.current) return;
+            const currentTargetId = targetEmotionRef.current.id;
+
             setDrops(prev =>
-                prev.map(drop => ({
-                    ...drop,
-                    displayEmotion: shuffleArray(availableEmotions)[0],
-                    color: shuffleArray(allColors)[0]
-                }))
+                prev.map(drop => {
+                    // Only change the appearance of the target drops
+                    if (drop.emotion.id === currentTargetId) {
+                        return {
+                            ...drop,
+                            displayEmotion: shuffleArray(availableEmotions)[0],
+                            color: shuffleArray(allColors)[0]
+                        };
+                    }
+                    // Leave distractor drops unchanged
+                    return drop;
+                })
             );
         }, VISUAL_UPDATE_INTERVAL);
     } else {
-        // Cleanup when isPlaying becomes false
-        if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
-        if (dropTimerRef.current) clearInterval(dropTimerRef.current);
-        if (visualUpdateTimerRef.current) clearInterval(visualUpdateTimerRef.current);
+        stopGame();
     }
-
-    // Cleanup function runs on unmount or when isPlaying changes
-    return () => {
-        if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
-        if (dropTimerRef.current) clearInterval(dropTimerRef.current);
-        if (visualUpdateTimerRef.current) clearInterval(visualUpdateTimerRef.current);
-    };
-  }, [isPlaying, availableEmotions, allColors, selectNewTarget, gameLoop, targetEmotion]);
+    return stopGame;
+  }, [isPlaying, availableEmotions, allColors, selectNewTarget, gameLoop]);
 
 
   useEffect(() => {
-    if (lives <= 0 && isPlaying) {
-      stopGame(true);
+    if (lives <= 0 && isPlayingRef.current) {
+      stopGame();
+      setIsGameOver(true);
     }
-  }, [lives, isPlaying, stopGame]);
+  }, [lives, stopGame]);
 
   if (availableEmotions.length < 5) {
     return (
@@ -210,25 +198,32 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     );
   }
 
-  if (!isPlaying) {
+  if (!isPlaying && !isGameOver) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
         <h2 className="text-2xl font-bold text-primary">Lluvia de Emociones</h2>
-        {isGameOver ? (
-          <>
-            <p className="text-lg my-2">¡Juego terminado!</p>
-            <p className="text-5xl font-bold mb-6">{score}</p>
-            <p className="text-muted-foreground mb-6 -mt-4">puntos</p>
-          </>
-        ) : (
-          <p className="text-muted-foreground my-4 max-w-md">El objetivo es hacer clic en el emoji que corresponde a la emoción que se te pide. ¡Cuidado! Las apariencias engañan. Tienes {MAX_LIVES} vidas.</p>
-        )}
+        <p className="text-muted-foreground my-4 max-w-md">El objetivo es hacer clic en el emoji que corresponde a la emoción que se te pide. ¡Cuidado! Las apariencias engañan. Tienes {MAX_LIVES} vidas.</p>
         <Button onClick={startGame} size="lg">
-          {isGameOver ? <RotateCw className="mr-2" /> : <Play className="mr-2" />}
-          {isGameOver ? 'Jugar de Nuevo' : 'Empezar'}
+          <Play className="mr-2" />
+          Empezar
         </Button>
       </div>
     );
+  }
+  
+  if (isGameOver) {
+      return (
+          <div className="flex flex-col items-center justify-center h-full text-center p-8">
+            <h2 className="text-2xl font-bold text-primary">Lluvia de Emociones</h2>
+            <p className="text-lg my-2">¡Juego terminado!</p>
+            <p className="text-5xl font-bold mb-6">{score}</p>
+            <p className="text-muted-foreground mb-6 -mt-4">puntos</p>
+            <Button onClick={startGame} size="lg">
+              <RotateCw className="mr-2" />
+              Jugar de Nuevo
+            </Button>
+          </div>
+      )
   }
 
   return (
