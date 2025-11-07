@@ -35,14 +35,6 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
   const [lives, setLives] = useState(MAX_LIVES);
   
   const gameLoopRef = useRef<number>();
-  const dropTimerRef = useRef<NodeJS.Timeout>();
-  const visualUpdateTimerRef = useRef<NodeJS.Timeout>();
-
-  const isPlayingRef = useRef(isPlaying);
-  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
-
-  const targetEmotionRef = useRef(targetEmotion);
-  useEffect(() => { targetEmotionRef.current = targetEmotion; }, [targetEmotion]);
 
   const availableEmotions = useMemo(() => {
     const uniqueEmotions = Array.from(new Map(emotionsList.map(e => [e.name, e])).values());
@@ -55,64 +47,70 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
   }, [availableEmotions]);
 
   const selectNewTarget = useCallback(() => {
-    if (availableEmotions.length === 0) return;
     setTargetEmotion(prev => {
+        if (availableEmotions.length === 0) return null;
         let nextTarget;
-        do {
-          nextTarget = shuffleArray(availableEmotions)[0];
-        } while (availableEmotions.length > 1 && nextTarget.id === prev?.id);
+        const otherEmotions = availableEmotions.filter(e => e.id !== prev?.id);
+        if (otherEmotions.length > 0) {
+            nextTarget = shuffleArray(otherEmotions)[0];
+        } else {
+            nextTarget = availableEmotions[0];
+        }
         return nextTarget;
     });
   }, [availableEmotions]);
 
-  const stopGame = useCallback(() => {
-    setIsPlaying(false);
-    if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
-    if (dropTimerRef.current) clearInterval(dropTimerRef.current);
-    if (visualUpdateTimerRef.current) clearInterval(visualUpdateTimerRef.current);
-  }, []);
+  const handleDropClick = useCallback((clickedDropId: number) => {
+    if (!isPlaying) return;
 
-  const handleDropClick = (clickedDropId: number) => {
-    if (!isPlayingRef.current || !targetEmotionRef.current) return;
-
-    let correctClick = false;
-    setDrops(prev => prev.filter(drop => {
-      if (drop.id === clickedDropId) {
-        if (drop.emotion.id === targetEmotionRef.current!.id) {
-          correctClick = true;
+    setDrops(prev => {
+        const clickedDrop = prev.find(d => d.id === clickedDropId);
+        if (clickedDrop) {
+            if (clickedDrop.emotion.id === targetEmotion?.id) {
+                setScore(s => s + 1);
+                selectNewTarget();
+            } else {
+                setLives(l => l - 1);
+            }
         }
-        return false; // Remove the clicked drop
-      }
-      return true;
-    }));
-
-    if (correctClick) {
-      setScore(s => s + 1);
-      selectNewTarget();
-    } else {
-      setLives(l => Math.max(0, l - 1));
-    }
-  };
+        return prev.filter(drop => drop.id !== clickedDropId);
+    });
+  }, [isPlaying, selectNewTarget, targetEmotion]);
   
   const startGame = useCallback(() => {
     if (availableEmotions.length < 5) return;
-
     setScore(0);
     setLives(MAX_LIVES);
     setDrops([]);
     setIsGameOver(false);
-    selectNewTarget(); // Select a target first
-    setIsPlaying(true); // Then start the game
-  }, [availableEmotions, selectNewTarget]);
+    selectNewTarget();
+    setIsPlaying(true);
+  }, [availableEmotions.length, selectNewTarget]);
 
-  const gameLoop = useCallback(() => {
-    if (!isPlayingRef.current) return;
-    setDrops(prevDrops => {
+
+  useEffect(() => {
+    if (lives <= 0 && isPlaying) {
+      setIsPlaying(false);
+      setIsGameOver(true);
+    }
+  }, [lives, isPlaying]);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      if (gameLoopRef.current) {
+        cancelAnimationFrame(gameLoopRef.current);
+      }
+      return;
+    }
+
+    // --- Game Animation Loop ---
+    const gameLoop = () => {
+      setDrops(prevDrops => {
         const newDrops = prevDrops
             .map(drop => ({ ...drop, y: drop.y + drop.speed }))
             .filter(drop => {
                 if (drop.y > GAME_HEIGHT) {
-                    if (drop.emotion.id === targetEmotionRef.current?.id) {
+                    if (drop.emotion.id === targetEmotion?.id) {
                         setLives(l => Math.max(0, l - 1));
                     }
                     return false;
@@ -120,26 +118,22 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
                 return true;
             });
         return newDrops;
-    });
+      });
+      gameLoopRef.current = requestAnimationFrame(gameLoop);
+    };
     gameLoopRef.current = requestAnimationFrame(gameLoop);
-  }, []);
 
-  useEffect(() => {
-    if (isPlaying && targetEmotion) { // Ensure there is a target before starting loops
-        gameLoopRef.current = requestAnimationFrame(gameLoop);
+    // --- Drop Creation Interval ---
+    const dropTimer = setInterval(() => {
+        setDrops(prev => {
+            if (!targetEmotion || availableEmotions.length === 0) return prev;
 
-        dropTimerRef.current = setInterval(() => {
-            if (!isPlayingRef.current || availableEmotions.length === 0 || !targetEmotionRef.current) return;
-            
-            const currentTarget = targetEmotionRef.current;
             let emotionForDrop: Emotion;
-
-            // 40% chance to be the target emotion
             if (Math.random() < 0.4) {
-                emotionForDrop = currentTarget;
+                emotionForDrop = targetEmotion;
             } else {
-                const otherEmotions = availableEmotions.filter(e => e.id !== currentTarget.id);
-                emotionForDrop = otherEmotions.length > 0 ? shuffleArray(otherEmotions)[0] : currentTarget;
+                const otherEmotions = availableEmotions.filter(e => e.id !== targetEmotion.id);
+                emotionForDrop = otherEmotions.length > 0 ? shuffleArray(otherEmotions)[0] : targetEmotion;
             }
             
             const newDrop: Drop = {
@@ -151,41 +145,32 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
                 speed: 1 + Math.random() * 1.5,
                 color: emotionForDrop.color,
             };
-            setDrops(prev => [...prev, newDrop]);
-        }, DROP_INTERVAL);
+            return [...prev, newDrop];
+        });
+    }, DROP_INTERVAL);
 
-        visualUpdateTimerRef.current = setInterval(() => {
-            if (!isPlayingRef.current || availableEmotions.length < 2 || !targetEmotionRef.current) return;
-            const currentTargetId = targetEmotionRef.current.id;
+    // --- Visual Update Interval ---
+    const visualUpdateTimer = setInterval(() => {
+        setDrops(prev => 
+            prev.map(drop => {
+                if (drop.emotion.id === targetEmotion?.id && availableEmotions.length > 1) {
+                    return {
+                        ...drop,
+                        displayEmotion: shuffleArray(availableEmotions)[0],
+                        color: shuffleArray(allColors)[0]
+                    };
+                }
+                return drop;
+            })
+        );
+    }, VISUAL_UPDATE_INTERVAL);
 
-            setDrops(prev =>
-                prev.map(drop => {
-                    // Only change the appearance of the target drops
-                    if (drop.emotion.id === currentTargetId) {
-                        return {
-                            ...drop,
-                            displayEmotion: shuffleArray(availableEmotions)[0],
-                            color: shuffleArray(allColors)[0]
-                        };
-                    }
-                    // Leave distractor drops unchanged
-                    return drop;
-                })
-            );
-        }, VISUAL_UPDATE_INTERVAL);
-    } else {
-        stopGame();
-    }
-    return stopGame;
-  }, [isPlaying, targetEmotion, availableEmotions, allColors, gameLoop, stopGame]);
-
-
-  useEffect(() => {
-    if (lives <= 0 && isPlayingRef.current) {
-      stopGame();
-      setIsGameOver(true);
-    }
-  }, [lives, stopGame]);
+    return () => {
+      if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
+      clearInterval(dropTimer);
+      clearInterval(visualUpdateTimer);
+    };
+  }, [isPlaying, targetEmotion, availableEmotions, allColors]);
 
   if (availableEmotions.length < 5) {
     return (
