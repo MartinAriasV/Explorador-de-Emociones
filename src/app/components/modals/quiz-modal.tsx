@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
@@ -134,7 +135,7 @@ export function QuizModal({ onClose, onComplete }: QuizModalProps) {
             {isAnswered && (
                 <div className="w-full flex flex-col sm:flex-row items-center gap-4 animate-fade-in">
                     <p className={cn("text-lg font-bold", isCorrect ? 'text-green-600' : 'text-destructive')}>
-                        {isCorrect ? '¡Correcto!' : 'Incorrecto.'}
+                        {isCorrect ? '¡Correcto!' : `Incorrecto. La respuesta era: ${currentQuestion.correctAnswer}`}
                     </p>
                     <Button onClick={handleNext} className="w-full sm:w-auto ml-auto">
                         {currentQuestionIndex === questions.length - 1 ? 'Finalizar Desafío' : 'Siguiente Pregunta'}
