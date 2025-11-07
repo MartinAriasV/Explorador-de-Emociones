@@ -10,7 +10,24 @@ import { cn } from '@/lib/utils';
 import { CheckCircle, XCircle } from 'lucide-react';
 
 const shuffleArray = <T,>(array: T[]): T[] => {
-  return [...array].sort(() => Math.random() - 0.5);
+  let currentIndex = array.length;
+  let randomIndex;
+  const newArray = [...array];
+
+  // While there remain elements to shuffle.
+  while (currentIndex !== 0) {
+    // Pick a remaining element.
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex--;
+
+    // And swap it with the current element.
+    [newArray[currentIndex], newArray[randomIndex]] = [
+      newArray[randomIndex],
+      newArray[currentIndex],
+    ];
+  }
+
+  return newArray;
 };
 
 const difficulties: QuizQuestion['difficulty'][] = ['Fácil', 'Medio', 'Difícil', 'Experto'];
@@ -48,20 +65,21 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
         return difficultyMatch && answerExists && notInHistory;
     });
 
+    // Fallback: If no unique questions for the current difficulty, try with all questions of that difficulty
     if (possibleQuestions.length === 0) {
         possibleQuestions = QUIZ_QUESTIONS.filter(q => {
              const difficultyMatch = q.difficulty === currentDifficulty;
              const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
              return difficultyMatch && answerExists;
         });
-        // If still no unique questions at this difficulty, we might reuse some, but the history should be cleared for a new game.
     }
 
-    if (possibleQuestions.length === 0) {
+    // Fallback 2: If still zero, try with an easier difficulty
+    if (possibleQuestions.length === 0 && difficultyIndex > 0) {
         possibleQuestions = QUIZ_QUESTIONS.filter(q => {
-            const difficultyMatch = q.difficulty === 'Fácil';
-            const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
-            return difficultyMatch && answerExists;
+             const difficultyMatch = q.difficulty === difficulties[difficultyIndex - 1];
+             const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
+             return difficultyMatch && answerExists;
         });
     }
     
@@ -76,7 +94,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
 
     if (!correctEmotion) {
         console.error(`Could not find correct emotion "${randomQuestion.correctAnswer}" in predefined list.`);
-        setCurrentQuestion(null);
+        generateQuestion(); // Try again with another question
         return;
     }
 
@@ -94,7 +112,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
 
 
   useEffect(() => {
-    if (allUserEmotions.length >= 4) {
+    if (allUserEmotions.length >= 4 && questionsAnswered < QUESTIONS_PER_GAME) {
       generateQuestion();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -119,6 +137,8 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
        setQuestionsAnswered(prev => prev + 1); // Go to the final screen
     } else {
        setQuestionsAnswered(prev => prev + 1);
+       setIsAnswered(false); // Reset for the next question
+       setSelectedAnswer(null);
     }
   };
 
@@ -127,6 +147,8 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     setQuestionsAnswered(0);
     setDifficultyIndex(0);
     setQuestionHistory([]);
+    setIsAnswered(false);
+    setSelectedAnswer(null);
   };
   
   if (allUserEmotions.length < 4) {

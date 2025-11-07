@@ -190,176 +190,50 @@ export const REWARDS: Reward[] = [
 ];
 
 export const QUIZ_QUESTIONS: QuizQuestion[] = [
-    // Fácil
-    {
-        question: 'Recibes una bicicleta nueva para tu cumpleaños. ¿Qué sientes?',
-        options: ['Alegría', 'Tristeza', 'Ira', 'Miedo'],
-        correctAnswer: 'Alegría',
-        difficulty: 'Fácil',
-    },
-    {
-        question: 'Estás en la cama por la noche y escuchas un ruido extraño en la casa. ¿Qué sientes?',
-        options: ['Calma', 'Aburrimiento', 'Miedo', 'Sorpresa'],
-        correctAnswer: 'Miedo',
-        difficulty: 'Fácil',
-    },
-    {
-        question: 'Tu mejor amigo te dice que se va a mudar a otra ciudad. ¿Qué sientes?',
-        options: ['Euforia', 'Tristeza', 'Orgullo', 'Alivio'],
-        correctAnswer: 'Tristeza',
-        difficulty: 'Fácil',
-    },
-    {
-        question: 'Alguien se salta la fila delante de ti. ¿Qué sientes?',
-        options: ['Gratitud', 'Ira', 'Amor', 'Nostalgia'],
-        correctAnswer: 'Ira',
-        difficulty: 'Fácil',
-    },
-    {
-        question: 'Estás sentado en la playa, escuchando las olas. ¿Qué sientes?',
-        options: ['Ansiedad', 'Confusión', 'Calma', 'Frustración'],
-        correctAnswer: 'Calma',
-        difficulty: 'Fácil',
-    },
-     {
-        question: 'Tu equipo gana un partido importante. ¿Qué sientes?',
-        options: ['Alegría', 'Decepción', 'Miedo', 'Tristeza'],
-        correctAnswer: 'Alegría',
-        difficulty: 'Fácil',
-    },
-    {
-        question: 'Se te cae el helado al suelo justo después de comprarlo. ¿Qué sientes?',
-        options: ['Ira', 'Calma', 'Sorpresa', 'Alegría'],
-        correctAnswer: 'Ira',
-        difficulty: 'Fácil',
-    },
-    // Medio
-    {
-        question: 'Has estudiado mucho para un examen y obtienes una nota excelente. ¿Qué sientes?',
-        options: ['Decepción', 'Orgullo', 'Vergüenza', 'Soledad'],
-        correctAnswer: 'Orgullo',
-        difficulty: 'Medio',
-    },
-    {
-        question: 'Tienes que hablar en público y sientes mariposas en el estómago. ¿Qué sientes?',
-        options: ['Serenidad', 'Ansiedad', 'Curiosidad', 'Valentía'],
-        correctAnswer: 'Ansiedad',
-        difficulty: 'Medio',
-    },
-    {
-        question: 'Un amigo te ayuda con un problema difícil sin que se lo pidas. ¿Qué sientes?',
-        options: ['Ira', 'Gratitud', 'Envidia', 'Miedo'],
-        correctAnswer: 'Gratitud',
-        difficulty: 'Medio',
-    },
-    {
-        question: 'Te caes delante de mucha gente. ¿Qué sientes?',
-        options: ['Orgullo', 'Valentía', 'Vergüenza', 'Confianza'],
-        correctAnswer: 'Vergüenza',
-        difficulty: 'Medio',
-    },
-    {
-        question: 'Llegas a casa y tus amigos te han preparado una fiesta sorpresa. ¿Qué sientes?',
-        options: ['Tristeza', 'Sorpresa', 'Aburrimiento', 'Decepción'],
-        correctAnswer: 'Sorpresa',
-        difficulty: 'Medio',
-    },
-     {
-        question: 'Ves una película que te recuerda a tu infancia. ¿Qué sientes?',
-        options: ['Nostalgia', 'Euforia', 'Ira', 'Confusión'],
-        correctAnswer: 'Nostalgia',
-        difficulty: 'Medio',
-    },
-    {
-        question: 'Un plan que tenías muchas ganas de hacer se cancela en el último momento. ¿Qué sientes?',
-        options: ['Decepción', 'Alivio', 'Alegría', 'Sorpresa'],
-        correctAnswer: 'Decepción',
-        difficulty: 'Medio',
-    },
-    // Difícil
-    {
-        question: 'Llevas semanas esperando un paquete y te notifican que se ha perdido. ¿Qué sientes?',
-        options: ['Alivio', 'Euforia', 'Frustración', 'Esperanza'],
-        correctAnswer: 'Frustración',
-        difficulty: 'Difícil',
-    },
-    {
-        question: 'Estás trabajando en un proyecto creativo y de repente se te ocurre una idea genial. ¿Qué sientes?',
-        options: ['Confusión', 'Inspiración', 'Soledad', 'Nostalgia'],
-        correctAnswer: 'Inspiración',
-        difficulty: 'Difícil',
-    },
-    {
-        question: 'Alguien a quien admiras reconoce tu trabajo y te felicita. ¿Qué sientes?',
-        options: ['Orgullo', 'Valentía', 'Confianza', 'Gratitud'],
-        correctAnswer: 'Orgullo',
-        difficulty: 'Difícil',
-    },
-    {
-        question: 'Creías que habías perdido la cartera, pero la encuentras en tu bolsillo. ¿Qué sientes?',
-        options: ['Decepción', 'Alivio', 'Ansiedad', 'Tristeza'],
-        correctAnswer: 'Alivio',
-        difficulty: 'Difícil',
-    },
-    {
-        question: 'Te enfrentas a un gran desafío, pero crees firmemente en tu capacidad para superarlo. ¿Qué sientes?',
-        options: ['Miedo', 'Valentía', 'Confusión', 'Ira'],
-        correctAnswer: 'Valentía',
-        difficulty: 'Difícil',
-    },
-     {
-        question: 'Te sientes muy agradecido por todo lo bueno que tienes en la vida. ¿Qué sientes?',
-        options: ['Gratitud', 'Orgullo', 'Alegría', 'Calma'],
-        correctAnswer: 'Gratitud',
-        difficulty: 'Difícil',
-    },
-    {
-        question: 'Estás en un lugar nuevo y quieres explorarlo todo. ¿Qué sientes?',
-        options: ['Curiosidad', 'Miedo', 'Ansiedad', 'Confusión'],
-        correctAnswer: 'Curiosidad',
-        difficulty: 'Difícil',
-    },
-    // Experto
-    {
-        question: 'Ganas una competición importante después de meses de duro entrenamiento. Sientes una alegría inmensa. ¿Qué sientes?',
-        options: ['Serenidad', 'Euforia', 'Calma', 'Alivio'],
-        correctAnswer: 'Euforia',
-        difficulty: 'Experto',
-    },
-    {
-        question: 'A pesar de los contratiempos, sigues creyendo que tu situación mejorará. ¿Qué sientes?',
-        options: ['Decepción', 'Esperanza', 'Frustración', 'Tristeza'],
-        correctAnswer: 'Esperanza',
-        difficulty: 'Experto',
-    },
-    {
-        question: 'Pasas tiempo con una persona que es muy importante para ti y sientes una conexión profunda. ¿Qué sientes?',
-        options: ['Gratitud', 'Amor', 'Confianza', 'Alegría'],
-        correctAnswer: 'Amor',
-        difficulty: 'Experto',
-    },
-    {
-        question: 'Te proponen un nuevo proyecto que despierta tu interés y te impulsa a empezar a trabajar en él inmediatamente. ¿Qué sientes?',
-        options: ['Entusiasmo', 'Ansiedad', 'Curiosidad', 'Motivación'],
-        correctAnswer: 'Motivación',
-        difficulty: 'Experto',
-    },
-    {
-        question: 'Recibes varias instrucciones contradictorias y no estás seguro de qué hacer. ¿Qué sientes?',
-        options: ['Ansiedad', 'Confusión', 'Frustración', 'Ira'],
-        correctAnswer: 'Confusión',
-        difficulty: 'Experto',
-    },
-      {
-        question: 'Tras un día ajetreado, te sientas en silencio y sientes una profunda paz interior. ¿Qué sientes?',
-        options: ['Serenidad', 'Soledad', 'Tristeza', 'Calma'],
-        correctAnswer: 'Serenidad',
-        difficulty: 'Experto',
-    },
-    {
-        question: 'Un amigo cercano te traiciona. ¿Qué sientes?',
-        options: ['Decepción', 'Ira', 'Tristeza', 'Frustración'],
-        correctAnswer: 'Decepción',
-        difficulty: 'Experto',
-    },
+    // --- Fácil ---
+    { question: 'Recibes una bicicleta nueva para tu cumpleaños. ¿Qué sientes?', options: ['Alegría', 'Tristeza', 'Ira', 'Miedo'], correctAnswer: 'Alegría', difficulty: 'Fácil' },
+    { question: 'Estás en la cama por la noche y escuchas un ruido extraño en la casa. ¿Qué sientes?', options: ['Calma', 'Aburrimiento', 'Miedo', 'Sorpresa'], correctAnswer: 'Miedo', difficulty: 'Fácil' },
+    { question: 'Tu mejor amigo te dice que se va a mudar a otra ciudad. ¿Qué sientes?', options: ['Euforia', 'Tristeza', 'Orgullo', 'Alivio'], correctAnswer: 'Tristeza', difficulty: 'Fácil' },
+    { question: 'Alguien se salta la fila delante de ti en el supermercado. ¿Qué sientes?', options: ['Gratitud', 'Ira', 'Amor', 'Nostalgia'], correctAnswer: 'Ira', difficulty: 'Fácil' },
+    { question: 'Estás sentado en la playa, escuchando las olas y sintiendo la brisa. ¿Qué sientes?', options: ['Ansiedad', 'Confusión', 'Calma', 'Frustración'], correctAnswer: 'Calma', difficulty: 'Fácil' },
+    { question: 'Tu equipo de fútbol favorito gana un partido importante en el último minuto. ¿Qué sientes?', options: ['Alegría', 'Decepción', 'Miedo', 'Tristeza'], correctAnswer: 'Alegría', difficulty: 'Fácil' },
+    { question: 'Se te cae el helado al suelo justo después de comprarlo. ¿Qué sientes?', options: ['Frustración', 'Calma', 'Sorpresa', 'Alegría'], correctAnswer: 'Frustración', difficulty: 'Fácil' },
+    { question: 'Abres un regalo y es justo lo que querías. ¿Qué sientes?', options: ['Sorpresa', 'Decepción', 'Miedo', 'Tristeza'], correctAnswer: 'Sorpresa', difficulty: 'Fácil' },
+
+    // --- Medio ---
+    { question: 'Has estudiado mucho para un examen y obtienes una nota excelente. ¿Qué sientes?', options: ['Decepción', 'Orgullo', 'Vergüenza', 'Soledad'], correctAnswer: 'Orgullo', difficulty: 'Medio' },
+    { question: 'Tienes que hablar en público y sientes mariposas en el estómago. ¿Qué sientes?', options: ['Serenidad', 'Ansiedad', 'Curiosidad', 'Valentía'], correctAnswer: 'Ansiedad', difficulty: 'Medio' },
+    { question: 'Un amigo te ayuda con un problema difícil sin que se lo pidas. ¿Qué sientes?', options: ['Ira', 'Gratitud', 'Envidia', 'Miedo'], correctAnswer: 'Gratitud', difficulty: 'Medio' },
+    { question: 'Te caes delante de mucha gente en el patio del colegio. ¿Qué sientes?', options: ['Orgullo', 'Valentía', 'Vergüenza', 'Confianza'], correctAnswer: 'Vergüenza', difficulty: 'Medio' },
+    { question: 'Llegas a casa y tus amigos te han preparado una fiesta sorpresa. ¿Qué sientes?', options: ['Tristeza', 'Sorpresa', 'Aburrimiento', 'Decepción'], correctAnswer: 'Sorpresa', difficulty: 'Medio' },
+    { question: 'Ves una película que te recuerda a tus vacaciones de verano pasadas. ¿Qué sientes?', options: ['Nostalgia', 'Euforia', 'Ira', 'Confusión'], correctAnswer: 'Nostalgia', difficulty: 'Medio' },
+    { question: 'Un plan que tenías muchas ganas de hacer se cancela en el último momento. ¿Qué sientes?', options: ['Decepción', 'Alivio', 'Alegría', 'Sorpresa'], correctAnswer: 'Decepción', difficulty: 'Medio' },
+    { question: 'Ves a un amigo que no veías hace mucho tiempo. ¿Qué sientes?', options: ['Alegría', 'Tristeza', 'Ira', 'Miedo'], correctAnswer: 'Alegría', difficulty: 'Medio' },
+    { question: 'Intentas armar un juguete nuevo, pero las piezas no encajan. ¿Qué sientes?', options: ['Frustración', 'Calma', 'Alegría', 'Confianza'], correctAnswer: 'Frustración', difficulty: 'Medio' },
+    { question: 'Vas a montar en una montaña rusa por primera vez. ¿Qué sientes?', options: ['Miedo', 'Calma', 'Tristeza', 'Aburrimiento'], correctAnswer: 'Miedo', difficulty: 'Medio' },
+
+    // --- Difícil ---
+    { question: 'Llevas semanas esperando un paquete importante y te notifican que se ha perdido. ¿Qué sientes?', options: ['Alivio', 'Euforia', 'Frustración', 'Esperanza'], correctAnswer: 'Frustración', difficulty: 'Difícil' },
+    { question: 'Estás trabajando en un proyecto creativo y de repente se te ocurre una idea genial. ¿Qué sientes?', options: ['Confusión', 'Inspiración', 'Soledad', 'Nostalgia'], correctAnswer: 'Inspiración', difficulty: 'Difícil' },
+    { question: 'Alguien a quien admiras reconoce tu trabajo y te felicita delante de otros. ¿Qué sientes?', options: ['Orgullo', 'Valentía', 'Confianza', 'Gratitud'], correctAnswer: 'Orgullo', difficulty: 'Difícil' },
+    { question: 'Creías que habías perdido la cartera con todo tu dinero, pero la encuentras en tu bolsillo. ¿Qué sientes?', options: ['Decepción', 'Alivio', 'Ansiedad', 'Tristeza'], correctAnswer: 'Alivio', difficulty: 'Difícil' },
+    { question: 'Te enfrentas a un gran desafío, pero crees firmemente en tu capacidad para superarlo. ¿Qué sientes?', options: ['Miedo', 'Valentía', 'Confusión', 'Ira'], correctAnswer: 'Valentía', difficulty: 'Difícil' },
+    { question: 'Después de un día difícil, tu mascota se acurruca a tu lado. ¿Qué sientes?', options: ['Amor', 'Ira', 'Miedo', 'Decepción'], correctAnswer: 'Amor', difficulty: 'Difícil' },
+    { question: 'Te dan instrucciones complicadas y no estás seguro de entenderlas. ¿Qué sientes?', options: ['Confusión', 'Confianza', 'Calma', 'Alegría'], correctAnswer: 'Confusión', difficulty: 'Difícil' },
+    { question: 'Quieres empezar un nuevo hobby que te apasiona. ¿Qué sientes?', options: ['Motivación', 'Tristeza', 'Miedo', 'Ira'], correctAnswer: 'Motivación', difficulty: 'Difícil' },
+    { question: 'Ves un documental sobre un lugar que siempre has soñado visitar. ¿Qué sientes?', options: ['Curiosidad', 'Decepción', 'Tristeza', 'Calma'], correctAnswer: 'Curiosidad', difficulty: 'Difícil' },
+    { question: 'Te enteras de una noticia muy positiva sobre el futuro del planeta. ¿Qué sientes?', options: ['Esperanza', 'Miedo', 'Tristeza', 'Ira'], correctAnswer: 'Esperanza', difficulty: 'Difícil' },
+    { question: 'Un amigo te cuenta un secreto muy importante. ¿Qué sientes?', options: ['Confianza', 'Miedo', 'Sorpresa', 'Alegría'], correctAnswer: 'Confianza', difficulty: 'Difícil' },
+    
+    // --- Experto ---
+    { question: 'Ganas una competición importante después de meses de duro entrenamiento. Sientes una alegría inmensa y energética. ¿Qué sientes?', options: ['Serenidad', 'Euforia', 'Calma', 'Alivio'], correctAnswer: 'Euforia', difficulty: 'Experto' },
+    { question: 'A pesar de los contratiempos, sigues creyendo firmemente que tu situación mejorará. ¿Qué sientes?', options: ['Decepción', 'Esperanza', 'Frustración', 'Tristeza'], correctAnswer: 'Esperanza', difficulty: 'Experto' },
+    { question: 'Pasas tiempo con una persona que es muy importante para ti y sientes una conexión profunda y afectuosa. ¿Qué sientes?', options: ['Gratitud', 'Amor', 'Confianza', 'Alegría'], correctAnswer: 'Amor', difficulty: 'Experto' },
+    { question: 'Te proponen un nuevo proyecto que despierta tu interés y te impulsa a empezar a trabajar en él inmediatamente. ¿Qué sientes?', options: ['Entusiasmo', 'Ansiedad', 'Curiosidad', 'Motivación'], correctAnswer: 'Motivación', difficulty: 'Experto' },
+    { question: 'Recibes varias instrucciones contradictorias y no estás seguro de qué hacer a continuación. ¿Qué sientes?', options: ['Ansiedad', 'Confusión', 'Frustración', 'Ira'], correctAnswer: 'Confusión', difficulty: 'Experto' },
+    { question: 'Tras un día ajetreado, te sientas en silencio y sientes una profunda paz interior, aceptando el momento presente. ¿Qué sientes?', options: ['Serenidad', 'Soledad', 'Tristeza', 'Calma'], correctAnswer: 'Serenidad', difficulty: 'Experto' },
+    { question: 'Un amigo cercano te traiciona, rompiendo la confianza que tenías en él. ¿Qué sientes?', options: ['Decepción', 'Ira', 'Tristeza', 'Frustración'], correctAnswer: 'Decepción', difficulty: 'Experto' },
+    { question: 'Comienzas un nuevo proyecto con una energía vibrante y una gran sonrisa. ¿Qué sientes?', options: ['Entusiasmo', 'Ansiedad', 'Calma', 'Orgullo'], correctAnswer: 'Entusiasmo', difficulty: 'Experto' },
+    { question: 'Un desconocido realiza un acto de bondad inesperado hacia ti. ¿Qué sientes?', options: ['Gratitud', 'Sorpresa', 'Confianza', 'Alegría'], correctAnswer: 'Gratitud', difficulty: 'Experto' },
+    { question: 'Defiendes a un amigo a pesar de que te da miedo hacerlo. ¿Qué sientes?', options: ['Valentía', 'Orgullo', 'Miedo', 'Confianza'], correctAnswer: 'Valentía', difficulty: 'Experto' }
 ];
