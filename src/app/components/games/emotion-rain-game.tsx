@@ -90,7 +90,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
       setScore(s => s + 1);
       selectNewTarget();
     } else {
-      setLives(l => l - 1);
+      setLives(l => Math.max(0, l - 1));
     }
   };
   
@@ -101,8 +101,8 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     setLives(MAX_LIVES);
     setDrops([]);
     setIsGameOver(false);
-    selectNewTarget();
-    setIsPlaying(true);
+    selectNewTarget(); // Select a target first
+    setIsPlaying(true); // Then start the game
   }, [availableEmotions, selectNewTarget]);
 
   const gameLoop = useCallback(() => {
@@ -113,7 +113,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
             .filter(drop => {
                 if (drop.y > GAME_HEIGHT) {
                     if (drop.emotion.id === targetEmotionRef.current?.id) {
-                        setLives(l => l - 1);
+                        setLives(l => Math.max(0, l - 1));
                     }
                     return false;
                 }
@@ -122,12 +122,10 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
         return newDrops;
     });
     gameLoopRef.current = requestAnimationFrame(gameLoop);
-}, []);
+  }, []);
 
   useEffect(() => {
-    if (isPlaying) {
-        if (!targetEmotionRef.current) return;
-
+    if (isPlaying && targetEmotion) { // Ensure there is a target before starting loops
         gameLoopRef.current = requestAnimationFrame(gameLoop);
 
         dropTimerRef.current = setInterval(() => {
@@ -136,6 +134,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
             const currentTarget = targetEmotionRef.current;
             let emotionForDrop: Emotion;
 
+            // 40% chance to be the target emotion
             if (Math.random() < 0.4) {
                 emotionForDrop = currentTarget;
             } else {
@@ -178,7 +177,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
         stopGame();
     }
     return stopGame;
-  }, [isPlaying, availableEmotions, allColors, selectNewTarget, gameLoop]);
+  }, [isPlaying, targetEmotion, availableEmotions, allColors, gameLoop, stopGame]);
 
 
   useEffect(() => {
@@ -198,19 +197,6 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     );
   }
 
-  if (!isPlaying && !isGameOver) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-8">
-        <h2 className="text-2xl font-bold text-primary">Lluvia de Emociones</h2>
-        <p className="text-muted-foreground my-4 max-w-md">El objetivo es hacer clic en el emoji que corresponde a la emoción que se te pide. ¡Cuidado! Las apariencias engañan. Tienes {MAX_LIVES} vidas.</p>
-        <Button onClick={startGame} size="lg">
-          <Play className="mr-2" />
-          Empezar
-        </Button>
-      </div>
-    );
-  }
-  
   if (isGameOver) {
       return (
           <div className="flex flex-col items-center justify-center h-full text-center p-8">
@@ -224,6 +210,19 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
             </Button>
           </div>
       )
+  }
+
+  if (!isPlaying) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-8">
+        <h2 className="text-2xl font-bold text-primary">Lluvia de Emociones</h2>
+        <p className="text-muted-foreground my-4 max-w-md">El objetivo es hacer clic en el emoji que corresponde a la emoción que se te pide. ¡Cuidado! Las apariencias engañan. Tienes {MAX_LIVES} vidas.</p>
+        <Button onClick={startGame} size="lg">
+          <Play className="mr-2" />
+          Empezar
+        </Button>
+      </div>
+    );
   }
 
   return (
