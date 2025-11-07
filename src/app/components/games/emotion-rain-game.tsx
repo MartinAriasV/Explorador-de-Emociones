@@ -20,10 +20,12 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 
 const GAME_WIDTH = 500;
 const GAME_HEIGHT = 400;
-const DROP_INTERVAL = 1200; // ms
+const INITIAL_DROP_INTERVAL = 1200; // ms
+const MIN_DROP_INTERVAL = 250; // ms
+const DROP_INTERVAL_DECREMENT = 50; // ms
 const MAX_LIVES = 5;
 const INITIAL_SPEED_MULTIPLIER = 1.0;
-const SPEED_INCREMENT = 0.08;
+const SPEED_INCREMENT = 0.1; // Increased speed increment
 
 export function EmotionRainGame({ emotionsList }: GameProps) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -33,9 +35,10 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(MAX_LIVES);
   const [speedMultiplier, setSpeedMultiplier] = useState(INITIAL_SPEED_MULTIPLIER);
+  const [dropInterval, setDropInterval] = useState(INITIAL_DROP_INTERVAL);
   
   const gameLoopRef = useRef<number>();
-  const dropTimerRef = useRef<number>();
+  const dropTimerRef = useRef<NodeJS.Timeout>();
 
   const availableEmotions = useMemo(() => {
     const uniqueEmotions = Array.from(new Map(emotionsList.map(e => [e.name, e])).values());
@@ -75,6 +78,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     if (wasCorrect) {
         selectNewTarget();
         setSpeedMultiplier(s => s + SPEED_INCREMENT);
+        setDropInterval(d => Math.max(MIN_DROP_INTERVAL, d - DROP_INTERVAL_DECREMENT));
     }
   }, [isPlaying, selectNewTarget, targetEmotion]);
   
@@ -91,6 +95,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     setDrops([]);
     setIsGameOver(false);
     setSpeedMultiplier(INITIAL_SPEED_MULTIPLIER);
+    setDropInterval(INITIAL_DROP_INTERVAL);
     
     const initialTarget = selectNewTarget();
     if(initialTarget) {
@@ -111,13 +116,12 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
       return;
     }
 
-    // --- Game Animation Loop ---
     const gameLoop = () => {
       setDrops(prevDrops => {
         const newDrops = prevDrops
             .map(drop => ({
                 ...drop,
-                y: drop.y + drop.speed * speedMultiplier, // Apply global speed multiplier
+                y: drop.y + drop.speed * speedMultiplier,
             }))
             .filter(drop => {
                 if (drop.y > GAME_HEIGHT) {
@@ -134,13 +138,12 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     };
     gameLoopRef.current = requestAnimationFrame(gameLoop);
 
-    // --- Drop Creation Interval ---
-    dropTimerRef.current = window.setInterval(() => {
+    const createDrop = () => {
         setDrops(prev => {
             if (!targetEmotion || availableEmotions.length === 0) return prev;
 
             let emotionForDrop: Emotion;
-            if (Math.random() < 0.4) { // 40% chance to be the target
+            if (Math.random() < 0.4) {
                 emotionForDrop = targetEmotion;
             } else {
                 const otherEmotions = availableEmotions.filter(e => e.id !== targetEmotion.id);
@@ -156,13 +159,24 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
             };
             return [...prev, newDrop];
         });
-    }, DROP_INTERVAL);
+    }
+
+    const scheduleNextDrop = () => {
+      dropTimerRef.current = setTimeout(() => {
+        createDrop();
+        if (isPlaying) {
+          scheduleNextDrop();
+        }
+      }, dropInterval);
+    };
+
+    scheduleNextDrop();
 
     return () => {
       if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
-      if (dropTimerRef.current) clearInterval(dropTimerRef.current);
+      if (dropTimerRef.current) clearTimeout(dropTimerRef.current);
     };
-  }, [isPlaying, targetEmotion, availableEmotions, speedMultiplier]);
+  }, [isPlaying, targetEmotion, availableEmotions, speedMultiplier, dropInterval]);
 
   if (availableEmotions.length < 5) {
     return (
@@ -193,7 +207,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
         <h2 className="text-2xl font-bold text-primary">Lluvia de Emociones</h2>
-        <p className="text-muted-foreground my-4 max-w-md">El objetivo es hacer clic en el emoji que corresponde a la emoción que se te pide. La velocidad aumentará con cada acierto. Tienes {MAX_LIVES} vidas.</p>
+        <p className="text-muted-foreground my-4 max-w-md">El objetivo es hacer clic en el emoji que corresponde a la emoción que se te pide. La velocidad y la cantidad aumentarán con cada acierto. Tienes {MAX_LIVES} vidas.</p>
         <Button onClick={startGame} size="lg">
           <Play className="mr-2" />
           Empezar
