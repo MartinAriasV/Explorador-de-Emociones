@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -85,7 +86,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
   const stopGame = useCallback(() => {
       setIsPlaying(false);
       if(gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
-      if(dropTimerRef.current) clearInterval(dropTimerRef.current);
+      if(dropTimerRef.current) clearTimeout(dropTimerRef.current);
   }, []);
   
   const startGame = useCallback(() => {
@@ -113,6 +114,8 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
 
   useEffect(() => {
     if (!isPlaying) {
+      if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
+      if (dropTimerRef.current) clearTimeout(dropTimerRef.current);
       return;
     }
 
@@ -163,10 +166,9 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
 
     const scheduleNextDrop = () => {
       dropTimerRef.current = setTimeout(() => {
+        if (!isPlaying) return;
         createDrop();
-        if (isPlaying) {
-          scheduleNextDrop();
-        }
+        scheduleNextDrop();
       }, dropInterval);
     };
 
