@@ -32,30 +32,37 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
   }, [emotionsList]);
   
   const generateQuestion = useCallback(() => {
-    let questionsOfDifficulty = QUIZ_QUESTIONS.filter(q => q.difficulty === difficulties[difficultyIndex]);
-
-    // Fallback: If no questions for the current difficulty, try with 'Fácil'
-    if (questionsOfDifficulty.length === 0) {
-        questionsOfDifficulty = QUIZ_QUESTIONS.filter(q => q.difficulty === 'Fácil');
-    }
+    const currentDifficulty = difficulties[difficultyIndex];
     
-    // If still no questions, something is wrong with constants.
-    if (questionsOfDifficulty.length === 0) {
-        console.error("No quiz questions found, even for 'Fácil' difficulty.");
-        setCurrentQuestion(null);
+    // 1. Get all predefined emotions that the user has in their list.
+    const userPredefinedEmotionNames = new Set(
+        allEmotions.filter(e => !e.isCustom).map(e => e.name.toLowerCase())
+    );
+
+    // 2. Find all quiz questions that match the current difficulty AND whose correct answer is an emotion the user has.
+    let possibleQuestions = QUIZ_QUESTIONS.filter(q => 
+        q.difficulty === currentDifficulty && userPredefinedEmotionNames.has(q.correctAnswer.toLowerCase())
+    );
+
+    // 3. Fallback: If no questions found for the current difficulty, try with 'Fácil'.
+    if (possibleQuestions.length === 0) {
+        possibleQuestions = QUIZ_QUESTIONS.filter(q => 
+            q.difficulty === 'Fácil' && userPredefinedEmotionNames.has(q.correctAnswer.toLowerCase())
+        );
+    }
+
+    // 4. If there are still no possible questions, it means the user is missing critical predefined emotions.
+    if (possibleQuestions.length === 0) {
+        console.error("No valid quiz questions could be generated. The user may be missing key predefined emotions.");
+        setCurrentQuestion(null); // Set to null to show an appropriate message in the UI
         return;
     }
 
-    const randomQuestion = shuffleArray(questionsOfDifficulty)[0];
-    const correctEmotion = allEmotions.find(e => e.name.toLowerCase() === randomQuestion.correctAnswer.toLowerCase());
-    
-    if (!correctEmotion) {
-        // This can happen if a predefined emotion for a question is missing.
-        // To recover, let's just try generating a different question.
-        generateQuestion();
-        return;
-    }
+    // 5. Select a random question from the valid list.
+    const randomQuestion = shuffleArray(possibleQuestions)[0];
+    const correctEmotion = allEmotions.find(e => e.name.toLowerCase() === randomQuestion.correctAnswer.toLowerCase())!;
 
+    // 6. Generate options for the answer.
     const incorrectOptions = shuffleArray(allEmotions.filter(e => e.id !== correctEmotion.id)).slice(0, 3);
     const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
 
@@ -66,12 +73,12 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
 
   }, [difficultyIndex, allEmotions]);
 
+
   useEffect(() => {
     if (allEmotions.length >= 4) {
       generateQuestion();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allEmotions.length]); // Only re-run when the number of emotions changes.
+  }, [allEmotions.length, generateQuestion]);
 
   const handleAnswer = (answer: Emotion) => {
     if (isAnswered) return;
@@ -96,7 +103,6 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
       setQuestionsAnswered(0);
       setDifficultyIndex(0); // Reset difficulty
     }
-    // We call generateQuestion directly which is now memoized
     generateQuestion();
   };
   
