@@ -2,8 +2,8 @@
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Emotion, GameProps } from '@/lib/types';
-import { PREDEFINED_EMOTIONS } from '@/lib/constants';
+import type { Emotion, GameProps, QuizQuestion } from '@/lib/types';
+import { QUIZ_QUESTIONS, PREDEFINED_EMOTIONS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -13,13 +13,16 @@ const shuffleArray = <T,>(array: T[]): T[] => {
   return [...array].sort(() => Math.random() - 0.5);
 };
 
+const difficulties: QuizQuestion['difficulty'][] = ['Fácil', 'Medio', 'Difícil', 'Experto'];
+
 export function GuessEmotionGame({ emotionsList }: GameProps) {
-  const [currentQuestion, setCurrentQuestion] = useState<any>(null);
+  const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion | null>(null);
   const [options, setOptions] = useState<Emotion[]>([]);
   const [selectedAnswer, setSelectedAnswer] = useState<Emotion | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [score, setScore] = useState(0);
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
+  const [difficultyIndex, setDifficultyIndex] = useState(0);
 
   const allEmotions = useMemo(() => {
     const emotionMap = new Map<string, Emotion>();
@@ -29,38 +32,39 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
   }, [emotionsList]);
   
   const generateQuestion = useCallback(() => {
-    const verifiedEmotions = allEmotions.filter(e => !e.isCustom);
-    if (verifiedEmotions.length < 4) {
-      return; // Not enough verified emotions to play
+    const currentDifficulty = difficulties[difficultyIndex];
+    const questionsOfDifficulty = QUIZ_QUESTIONS.filter(q => q.difficulty === currentDifficulty);
+    const randomQuestion = shuffleArray(questionsOfDifficulty)[0];
+    
+    if (!randomQuestion) {
+      // Fallback if no questions for that difficulty
+      setCurrentQuestion(null);
+      return;
     }
 
-    // 1. Select a random correct emotion *only* from the verified list for quality questions
-    const correctEmotion = shuffleArray(verifiedEmotions)[0];
-
-    // 2. Get its description or example as the question
-    // Find the original predefined emotion to get a quality description
-    const predefinedInfo = PREDEFINED_EMOTIONS.find(p => p.name.toLowerCase() === correctEmotion.name.toLowerCase());
-    const questionText = predefinedInfo?.example || predefinedInfo?.description;
-
-    // 3. Select 3 other random incorrect emotions from the full list (can be custom)
-    const otherEmotions = allEmotions.filter(e => e.id !== correctEmotion.id);
-    const incorrectOptions = shuffleArray(otherEmotions).slice(0, 3);
+    const correctEmotion = allEmotions.find(e => e.name.toLowerCase() === randomQuestion.correctAnswer.toLowerCase());
     
-    // 4. Combine and shuffle options
+    if (!correctEmotion) {
+        // Fallback if correct emotion not found (shouldn't happen with PREDEFINED_EMOTIONS)
+        setCurrentQuestion(null);
+        return;
+    }
+
+    const incorrectOptions = shuffleArray(allEmotions.filter(e => e.id !== correctEmotion.id)).slice(0, 3);
     const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
 
-    setCurrentQuestion({
-      text: questionText,
-      correctAnswer: correctEmotion,
-    });
+    setCurrentQuestion(randomQuestion);
     setOptions(allOptions);
     setIsAnswered(false);
     setSelectedAnswer(null);
-  }, [allEmotions]);
+
+  }, [difficultyIndex, allEmotions]);
 
   useEffect(() => {
-    generateQuestion();
-  }, [generateQuestion]);
+    if (allEmotions.length >= 4) {
+      generateQuestion();
+    }
+  }, [generateQuestion, allEmotions.length]);
 
   const handleAnswer = (answer: Emotion) => {
     if (isAnswered) return;
@@ -69,16 +73,21 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     setIsAnswered(true);
     setQuestionsAnswered(prev => prev + 1);
 
-    if (answer.id === currentQuestion.correctAnswer.id) {
+    if (answer.name.toLowerCase() === currentQuestion?.correctAnswer.toLowerCase()) {
       setScore(prev => prev + 1);
+      // Increase difficulty, but not past 'Experto'
+      setDifficultyIndex(prev => Math.min(prev + 1, difficulties.length - 1));
+    } else {
+      // Decrease difficulty, but not below 'Fácil'
+      setDifficultyIndex(prev => Math.max(prev - 1, 0));
     }
   };
 
   const handleNext = () => {
     if (questionsAnswered >= 10) {
-      // Reset game
       setScore(0);
       setQuestionsAnswered(0);
+      setDifficultyIndex(0); // Reset difficulty
     }
     generateQuestion();
   };
@@ -112,17 +121,22 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     )
   }
 
+  const correctEmotionDetails = allEmotions.find(e => e.name.toLowerCase() === currentQuestion.correctAnswer.toLowerCase());
+
   return (
     <div className="flex flex-col items-center justify-center h-full gap-6">
-      <div className="text-center">
-        <p className="text-sm font-semibold text-primary">Puntuación: {score} / {questionsAnswered}</p>
-        <p className="text-lg mt-2">¿Qué emoción describe mejor esta situación?</p>
+      <div className="text-center w-full max-w-2xl">
+        <div className="flex justify-between items-center">
+            <p className="text-sm font-semibold text-primary">Puntuación: {score} / {questionsAnswered}</p>
+            <p className="text-sm font-semibold text-accent">Dificultad: {currentQuestion.difficulty}</p>
+        </div>
+        <p className="text-lg mt-4">¿Qué emoción describe mejor esta situación?</p>
       </div>
 
       <Card className="w-full max-w-2xl p-6 text-center shadow-inner bg-muted/30">
         <CardContent className="p-0">
           <blockquote className="text-xl italic font-semibold">
-            "{currentQuestion?.text}"
+            "{currentQuestion?.question}"
           </blockquote>
         </CardContent>
       </Card>
@@ -130,7 +144,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
       <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
         {options.map((option) => {
             const isSelected = selectedAnswer?.id === option.id;
-            const isCorrect = currentQuestion?.correctAnswer.id === option.id;
+            const isCorrect = correctEmotionDetails?.id === option.id;
 
             return (
                  <Button
@@ -156,9 +170,9 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
         <div className="flex flex-col items-center gap-4 animate-fade-in">
              <p className={cn(
                 "text-lg font-bold",
-                selectedAnswer?.id === currentQuestion?.correctAnswer.id ? 'text-green-600' : 'text-destructive'
+                selectedAnswer?.name.toLowerCase() === currentQuestion.correctAnswer.toLowerCase() ? 'text-green-600' : 'text-destructive'
              )}>
-                {selectedAnswer?.id === currentQuestion?.correctAnswer.id ? '¡Correcto!' : `Incorrecto. La respuesta era: ${currentQuestion?.correctAnswer.name}`}
+                {selectedAnswer?.name.toLowerCase() === currentQuestion.correctAnswer.toLowerCase() ? '¡Correcto!' : `Incorrecto. La respuesta era: ${currentQuestion.correctAnswer}`}
             </p>
             <Button onClick={handleNext}>
                 {questionsAnswered >= 10 ? 'Ver Resultados' : 'Siguiente Pregunta'}
