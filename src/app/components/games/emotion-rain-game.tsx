@@ -55,7 +55,23 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     if (dropTimerRef.current) clearInterval(dropTimerRef.current);
   }, []);
   
+  const decrementLives = useCallback(() => {
+    setLives(l => {
+      // Only decrement if the game is still playing and lives are > 0
+      if (!isPlaying || l <= 0) return l;
+      
+      const newLives = l - 1;
+      if (newLives <= 0) {
+        stopGame();
+      }
+      return newLives;
+    });
+  }, [isPlaying, stopGame]);
+
+
   const startGame = useCallback(() => {
+    if (availableEmotions.length < 5) return;
+
     setScore(0);
     setLives(MAX_LIVES);
     setDrops([]);
@@ -66,41 +82,34 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     setTargetEmotion(initialTarget);
 
     // Game loop for updating drop positions
-    gameLoopRef.current = requestAnimationFrame(function gameLoop() {
-      setDrops(prevDrops => {
-        const newDrops = prevDrops
-          .map(drop => ({ ...drop, y: drop.y + drop.speed }))
-          .filter(drop => {
-            if (drop.y > GAME_HEIGHT) {
-              // Check if a target drop was missed
-              setTargetEmotion(currentTarget => {
-                if (drop.emotion.id === currentTarget?.id) {
-                  setLives(l => {
-                    const newLives = l - 1;
-                    if (newLives <= 0) stopGame();
-                    return newLives;
-                  });
+    const gameLoop = () => {
+        setDrops(prevDrops => {
+          const newDrops = prevDrops
+            .map(drop => ({ ...drop, y: drop.y + drop.speed }))
+            .filter(drop => {
+              if (drop.y > GAME_HEIGHT) {
+                // If a target drop was missed, decrement lives
+                if (drop.emotion.id === targetEmotion?.id) {
+                    decrementLives();
                 }
-                return currentTarget;
-              });
-              return false; // Remove drop that went off-screen
-            }
-            return true;
-          });
-        return newDrops;
-      });
-      gameLoopRef.current = requestAnimationFrame(gameLoop);
-    });
+                return false; // Remove drop that went off-screen
+              }
+              return true;
+            });
+          return newDrops;
+        });
+        gameLoopRef.current = requestAnimationFrame(gameLoop);
+      };
+    gameLoopRef.current = requestAnimationFrame(gameLoop);
     
     // Timer for adding new drops
     dropTimerRef.current = setInterval(() => {
+      if (availableEmotions.length === 0) return;
+      
       setTargetEmotion(currentTarget => {
-        if (!currentTarget || availableEmotions.length === 0) {
-          return currentTarget;
-        }
-
+        if (!currentTarget) return currentTarget;
+        
         let emotionForDrop: Emotion;
-        // 40% chance to drop the target emotion
         if (Math.random() < 0.4) { 
             emotionForDrop = currentTarget;
         } else {
@@ -121,7 +130,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
       });
     }, DROP_INTERVAL);
 
-  }, [availableEmotions, stopGame]);
+  }, [availableEmotions, stopGame, decrementLives]);
 
   const handleDropClick = (clickedDrop: Drop) => {
     if (!isPlaying || !targetEmotion) return;
@@ -130,11 +139,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
       setScore(s => s + 1);
       selectNewTarget();
     } else {
-      setLives(l => {
-        const newLives = l - 1;
-        if (newLives <= 0) stopGame();
-        return newLives;
-      });
+      decrementLives();
     }
 
     setDrops(prev => prev.filter(drop => drop.id !== clickedDrop.id));
@@ -179,7 +184,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     <div className="flex flex-col items-center justify-center h-full gap-4">
        <div className="w-full max-w-[500px] flex justify-between items-center text-lg font-semibold">
            <p>Puntuación: <span className="text-primary">{score}</span></p>
-           <p>Vidas: <span className="text-destructive">{'❤️'.repeat(lives)}</span></p>
+           <p>Vidas: <span className="text-destructive">{'❤️'.repeat(Math.max(0, lives))}</span></p>
        </div>
 
        <div 
