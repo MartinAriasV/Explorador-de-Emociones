@@ -14,7 +14,7 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 const difficulties: QuizQuestion['difficulty'][] = ['Fácil', 'Medio', 'Difícil', 'Experto'];
-const RECENT_HISTORY_SIZE = 5; // Avoid repeating the last 5 questions
+const QUESTIONS_PER_GAME = 10;
 
 export function GuessEmotionGame({ emotionsList }: GameProps) {
   const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion | null>(null);
@@ -26,7 +26,6 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
   const [difficultyIndex, setDifficultyIndex] = useState(0);
   const [questionHistory, setQuestionHistory] = useState<string[]>([]);
 
-  // All emotions available to the user, including custom ones. Used for generating incorrect options.
   const allUserEmotions = useMemo(() => {
     const emotionMap = new Map<string, Emotion>();
     PREDEFINED_EMOTIONS.forEach(p => emotionMap.set(p.name.toLowerCase(), { ...p, id: p.name, userProfileId: 'system', isCustom: false } as Emotion));
@@ -34,7 +33,6 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     return Array.from(emotionMap.values());
   }, [emotionsList]);
   
-  // All predefined emotions, used to guarantee questions can always be generated.
   const allPredefinedEmotions = useMemo(() => {
       return PREDEFINED_EMOTIONS.map(p => ({ ...p, id: p.name, userProfileId: 'system', isCustom: false } as Emotion));
   }, []);
@@ -43,25 +41,22 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
   const generateQuestion = useCallback(() => {
     const currentDifficulty = difficulties[difficultyIndex];
     
-    // 1. Find all quiz questions for the current difficulty whose correct answer is in the predefined emotions list
     let possibleQuestions = QUIZ_QUESTIONS.filter(q => {
         const difficultyMatch = q.difficulty === currentDifficulty;
         const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
-        // Filter out questions that are in the recent history
         const notInHistory = !questionHistory.includes(q.question);
         return difficultyMatch && answerExists && notInHistory;
     });
 
-    // 2. Fallback: If no non-repeated questions found for current difficulty, try any from current difficulty
     if (possibleQuestions.length === 0) {
         possibleQuestions = QUIZ_QUESTIONS.filter(q => {
              const difficultyMatch = q.difficulty === currentDifficulty;
              const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
              return difficultyMatch && answerExists;
         });
+        // If still no unique questions at this difficulty, we might reuse some, but the history should be cleared for a new game.
     }
 
-    // 3. Fallback: If still no questions, try 'Fácil'
     if (possibleQuestions.length === 0) {
         possibleQuestions = QUIZ_QUESTIONS.filter(q => {
             const difficultyMatch = q.difficulty === 'Fácil';
@@ -70,25 +65,21 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
         });
     }
     
-    // 4. If still no questions, log an error. This shouldn't happen if constants are correct.
     if (possibleQuestions.length === 0) {
         console.error("No valid quiz questions could be generated. The user may be missing key predefined emotions.");
         setCurrentQuestion(null);
         return;
     }
 
-    // 5. Select a random question and find its correct emotion from the predefined list
     const randomQuestion = shuffleArray(possibleQuestions)[0];
     const correctEmotion = allPredefinedEmotions.find(e => e.name.toLowerCase() === randomQuestion.correctAnswer.toLowerCase());
 
     if (!correctEmotion) {
-        // This case should be rare given the checks above, but as a safeguard:
         console.error(`Could not find correct emotion "${randomQuestion.correctAnswer}" in predefined list.`);
         setCurrentQuestion(null);
         return;
     }
 
-    // 6. Generate options: the correct one + 3 incorrect ones from the user's full list
     const incorrectOptions = shuffleArray(allUserEmotions.filter(e => e.name.toLowerCase() !== correctEmotion.name.toLowerCase())).slice(0, 3);
     const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
 
@@ -97,12 +88,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     setIsAnswered(false);
     setSelectedAnswer(null);
 
-    // 7. Update history
-    const newHistory = [...questionHistory, randomQuestion.question];
-    if (newHistory.length > RECENT_HISTORY_SIZE) {
-        newHistory.shift(); // Keep history size manageable
-    }
-    setQuestionHistory(newHistory);
+    setQuestionHistory(prev => [...prev, randomQuestion.question]);
 
   }, [difficultyIndex, allUserEmotions, allPredefinedEmotions, questionHistory]);
 
@@ -112,33 +98,35 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
       generateQuestion();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allUserEmotions.length]);
+  }, [questionsAnswered]);
 
   const handleAnswer = (answer: Emotion) => {
     if (isAnswered) return;
 
     setSelectedAnswer(answer);
-    setIsAnswered(true); // This should trigger the feedback UI
-    setQuestionsAnswered(prev => prev + 1);
+    setIsAnswered(true);
 
     if (answer.name.toLowerCase() === currentQuestion?.correctAnswer.toLowerCase()) {
       setScore(prev => prev + 1);
-      // Increase difficulty, but not past 'Experto'
       setDifficultyIndex(prev => Math.min(prev + 1, difficulties.length - 1));
     } else {
-      // Decrease difficulty, but not below 'Fácil'
       setDifficultyIndex(prev => Math.max(prev - 1, 0));
     }
   };
 
   const handleNext = () => {
-    if (questionsAnswered >= 10) {
-      setScore(0);
-      setQuestionsAnswered(0);
-      setDifficultyIndex(0); // Reset difficulty
-      setQuestionHistory([]); // Reset history for new game
+    if (questionsAnswered >= QUESTIONS_PER_GAME - 1) {
+       setQuestionsAnswered(prev => prev + 1); // Go to the final screen
+    } else {
+       setQuestionsAnswered(prev => prev + 1);
     }
-    generateQuestion();
+  };
+
+  const restartGame = () => {
+    setScore(0);
+    setQuestionsAnswered(0);
+    setDifficultyIndex(0);
+    setQuestionHistory([]);
   };
   
   if (allUserEmotions.length < 4) {
@@ -151,23 +139,23 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
       )
   }
 
+  if (questionsAnswered >= QUESTIONS_PER_GAME) {
+    return (
+        <div className="flex flex-col items-center justify-center h-full text-center p-8">
+            <h2 className="text-2xl font-bold text-primary">¡Juego Terminado!</h2>
+            <p className="text-5xl font-bold my-4">{score} / {QUESTIONS_PER_GAME}</p>
+            <p className="text-muted-foreground mb-6">¡Sigue practicando para mejorar tu inteligencia emocional!</p>
+            <Button onClick={restartGame}>Jugar de Nuevo</Button>
+        </div>
+    )
+  }
+  
   if (!currentQuestion) {
       return (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
               <p className="text-lg font-semibold">Cargando...</p>
           </div>
       )
-  }
-
-  if (questionsAnswered >= 10) {
-    return (
-        <div className="flex flex-col items-center justify-center h-full text-center p-8">
-            <h2 className="text-2xl font-bold text-primary">¡Juego Terminado!</h2>
-            <p className="text-5xl font-bold my-4">{score} / 10</p>
-            <p className="text-muted-foreground mb-6">¡Sigue practicando para mejorar tu inteligencia emocional!</p>
-            <Button onClick={handleNext}>Jugar de Nuevo</Button>
-        </div>
-    )
   }
 
   return (
@@ -222,7 +210,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
                 {selectedAnswer?.name.toLowerCase() === currentQuestion.correctAnswer.toLowerCase() ? '¡Correcto!' : `Incorrecto. La respuesta era: ${currentQuestion.correctAnswer}`}
             </p>
             <Button onClick={handleNext}>
-                {questionsAnswered >= 10 ? 'Ver Resultados' : 'Siguiente Pregunta'}
+                {questionsAnswered >= QUESTIONS_PER_GAME -1 ? 'Ver Resultados' : 'Siguiente Pregunta'}
             </Button>
         </div>
       )}

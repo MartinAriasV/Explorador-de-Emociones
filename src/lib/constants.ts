@@ -221,6 +221,18 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
         correctAnswer: 'Calma',
         difficulty: 'Fácil',
     },
+     {
+        question: 'Tu equipo gana un partido importante. ¿Qué sientes?',
+        options: ['Alegría', 'Decepción', 'Miedo', 'Tristeza'],
+        correctAnswer: 'Alegría',
+        difficulty: 'Fácil',
+    },
+    {
+        question: 'Se te cae el helado al suelo justo después de comprarlo. ¿Qué sientes?',
+        options: ['Ira', 'Calma', 'Sorpresa', 'Alegría'],
+        correctAnswer: 'Ira',
+        difficulty: 'Fácil',
+    },
     // Medio
     {
         question: 'Has estudiado mucho para un examen y obtienes una nota excelente. ¿Qué sientes?',
@@ -252,6 +264,18 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
         correctAnswer: 'Sorpresa',
         difficulty: 'Medio',
     },
+     {
+        question: 'Ves una película que te recuerda a tu infancia. ¿Qué sientes?',
+        options: ['Nostalgia', 'Euforia', 'Ira', 'Confusión'],
+        correctAnswer: 'Nostalgia',
+        difficulty: 'Medio',
+    },
+    {
+        question: 'Un plan que tenías muchas ganas de hacer se cancela en el último momento. ¿Qué sientes?',
+        options: ['Decepción', 'Alivio', 'Alegría', 'Sorpresa'],
+        correctAnswer: 'Decepción',
+        difficulty: 'Medio',
+    },
     // Difícil
     {
         question: 'Llevas semanas esperando un paquete y te notifican que se ha perdido. ¿Qué sientes?',
@@ -266,9 +290,9 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
         difficulty: 'Difícil',
     },
     {
-        question: 'Recuerdas con cariño unas vacaciones de tu infancia. ¿Qué sientes?',
-        options: ['Amor', 'Nostalgia', 'Ira', 'Frustración'],
-        correctAnswer: 'Nostalgia',
+        question: 'Alguien a quien admiras reconoce tu trabajo y te felicita. ¿Qué sientes?',
+        options: ['Orgullo', 'Valentía', 'Confianza', 'Gratitud'],
+        correctAnswer: 'Orgullo',
         difficulty: 'Difícil',
     },
     {
@@ -283,6 +307,18 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
         correctAnswer: 'Valentía',
         difficulty: 'Difícil',
     },
+     {
+        question: 'Te sientes muy agradecido por todo lo bueno que tienes en la vida. ¿Qué sientes?',
+        options: ['Gratitud', 'Orgullo', 'Alegría', 'Calma'],
+        correctAnswer: 'Gratitud',
+        difficulty: 'Difícil',
+    },
+    {
+        question: 'Estás en un lugar nuevo y quieres explorarlo todo. ¿Qué sientes?',
+        options: ['Curiosidad', 'Miedo', 'Ansiedad', 'Confusión'],
+        correctAnswer: 'Curiosidad',
+        difficulty: 'Difícil',
+    },
     // Experto
     {
         question: 'Ganas una competición importante después de meses de duro entrenamiento. Sientes una alegría inmensa. ¿Qué sientes?',
@@ -292,13 +328,13 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     },
     {
         question: 'A pesar de los contratiempos, sigues creyendo que tu situación mejorará. ¿Qué sientes?',
-        options: ['Decepción', 'Esperanza', 'Frustración', 'Resignación'],
+        options: ['Decepción', 'Esperanza', 'Frustración', 'Tristeza'],
         correctAnswer: 'Esperanza',
         difficulty: 'Experto',
     },
     {
         question: 'Pasas tiempo con una persona que es muy importante para ti y sientes una conexión profunda. ¿Qué sientes?',
-        options: ['Gratitud', 'Amor', 'Amistad', 'Alegría'],
+        options: ['Gratitud', 'Amor', 'Confianza', 'Alegría'],
         correctAnswer: 'Amor',
         difficulty: 'Experto',
     },
@@ -310,8 +346,20 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     },
     {
         question: 'Recibes varias instrucciones contradictorias y no estás seguro de qué hacer. ¿Qué sientes?',
-        options: ['Ansiedad', 'Confusión', 'Frustración', 'Duda'],
+        options: ['Ansiedad', 'Confusión', 'Frustración', 'Ira'],
         correctAnswer: 'Confusión',
+        difficulty: 'Experto',
+    },
+      {
+        question: 'Tras un día ajetreado, te sientas en silencio y sientes una profunda paz interior. ¿Qué sientes?',
+        options: ['Serenidad', 'Soledad', 'Tristeza', 'Calma'],
+        correctAnswer: 'Serenidad',
+        difficulty: 'Experto',
+    },
+    {
+        question: 'Un amigo cercano te traiciona. ¿Qué sientes?',
+        options: ['Decepción', 'Ira', 'Tristeza', 'Frustración'],
+        correctAnswer: 'Decepción',
         difficulty: 'Experto',
     },
 ];
