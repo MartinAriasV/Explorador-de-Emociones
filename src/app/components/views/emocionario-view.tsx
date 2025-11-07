@@ -111,7 +111,7 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
           <CardDescription>{editingEmotion ? `Modificando "${editingEmotion.name}"` : 'Crea una nueva emoción para tu diario.'}</CardDescription>
         </CardHeader>
         <CardContent>
-            <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-4 items-start">
+            <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-4 md:gap-6 items-start">
               <div className="space-y-4">
                 <Input
                   placeholder="Nombre de la Emoción (ej. Euforia)"
@@ -140,7 +140,7 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
               </div>
               <div className="space-y-4">
                  <div>
-                    <ScrollArea className="h-40 w-full">
+                    <ScrollArea className="h-32 md:h-40 w-full">
                       <div className="grid grid-cols-8 gap-2 p-2 rounded-lg bg-muted/50">
                         {AVATAR_EMOJIS.map((emoji, index) => (
                             <button
@@ -148,7 +148,7 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
                                 key={`${emoji}-${index}`}
                                 onClick={() => setIcon(emoji)}
                                 className={cn(
-                                    'text-3xl p-1 rounded-lg transition-all flex items-center justify-center aspect-square',
+                                    'text-2xl md:text-3xl p-1 rounded-lg transition-all flex items-center justify-center aspect-square',
                                     icon === emoji ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
                                 )}
                             >
@@ -158,7 +158,7 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
                       </div>
                     </ScrollArea>
                   </div>
-                 <div className="flex items-center gap-4">
+                 <div className="flex flex-col sm:flex-row items-center gap-4">
                     <div className="flex items-center gap-2">
                         <label htmlFor="emotion-color" className="text-sm font-medium">Color:</label>
                         <Input
@@ -169,14 +169,14 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
                         className="w-16 h-10 p-1"
                         />
                     </div>
-                    <div className="flex-grow flex gap-2">
+                    <div className="flex-grow flex gap-2 w-full">
                         {editingEmotion && (
                         <Button type="button" variant="outline" onClick={onCancelEdit} className="w-full">
-                            Cancelar Edición
+                            Cancelar
                         </Button>
                         )}
                         <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
-                        {editingEmotion ? 'Actualizar Emoción' : 'Añadir Emoción'}
+                        {editingEmotion ? 'Actualizar' : 'Añadir'}
                         </Button>
                     </div>
                  </div>
@@ -194,7 +194,7 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
             {emotionsList.length > 0 ? (
               <div className="flex w-max space-x-4 pb-4">
                 {emotionsList.map((em) => (
-                  <Card key={em.id} className="group relative w-64 overflow-hidden" style={{borderLeft: `4px solid ${em.color}`}}>
+                  <Card key={em.id} className="group relative w-64 md:w-72 overflow-hidden" style={{borderLeft: `4px solid ${em.color}`}}>
                     <CardContent className="p-4">
                       <div className="flex items-start gap-4">
                         <span className="text-3xl mt-1">{em.icon}</span>

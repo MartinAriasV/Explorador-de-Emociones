@@ -46,43 +46,38 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
   }, [emotionsList]);
   
   const selectNewTarget = useCallback(() => {
-    if (availableEmotions.length === 0) return;
-
     setTargetEmotion(currentTarget => {
-        let nextTarget;
-        const otherEmotions = availableEmotions.filter(e => e.id !== currentTarget?.id);
-        
-        if (otherEmotions.length > 0) {
-            nextTarget = shuffleArray(otherEmotions)[0];
-        } else {
-            // If only one emotion is available, it will be the target every time.
-            nextTarget = availableEmotions[0];
-        }
-        return nextTarget;
+      if (!availableEmotions || availableEmotions.length === 0) return null;
+      
+      const otherEmotions = availableEmotions.filter(e => e.id !== currentTarget?.id);
+      if (otherEmotions.length > 0) {
+        return shuffleArray(otherEmotions)[0];
+      }
+      return availableEmotions[0];
     });
   }, [availableEmotions]);
 
   const handleDropClick = useCallback((clickedDropId: number) => {
-    if (!isPlaying) return;
-
+    if (!isPlaying || !targetEmotion) return;
+  
     let wasCorrect = false;
     setDrops(prev => {
-        const clickedDrop = prev.find(d => d.id === clickedDropId);
-        if (clickedDrop) {
-            if (clickedDrop.emotion.id === targetEmotion?.id) {
-                setScore(s => s + 1);
-                wasCorrect = true;
-            } else {
-                setLives(l => l - 1);
-            }
+      const clickedDrop = prev.find(d => d.id === clickedDropId);
+      if (clickedDrop) {
+        if (clickedDrop.emotion.id === targetEmotion.id) {
+          setScore(s => s + 1);
+          wasCorrect = true;
+        } else {
+          setLives(l => l - 1);
         }
-        return prev.filter(drop => drop.id !== clickedDropId);
+      }
+      return prev.filter(drop => drop.id !== clickedDropId);
     });
-
+  
     if (wasCorrect) {
-        selectNewTarget();
-        setSpeedMultiplier(s => s + SPEED_INCREMENT);
-        setDropInterval(d => Math.max(MIN_DROP_INTERVAL, d - DROP_INTERVAL_DECREMENT));
+      selectNewTarget();
+      setSpeedMultiplier(s => s + SPEED_INCREMENT);
+      setDropInterval(d => Math.max(MIN_DROP_INTERVAL, d - DROP_INTERVAL_DECREMENT));
     }
   }, [isPlaying, targetEmotion, selectNewTarget]);
   
@@ -114,11 +109,13 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
   }, [lives, isPlaying, stopGame]);
 
   useEffect(() => {
-    if (!isPlaying || !targetEmotion) {
-      if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
-      if (dropTimerRef.current) clearTimeout(dropTimerRef.current);
+    if (!isPlaying) {
+      if(gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
+      if(dropTimerRef.current) clearTimeout(dropTimerRef.current);
       return;
     }
+    
+    if (!targetEmotion) return;
 
     const gameLoop = () => {
       setDrops(prevDrops => {
@@ -147,6 +144,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
             if (!targetEmotion || availableEmotions.length === 0) return prev;
 
             let emotionForDrop: Emotion;
+            // Ensure target emotion has a higher chance of appearing
             if (Math.random() < 0.4) {
                 emotionForDrop = targetEmotion;
             } else {
@@ -166,8 +164,8 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     }
 
     const scheduleNextDrop = () => {
+      if (!isPlaying) return;
       dropTimerRef.current = setTimeout(() => {
-        if (!isPlaying) return;
         createDrop();
         scheduleNextDrop();
       }, dropInterval);
@@ -183,9 +181,9 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
 
   if (availableEmotions.length < 5) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
+      <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
         <p className="text-lg font-semibold">¡Faltan Emociones!</p>
-        <p>Necesitas al menos 5 emociones diferentes para jugar a este juego.</p>
+        <p className="max-w-md">Necesitas al menos 5 emociones diferentes para jugar a este juego.</p>
         <p className="text-sm mt-2">Ve a "Descubrir" o "Emocionario" para añadir más.</p>
       </div>
     );
@@ -193,7 +191,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
 
   if (isGameOver) {
       return (
-          <div className="flex flex-col items-center justify-center h-full text-center p-8">
+          <div className="flex flex-col items-center justify-center h-full text-center p-4 md:p-8">
             <h2 className="text-2xl font-bold text-primary">Lluvia de Emociones</h2>
             <p className="text-lg my-2">¡Juego terminado!</p>
             <p className="text-5xl font-bold mb-6">{score}</p>
@@ -208,7 +206,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
 
   if (!isPlaying) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-8">
+      <div className="flex flex-col items-center justify-center h-full text-center p-4 md:p-8">
         <h2 className="text-2xl font-bold text-primary">Lluvia de Emociones</h2>
         <p className="text-muted-foreground my-4 max-w-md">El objetivo es hacer clic en el emoji que corresponde a la emoción que se te pide. La velocidad y la cantidad aumentarán con cada acierto. Tienes {MAX_LIVES} vidas.</p>
         <Button onClick={startGame} size="lg">
@@ -221,23 +219,21 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
 
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4">
-       <div className="w-full max-w-[500px] flex justify-between items-center text-lg font-semibold">
+       <div className="w-full max-w-[500px] flex justify-between items-center text-lg font-semibold px-2">
            <p>Puntuación: <span className="text-primary">{score}</span></p>
-           <p>Vidas: <span className="text-destructive">{'❤️'.repeat(Math.max(0, lives))}</span></p>
+           <p>Vidas: <span className="text-destructive text-xl md:text-2xl">{'❤️'.repeat(Math.max(0, lives))}</span></p>
        </div>
 
        <div 
-         className="relative bg-muted/20 rounded-lg overflow-hidden border-2"
-         style={{ width: GAME_WIDTH, height: GAME_HEIGHT }}
+         className="relative bg-muted/20 rounded-lg overflow-hidden border-2 w-full max-w-[500px] h-[400px]"
        >
          {drops.map(drop => (
            <div
              key={drop.id}
-             className="absolute text-4xl cursor-pointer hover:scale-110 transition-transform"
+             className="absolute text-3xl md:text-4xl cursor-pointer hover:scale-110 transition-transform"
              style={{ 
                  left: drop.x, 
                  top: drop.y, 
-                 color: drop.emotion.color,
                  textShadow: `0 0 8px ${drop.emotion.color}90`,
              }}
              onClick={() => handleDropClick(drop.id)}
@@ -247,9 +243,9 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
          ))}
        </div>
 
-        <div className="text-center p-4 rounded-lg bg-muted/50">
-            <p className="text-muted-foreground">Busca esta emoción:</p>
-            <p className="text-2xl font-bold text-primary flex items-center gap-2">
+        <div className="text-center p-4 rounded-lg bg-muted/50 w-full max-w-[500px]">
+            <p className="text-muted-foreground text-sm md:text-base">Busca esta emoción:</p>
+            <p className="text-xl md:text-2xl font-bold text-primary flex items-center justify-center gap-2">
                 <span>{targetEmotion?.icon}</span>
                 <span>{targetEmotion?.name}</span>
             </p>

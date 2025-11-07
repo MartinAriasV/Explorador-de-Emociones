@@ -88,9 +88,9 @@ export function QuickJournalGame({ emotionsList }: GameProps) {
 
   if (availableEmotions.length === 0) {
     return (
-        <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
+        <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
             <p className="text-lg font-semibold">¡Faltan Emociones!</p>
-            <p>Necesitas al menos 1 emoción con palabras clave para jugar.</p>
+            <p className="max-w-md">Necesitas al menos 1 emoción con palabras clave para jugar.</p>
              <p className="text-sm mt-2">Asegúrate de tener emociones como 'Alegría', 'Tristeza', etc. desde la sección "Descubrir".</p>
         </div>
     )
@@ -98,7 +98,7 @@ export function QuickJournalGame({ emotionsList }: GameProps) {
 
   if (!isPlaying) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-8">
+      <div className="flex flex-col items-center justify-center h-full text-center p-4 md:p-8">
         <h2 className="text-2xl font-bold text-primary">Diario Rápido</h2>
         {score > 0 ? (
           <>
@@ -139,12 +139,12 @@ export function QuickJournalGame({ emotionsList }: GameProps) {
       <Card className="w-full max-w-2xl p-6 text-center shadow-inner bg-muted/30">
         <CardContent className="p-0">
           {targetEmotion ? (
-            <div className="text-3xl font-bold flex flex-col items-center justify-center gap-3">
+            <div className="text-2xl md:text-3xl font-bold flex flex-col items-center justify-center gap-3">
               <div className="flex items-center gap-3">
-                <span className="text-5xl">{targetEmotion.icon}</span>
+                <span className="text-4xl md:text-5xl">{targetEmotion.icon}</span>
                 <span>{targetEmotion.name}</span>
               </div>
-              <div className="text-lg mt-2 font-normal text-muted-foreground">
+              <div className="text-base md:text-lg mt-2 font-normal text-muted-foreground">
                 Palabra clave: <span className="font-bold text-accent">{bonusWord}</span>
               </div>
             </div>
@@ -160,7 +160,7 @@ export function QuickJournalGame({ emotionsList }: GameProps) {
           value={thought}
           onChange={(e) => setThought(e.target.value)}
           placeholder="Escribe un pensamiento que incluya la palabra clave..."
-          className="text-lg h-12 text-center"
+          className="text-base md:text-lg h-12 text-center"
           required
           autoFocus
         />

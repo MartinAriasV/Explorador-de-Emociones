@@ -93,9 +93,9 @@ export function AntonymGame({ emotionsList }: GameProps) {
   
   if (allEmotions.filter(e => !e.isCustom).length < 4) {
       return (
-          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
+          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
               <p className="text-lg font-semibold">¡Faltan Emociones Verificadas!</p>
-              <p>Necesitas al menos 4 emociones no personalizadas con antónimos definidos para jugar.</p>
+              <p className="max-w-md">Necesitas al menos 4 emociones no personalizadas con antónimos definidos para jugar.</p>
               <p className="text-sm mt-2">Asegúrate de tener emociones como 'Alegría', 'Tristeza', 'Miedo', 'Confianza' desde la sección "Descubrir".</p>
           </div>
       );
@@ -103,7 +103,7 @@ export function AntonymGame({ emotionsList }: GameProps) {
 
   if (!isPlaying) {
     return (
-        <div className="flex flex-col items-center justify-center h-full text-center p-8">
+        <div className="flex flex-col items-center justify-center h-full text-center p-4 md:p-8">
             <h2 className="text-2xl font-bold text-primary">Guerra de Antónimos</h2>
             <p className="text-muted-foreground my-4 max-w-md">Encuentra la emoción opuesta (antónimo) a la que se muestra. Entender los opuestos es clave para el equilibrio.</p>
             {questionsAnswered >= 10 && (
@@ -122,7 +122,7 @@ export function AntonymGame({ emotionsList }: GameProps) {
 
   if (!currentQuestion) {
       return (
-          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
+          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
               <p className="text-lg font-semibold">Cargando...</p>
           </div>
       )
@@ -137,7 +137,7 @@ export function AntonymGame({ emotionsList }: GameProps) {
 
       <Card className="w-full max-w-2xl p-6 text-center shadow-inner bg-muted/30">
         <CardContent className="p-0">
-          <div className="text-3xl font-bold flex items-center justify-center gap-3">
+          <div className="text-2xl md:text-3xl font-bold flex items-center justify-center gap-3">
             <span>{currentQuestion.emotion.icon}</span>
             <span>{currentQuestion.emotion.name}</span>
           </div>
@@ -155,7 +155,7 @@ export function AntonymGame({ emotionsList }: GameProps) {
                     onClick={() => handleAnswer(option)}
                     disabled={isAnswered}
                     className={cn(
-                        "h-auto py-4 text-base whitespace-normal",
+                        "h-auto py-3 md:py-4 text-sm md:text-base whitespace-normal",
                         isAnswered && isCorrect && 'bg-green-500 hover:bg-green-600 border-green-500 text-white',
                         isAnswered && isSelected && !isCorrect && 'bg-destructive hover:bg-destructive/90 border-destructive text-destructive-foreground',
                         isAnswered && !isSelected && !isCorrect && 'opacity-50'
@@ -172,7 +172,7 @@ export function AntonymGame({ emotionsList }: GameProps) {
       {isAnswered && (
         <div className="flex flex-col items-center gap-4 animate-fade-in">
              <p className={cn(
-                "text-lg font-bold",
+                "text-lg font-bold text-center",
                 selectedAnswer?.id === currentQuestion?.antonym.id ? 'text-green-600' : 'text-destructive'
              )}>
                 {selectedAnswer?.id === currentQuestion?.antonym.id ? '¡Correcto!' : `Incorrecto. El opuesto era: ${currentQuestion?.antonym.name}`}
