@@ -24,46 +24,60 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
   const [difficultyIndex, setDifficultyIndex] = useState(0);
 
-  const allEmotions = useMemo(() => {
+  // All emotions available to the user, including custom ones. Used for generating incorrect options.
+  const allUserEmotions = useMemo(() => {
     const emotionMap = new Map<string, Emotion>();
     PREDEFINED_EMOTIONS.forEach(p => emotionMap.set(p.name.toLowerCase(), { ...p, id: p.name, userProfileId: 'system', isCustom: false } as Emotion));
     emotionsList.forEach(e => emotionMap.set(e.name.toLowerCase(), e));
     return Array.from(emotionMap.values());
   }, [emotionsList]);
   
+  // All predefined emotions, used to guarantee questions can always be generated.
+  const allPredefinedEmotions = useMemo(() => {
+      return PREDEFINED_EMOTIONS.map(p => ({ ...p, id: p.name, userProfileId: 'system', isCustom: false } as Emotion));
+  }, []);
+
+
   const generateQuestion = useCallback(() => {
     const currentDifficulty = difficulties[difficultyIndex];
     
-    // 1. Get all predefined emotions that the user has in their list.
-    const userPredefinedEmotionNames = new Set(
-        allEmotions.filter(e => !e.isCustom).map(e => e.name.toLowerCase())
-    );
-
-    // 2. Find all quiz questions that match the current difficulty AND whose correct answer is an emotion the user has.
+    // 1. Find all quiz questions that match the current difficulty.
     let possibleQuestions = QUIZ_QUESTIONS.filter(q => 
-        q.difficulty === currentDifficulty && userPredefinedEmotionNames.has(q.correctAnswer.toLowerCase())
+        q.difficulty === currentDifficulty
     );
 
-    // 3. Fallback: If no questions found for the current difficulty, try with 'Fácil'.
+    // 2. Fallback: If no questions found for the current difficulty, try with 'Fácil'.
     if (possibleQuestions.length === 0) {
         possibleQuestions = QUIZ_QUESTIONS.filter(q => 
-            q.difficulty === 'Fácil' && userPredefinedEmotionNames.has(q.correctAnswer.toLowerCase())
+            q.difficulty === 'Fácil'
         );
     }
 
-    // 4. If there are still no possible questions, it means the user is missing critical predefined emotions.
+    // 3. If there are still no possible questions, something is wrong with the constants.
     if (possibleQuestions.length === 0) {
-        console.error("No valid quiz questions could be generated. The user may be missing key predefined emotions.");
-        setCurrentQuestion(null); // Set to null to show an appropriate message in the UI
+        console.error("No quiz questions found, even for 'Fácil' difficulty. Check QUIZ_QUESTIONS constant.");
+        setCurrentQuestion(null);
         return;
     }
 
-    // 5. Select a random question from the valid list.
+    // 4. Select a random question from the valid list.
     const randomQuestion = shuffleArray(possibleQuestions)[0];
-    const correctEmotion = allEmotions.find(e => e.name.toLowerCase() === randomQuestion.correctAnswer.toLowerCase())!;
+    
+    // 5. Find the correct emotion from the *complete predefined list*. This ensures it's always found.
+    const correctEmotion = allPredefinedEmotions.find(e => e.name.toLowerCase() === randomQuestion.correctAnswer.toLowerCase());
 
-    // 6. Generate options for the answer.
-    const incorrectOptions = shuffleArray(allEmotions.filter(e => e.id !== correctEmotion.id)).slice(0, 3);
+    if (!correctEmotion) {
+        console.error(`Could not find correct emotion "${randomQuestion.correctAnswer}" in predefined list.`);
+        // Try to generate another question to avoid getting stuck
+        if (questionsAnswered < 15) { // safety break
+            setQuestionsAnswered(p => p+1);
+            generateQuestion();
+        }
+        return;
+    }
+
+    // 6. Generate options for the answer using the user's full list of emotions.
+    const incorrectOptions = shuffleArray(allUserEmotions.filter(e => e.id !== correctEmotion.id)).slice(0, 3);
     const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
 
     setCurrentQuestion(randomQuestion);
@@ -71,14 +85,14 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     setIsAnswered(false);
     setSelectedAnswer(null);
 
-  }, [difficultyIndex, allEmotions]);
+  }, [difficultyIndex, allUserEmotions, allPredefinedEmotions, questionsAnswered]);
 
 
   useEffect(() => {
-    if (allEmotions.length >= 4) {
+    if (allUserEmotions.length >= 4) {
       generateQuestion();
     }
-  }, [allEmotions.length, generateQuestion]);
+  }, [allUserEmotions.length, generateQuestion]);
 
   const handleAnswer = (answer: Emotion) => {
     if (isAnswered) return;
@@ -106,12 +120,12 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     generateQuestion();
   };
   
-  if (allEmotions.filter(e => !e.isCustom).length < 4) {
+  if (allUserEmotions.length < 4) {
       return (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
-              <p className="text-lg font-semibold">¡Faltan Emociones Verificadas!</p>
-              <p>Necesitas al menos 4 emociones no personalizadas para jugar a este juego.</p>
-              <p className="text-sm mt-2">Ve a "Descubrir" para añadir más emociones predefinidas.</p>
+              <p className="text-lg font-semibold">¡Faltan Emociones!</p>
+              <p>Necesitas al menos 4 emociones diferentes para jugar a este juego.</p>
+              <p className="text-sm mt-2">Ve a "Descubrir" o "Emocionario" para añadir más.</p>
           </div>
       )
   }
@@ -135,7 +149,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     )
   }
 
-  const correctEmotionDetails = allEmotions.find(e => e.name.toLowerCase() === currentQuestion.correctAnswer.toLowerCase());
+  const correctEmotionDetails = allPredefinedEmotions.find(e => e.name.toLowerCase() === currentQuestion.correctAnswer.toLowerCase());
 
   return (
     <div className="flex flex-col items-center justify-center h-full gap-6">
