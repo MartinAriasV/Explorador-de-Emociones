@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
@@ -30,19 +29,32 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(MAX_LIVES);
   const gameLoopRef = useRef<number>();
-  const dropTimerRef = useRef<number>();
+  const dropTimerRef = useRef<NodeJS.Timeout>();
 
   const availableEmotions = useMemo(() => {
-    // Prioritize verified emotions, but allow custom ones if not enough verified ones are available.
-    const verified = emotionsList.filter(e => !e.isCustom);
-    const custom = emotionsList.filter(e => e.isCustom);
-    if (verified.length >= 5) return verified;
-    return [...verified, ...shuffleArray(custom)].slice(0, 5);
+    // We need at least 5 emotions to make the game challenging.
+    const uniqueEmotions = Array.from(new Map(emotionsList.map(e => [e.name, e])).values());
+    if (uniqueEmotions.length < 5) return [];
+    return shuffleArray(uniqueEmotions);
   }, [emotionsList]);
 
   const selectNewTarget = useCallback(() => {
-    setTargetEmotion(shuffleArray(availableEmotions)[0]);
+    if (availableEmotions.length > 0) {
+      setTargetEmotion(prev => {
+          let nextTarget;
+          do {
+            nextTarget = shuffleArray(availableEmotions)[0];
+          } while (availableEmotions.length > 1 && nextTarget.id === prev?.id);
+          return nextTarget;
+      });
+    }
   }, [availableEmotions]);
+
+  const stopGame = useCallback(() => {
+    setIsPlaying(false);
+    if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
+    if (dropTimerRef.current) clearInterval(dropTimerRef.current);
+  }, []);
   
   const startGame = useCallback(() => {
     setScore(0);
@@ -51,27 +63,6 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     setIsPlaying(true);
     selectNewTarget();
 
-    const addDrop = () => {
-      if (!targetEmotion || availableEmotions.length === 0) return;
-      
-      let emotionForDrop: Emotion;
-      // Make the target emotion appear more frequently
-      if (Math.random() > 0.4) { // 60% chance to be the target emotion
-          emotionForDrop = targetEmotion;
-      } else {
-          emotionForDrop = shuffleArray(availableEmotions.filter(e => e.id !== targetEmotion.id))[0] || targetEmotion;
-      }
-
-      const newDrop: Drop = {
-        id: Date.now() + Math.random(),
-        emotion: emotionForDrop,
-        x: Math.random() * (GAME_WIDTH - 40),
-        y: -40,
-        speed: 1 + Math.random() * 1.5,
-      };
-      setDrops(prev => [...prev, newDrop]);
-    };
-    
     const gameLoop = () => {
       setDrops(prevDrops => {
         const newDrops = prevDrops
@@ -79,7 +70,11 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
           .filter(drop => {
             if (drop.y > GAME_HEIGHT) {
               if (drop.emotion.id === targetEmotion?.id) {
-                setLives(l => l - 1);
+                 setLives(l => {
+                    const newLives = l - 1;
+                    if (newLives <= 0) stopGame();
+                    return newLives;
+                 });
               }
               return false;
             }
@@ -89,23 +84,56 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
       });
       gameLoopRef.current = requestAnimationFrame(gameLoop);
     };
-
+    
     gameLoopRef.current = requestAnimationFrame(gameLoop);
-    dropTimerRef.current = window.setInterval(addDrop, DROP_INTERVAL);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [availableEmotions, selectNewTarget, targetEmotion]);
-  
-  const stopGame = useCallback(() => {
-    setIsPlaying(false);
-    if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
-    if (dropTimerRef.current) clearInterval(dropTimerRef.current);
-  }, []);
+    
+    dropTimerRef.current = setInterval(() => {
+      setDrops(prev => {
+        // This check ensures we have a target to work with inside the interval
+        let currentTarget: Emotion;
+        setTargetEmotion(t => {
+          currentTarget = t!;
+          return t;
+        });
 
-  useEffect(() => {
-    if (lives <= 0) {
-      stopGame();
+        if (!currentTarget || availableEmotions.length === 0) return prev;
+
+        let emotionForDrop: Emotion;
+        if (Math.random() > 0.4) { 
+            emotionForDrop = currentTarget;
+        } else {
+            emotionForDrop = shuffleArray(availableEmotions.filter(e => e.id !== currentTarget.id))[0] || currentTarget;
+        }
+  
+        const newDrop: Drop = {
+          id: Date.now() + Math.random(),
+          emotion: emotionForDrop,
+          x: Math.random() * (GAME_WIDTH - 40),
+          y: -40,
+          speed: 1 + Math.random() * 1.5,
+        };
+        return [...prev, newDrop];
+      })
+    }, DROP_INTERVAL);
+
+  }, [availableEmotions, selectNewTarget, stopGame, targetEmotion?.id]);
+
+  const handleDropClick = (clickedDrop: Drop) => {
+    if (!isPlaying) return;
+
+    if (clickedDrop.emotion.id === targetEmotion?.id) {
+      setScore(s => s + 1);
+      selectNewTarget();
+    } else {
+      setLives(l => {
+        const newLives = l - 1;
+        if (newLives <= 0) stopGame();
+        return newLives;
+      });
     }
-  }, [lives, stopGame]);
+
+    setDrops(prev => prev.filter(drop => drop.id !== clickedDrop.id));
+  };
   
   useEffect(() => {
     return () => stopGame();
