@@ -186,64 +186,63 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
         </CardHeader>
         <CardContent className="flex-grow overflow-hidden">
           <ScrollArea className="h-full pr-4 -mr-4">
-            <TooltipProvider>
-              {emotionsList.length > 0 ? (
-                <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-6">
-                  {emotionsList.map((em) => (
-                    <Tooltip key={em.id}>
-                      <TooltipTrigger asChild>
-                        <div className="group relative flex flex-col items-center gap-2 cursor-pointer">
-                          <div
-                            className="w-16 h-16 rounded-full flex items-center justify-center text-4xl border-4 transition-all group-hover:scale-110 group-hover:shadow-lg"
-                            style={{ borderColor: em.color, backgroundColor: `${em.color}20` }}
-                          >
-                            {em.icon}
-                          </div>
-                          <p className="font-semibold text-sm text-center truncate w-full">{em.name}</p>
-                           {em.isCustom && (
-                            <div className="absolute top-0 right-0 bg-accent text-accent-foreground p-1 rounded-full transform translate-x-1/2 -translate-y-1/2" title="Emoción Personalizada">
-                              <Wand2 className="h-3 w-3" />
-                            </div>
-                           )}
-                           <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 rounded-full">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:bg-white/20 hover:text-white" onClick={() => onEditEmotion(em)}>
-                              <Edit className="h-4 w-4" />
+            {emotionsList.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {emotionsList.map((em) => (
+                  <Card key={em.id} className="group relative p-4 overflow-hidden" style={{borderLeft: `4px solid ${em.color}`}}>
+                    <div className="flex items-start gap-4">
+                      <span className="text-3xl mt-1">{em.icon}</span>
+                      <div className="flex-1">
+                          <h3 className="font-bold text-lg text-foreground">{em.name}</h3>
+                          <p className="text-sm text-muted-foreground line-clamp-2">{em.description || 'Sin descripción'}</p>
+                      </div>
+                      {em.isCustom && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="absolute top-2 right-2 bg-accent text-accent-foreground p-1 rounded-full">
+                                <Wand2 className="h-3 w-3" />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Emoción Personalizada</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                       )}
+                    </div>
+                    <div className="absolute top-0 right-0 bottom-0 flex items-center justify-end gap-1 p-2 bg-gradient-to-l from-card via-card to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditEmotion(em)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="icon" className="h-8 w-8">
+                              <Trash2 className="h-4 w-4" />
                             </Button>
-                            <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button variant="destructive" size="icon" className="h-8 w-8 bg-destructive/80 hover:bg-destructive text-white">
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Esta acción no se puede deshacer. Esto eliminará permanentemente la emoción y todas las entradas del diario asociadas a ella.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => onDeleteEmotion(em.id)}>Eliminar</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                           </div>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p className="font-bold" style={{ color: em.color }}>{em.name}</p>
-                        <p className="text-xs text-muted-foreground max-w-xs">{em.description || "Sin descripción."}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex items-center justify-center h-full text-center text-muted-foreground">
-                  <p>Tu emocionario está esperando a que lo llenes.</p>
-                </div>
-              )}
-            </TooltipProvider>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta acción no se puede deshacer. Esto eliminará permanentemente la emoción y afectará a las entradas del diario asociadas.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => onDeleteEmotion(em.id)}>Eliminar</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                     </div>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-full text-center text-muted-foreground">
+                <p>Tu emocionario está esperando a que lo llenes.</p>
+              </div>
+            )}
           </ScrollArea>
         </CardContent>
       </Card>
