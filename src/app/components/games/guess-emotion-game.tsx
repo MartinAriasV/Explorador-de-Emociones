@@ -70,7 +70,6 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
         console.error(`Could not find correct emotion "${randomQuestion.correctAnswer}" in predefined list.`);
         // Try to generate another question to avoid getting stuck
         if (questionsAnswered < 15) { // safety break
-            setQuestionsAnswered(p => p+1);
             generateQuestion();
         }
         return;
