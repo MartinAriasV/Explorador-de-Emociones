@@ -41,42 +41,42 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
   const generateQuestion = useCallback(() => {
     const currentDifficulty = difficulties[difficultyIndex];
     
-    // 1. Find all quiz questions that match the current difficulty.
-    let possibleQuestions = QUIZ_QUESTIONS.filter(q => 
-        q.difficulty === currentDifficulty
-    );
+    // 1. Find all quiz questions for the current difficulty whose correct answer is in the predefined emotions list
+    let possibleQuestions = QUIZ_QUESTIONS.filter(q => {
+        const difficultyMatch = q.difficulty === currentDifficulty;
+        const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
+        return difficultyMatch && answerExists;
+    });
 
-    // 2. Fallback: If no questions found for the current difficulty, try with 'Fácil'.
+    // 2. Fallback: If no questions found, try 'Fácil'
     if (possibleQuestions.length === 0) {
-        possibleQuestions = QUIZ_QUESTIONS.filter(q => 
-            q.difficulty === 'Fácil'
-        );
+        possibleQuestions = QUIZ_QUESTIONS.filter(q => {
+            const difficultyMatch = q.difficulty === 'Fácil';
+            const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
+            return difficultyMatch && answerExists;
+        });
     }
 
-    // 3. If there are still no possible questions, something is wrong with the constants.
+    // 3. If still no questions, log an error. This shouldn't happen if constants are correct.
     if (possibleQuestions.length === 0) {
-        console.error("No quiz questions found, even for 'Fácil' difficulty. Check QUIZ_QUESTIONS constant.");
+        console.error("No valid quiz questions could be generated. The user may be missing key predefined emotions.");
         setCurrentQuestion(null);
         return;
     }
 
-    // 4. Select a random question from the valid list.
+    // 4. Select a random question and find its correct emotion from the predefined list
     const randomQuestion = shuffleArray(possibleQuestions)[0];
-    
-    // 5. Find the correct emotion from the *complete predefined list*. This ensures it's always found.
     const correctEmotion = allPredefinedEmotions.find(e => e.name.toLowerCase() === randomQuestion.correctAnswer.toLowerCase());
 
     if (!correctEmotion) {
+        // This case should be rare given the checks above, but as a safeguard:
         console.error(`Could not find correct emotion "${randomQuestion.correctAnswer}" in predefined list.`);
-        // Try to generate another question to avoid getting stuck
-        if (questionsAnswered < 15) { // safety break
-            generateQuestion();
-        }
+        setCurrentQuestion(null);
         return;
     }
 
-    // 6. Generate options for the answer using the user's full list of emotions.
-    const incorrectOptions = shuffleArray(allUserEmotions.filter(e => e.id !== correctEmotion.id)).slice(0, 3);
+    // 5. Generate options: the correct one + 3 incorrect ones from the user's full list
+    const incorrectOptions = shuffleArray(allUserEmotions.filter(e => e.name.toLowerCase() !== correctEmotion.name.toLowerCase())).slice(0, 3);
     const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
 
     setCurrentQuestion(randomQuestion);
@@ -84,7 +84,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     setIsAnswered(false);
     setSelectedAnswer(null);
 
-  }, [difficultyIndex, allUserEmotions, allPredefinedEmotions, questionsAnswered]);
+  }, [difficultyIndex, allUserEmotions, allPredefinedEmotions]);
 
 
   useEffect(() => {
@@ -168,8 +168,8 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
       
       <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
         {options.map((option) => {
-            const isSelected = selectedAnswer?.id === option.id;
             const isCorrect = option.name.toLowerCase() === currentQuestion.correctAnswer.toLowerCase();
+            const isSelected = selectedAnswer?.name === option.name;
 
             return (
                  <Button
@@ -207,3 +207,4 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     </div>
   );
 }
+
