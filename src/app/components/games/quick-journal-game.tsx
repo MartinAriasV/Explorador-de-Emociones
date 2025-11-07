@@ -5,11 +5,13 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import type { Emotion, GameProps } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Timer, Zap } from 'lucide-react';
+import { Timer, Zap, Sparkles } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
+import { EMOTION_BONUS_WORDS } from '@/lib/constants';
 
-const GAME_DURATION = 30; // 30 seconds
+const GAME_DURATION = 45; // seconds
+const TIME_BONUS = 3; // seconds
 
 const shuffleArray = <T,>(array: T[]): T[] => {
   return [...array].sort(() => Math.random() - 0.5);
@@ -20,33 +22,45 @@ export function QuickJournalGame({ emotionsList }: GameProps) {
   const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
   const [score, setScore] = useState(0);
   const [targetEmotion, setTargetEmotion] = useState<Emotion | null>(null);
+  const [bonusWord, setBonusWord] = useState<string>('');
   const [thought, setThought] = useState('');
+  const [showTimeBonus, setShowTimeBonus] = useState(false);
   const timerRef = useRef<number | null>(null);
 
   const availableEmotions = useMemo(() => {
-    return [...emotionsList].sort((a, b) => a.name.localeCompare(b.name));
+    // Filter emotions that have bonus words available
+    return emotionsList.filter(e => EMOTION_BONUS_WORDS[e.name]);
   }, [emotionsList]);
 
   const selectNewTarget = useCallback(() => {
     if (availableEmotions.length === 0) return;
-    const shuffled = shuffleArray(availableEmotions);
+    
+    let nextEmotion = shuffleArray(availableEmotions)[0];
     // Avoid picking the same emotion twice in a row if possible
-    if (shuffled[0].id === targetEmotion?.id && shuffled.length > 1) {
-      setTargetEmotion(shuffled[1]);
-    } else {
-      setTargetEmotion(shuffled[0]);
+    if (nextEmotion.id === targetEmotion?.id && availableEmotions.length > 1) {
+      nextEmotion = shuffleArray(availableEmotions.filter(e => e.id !== targetEmotion.id))[0];
     }
+    
+    setTargetEmotion(nextEmotion);
+    const possibleWords = EMOTION_BONUS_WORDS[nextEmotion.name];
+    setBonusWord(shuffleArray(possibleWords)[0]);
   }, [availableEmotions, targetEmotion]);
+
+  const stopTimer = () => {
+    if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+    }
+  }
 
   useEffect(() => {
     if (isPlaying && timeLeft > 0) {
       timerRef.current = window.setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-    } else if (timeLeft === 0) {
+    } else if (timeLeft <= 0) {
       setIsPlaying(false);
+      stopTimer();
     }
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
+    return stopTimer;
   }, [isPlaying, timeLeft]);
 
   const startGame = () => {
@@ -60,10 +74,27 @@ export function QuickJournalGame({ emotionsList }: GameProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!thought) return;
+
+    if (thought.toLowerCase().includes(bonusWord.toLowerCase())) {
+        setTimeLeft(prev => prev + TIME_BONUS);
+        setShowTimeBonus(true);
+        setTimeout(() => setShowTimeBonus(false), 1000);
+    }
+
     setScore(score + 1);
     setThought('');
     selectNewTarget();
   };
+
+  if (availableEmotions.length === 0) {
+    return (
+        <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
+            <p className="text-lg font-semibold">¡Faltan Emociones!</p>
+            <p>Necesitas al menos 1 emoción con palabras clave para jugar.</p>
+             <p className="text-sm mt-2">Asegúrate de tener emociones como 'Alegría', 'Tristeza', etc. desde la sección "Descubrir".</p>
+        </div>
+    )
+  }
 
   if (!isPlaying) {
     return (
@@ -73,14 +104,14 @@ export function QuickJournalGame({ emotionsList }: GameProps) {
           <>
             <p className="text-lg my-2">¡Juego terminado!</p>
             <p className="text-5xl font-bold mb-2">{score}</p>
-            <p className="text-muted-foreground mb-6">entradas registradas en {GAME_DURATION} segundos.</p>
+            <p className="text-muted-foreground mb-6">entradas registradas.</p>
           </>
         ) : (
-          <p className="text-muted-foreground my-4 max-w-md">Una emoción aparecerá en pantalla. Escribe rápidamente un pensamiento asociado antes de que se acabe el tiempo.</p>
+          <p className="text-muted-foreground my-4 max-w-md">Una emoción y una palabra clave aparecerán. Escribe un pensamiento que incluya la palabra clave para ganar tiempo extra.</p>
         )}
-        <Button onClick={startGame} size="lg" disabled={availableEmotions.length === 0}>
+        <Button onClick={startGame} size="lg">
           <Zap className="mr-2" />
-          {availableEmotions.length === 0 ? 'Añade emociones para jugar' : (score > 0 ? 'Jugar de Nuevo' : 'Empezar')}
+          {score > 0 ? 'Jugar de Nuevo' : 'Empezar'}
         </Button>
       </div>
     );
@@ -89,12 +120,18 @@ export function QuickJournalGame({ emotionsList }: GameProps) {
   return (
     <div className="flex flex-col items-center justify-center h-full gap-6">
       <div className="w-full max-w-2xl space-y-4">
-        <div className="flex justify-between items-center w-full px-2">
+        <div className="flex justify-between items-center w-full px-2 relative">
           <p className="text-lg font-semibold text-primary">Puntuación: {score}</p>
           <div className="flex items-center gap-2 text-xl font-bold text-destructive">
             <Timer />
             <span>{timeLeft}s</span>
           </div>
+           {showTimeBonus && (
+            <div className="absolute right-0 -top-8 flex items-center gap-1 text-green-500 font-bold animate-fade-in-up">
+                <Sparkles className="h-5 w-5" />
+                <span>+{TIME_BONUS}s</span>
+            </div>
+           )}
         </div>
         <Progress value={(timeLeft / GAME_DURATION) * 100} className="w-full h-2" />
       </div>
@@ -102,11 +139,13 @@ export function QuickJournalGame({ emotionsList }: GameProps) {
       <Card className="w-full max-w-2xl p-6 text-center shadow-inner bg-muted/30">
         <CardContent className="p-0">
           {targetEmotion ? (
-            <div className="text-3xl font-bold flex flex-col items-center justify-center gap-2">
-              <span style={{color: targetEmotion.color}}>Anota un pensamiento sobre:</span>
+            <div className="text-3xl font-bold flex flex-col items-center justify-center gap-3">
               <div className="flex items-center gap-3">
                 <span className="text-5xl">{targetEmotion.icon}</span>
                 <span>{targetEmotion.name}</span>
+              </div>
+              <div className="text-lg mt-2 font-normal text-muted-foreground">
+                Palabra clave: <span className="font-bold text-accent">{bonusWord}</span>
               </div>
             </div>
           ) : (
@@ -115,13 +154,12 @@ export function QuickJournalGame({ emotionsList }: GameProps) {
         </CardContent>
       </Card>
 
-
       <form onSubmit={handleSubmit} className="w-full max-w-2xl space-y-4">
         <Input
           type="text"
           value={thought}
           onChange={(e) => setThought(e.target.value)}
-          placeholder="Un pensamiento rápido sobre esta emoción..."
+          placeholder="Escribe un pensamiento que incluya la palabra clave..."
           className="text-lg h-12 text-center"
           required
           autoFocus
