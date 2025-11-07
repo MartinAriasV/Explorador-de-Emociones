@@ -37,13 +37,12 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
   const gameLoopRef = useRef<number>();
   const dropTimerRef = useRef<NodeJS.Timeout>();
   const visualUpdateTimerRef = useRef<NodeJS.Timeout>();
-  const isPlayingRef = useRef(isPlaying);
-  const targetEmotionRef = useRef(targetEmotion);
 
-  useEffect(() => {
-    isPlayingRef.current = isPlaying;
-    targetEmotionRef.current = targetEmotion;
-  }, [isPlaying, targetEmotion]);
+  const isPlayingRef = useRef(isPlaying);
+  useEffect(() => { isPlayingRef.current = isPlaying; }, [isPlaying]);
+
+  const targetEmotionRef = useRef(targetEmotion);
+  useEffect(() => { targetEmotionRef.current = targetEmotion; }, [targetEmotion]);
 
   const availableEmotions = useMemo(() => {
     const uniqueEmotions = Array.from(new Map(emotionsList.map(e => [e.name, e])).values());
@@ -66,9 +65,11 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     });
   }, [availableEmotions]);
 
-  const stopGame = useCallback(() => {
+  const stopGame = useCallback((isGameOver: boolean) => {
     setIsPlaying(false);
-    setIsGameOver(true);
+    if (isGameOver) {
+      setIsGameOver(true);
+    }
     if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
     if (dropTimerRef.current) clearInterval(dropTimerRef.current);
     if (visualUpdateTimerRef.current) clearInterval(visualUpdateTimerRef.current);
@@ -107,18 +108,13 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     setDrops([]);
     setIsGameOver(false);
     
-    // Set initial target and only start game logic after state is set
-    setTargetEmotion(() => {
-        const initialTarget = shuffleArray(availableEmotions)[0];
-        targetEmotionRef.current = initialTarget;
-        setIsPlaying(true);
-        return initialTarget;
-    });
+    const initialTarget = shuffleArray(availableEmotions)[0];
+    setTargetEmotion(initialTarget);
+    setIsPlaying(true);
 
   }, [availableEmotions]);
 
   useEffect(() => {
-    // This effect runs when isPlaying becomes true, AFTER targetEmotion is set.
     if (isPlaying) {
         gameLoopRef.current = requestAnimationFrame(function gameLoop() {
             if (!isPlayingRef.current) return;
@@ -173,19 +169,20 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
                 }))
             );
         }, VISUAL_UPDATE_INTERVAL);
-    } else {
-        // Cleanup when isPlaying becomes false
-        stopGame();
     }
     
-    return () => stopGame();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying]);
+    // Cleanup function runs when isPlaying becomes false OR component unmounts
+    return () => {
+        if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
+        if (dropTimerRef.current) clearInterval(dropTimerRef.current);
+        if (visualUpdateTimerRef.current) clearInterval(visualUpdateTimerRef.current);
+    };
+  }, [isPlaying, availableEmotions, allColors]);
 
 
   useEffect(() => {
     if (lives <= 0 && isPlaying) {
-      stopGame();
+      stopGame(true); // game is over
     }
   }, [lives, isPlaying, stopGame]);
 
@@ -259,3 +256,5 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     </div>
   );
 }
+
+    
