@@ -4,13 +4,16 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import type { Emotion, GameProps } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Play, RotateCw } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Drop {
   id: number;
-  emotion: Emotion;
+  emotion: Emotion; // The "true" emotion of the drop
+  displayEmotion: Emotion; // The currently visible emotion
   x: number;
   y: number;
   speed: number;
+  color: string; // The current color of the emoji
 }
 
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -21,6 +24,7 @@ const GAME_WIDTH = 500;
 const GAME_HEIGHT = 400;
 const DROP_INTERVAL = 1200; // ms
 const MAX_LIVES = 5;
+const VISUAL_UPDATE_INTERVAL = 400; // ms for color/icon change
 
 export function EmotionRainGame({ emotionsList }: GameProps) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -30,13 +34,18 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
   const [lives, setLives] = useState(MAX_LIVES);
   const gameLoopRef = useRef<number>();
   const dropTimerRef = useRef<NodeJS.Timeout>();
+  const visualUpdateTimerRef = useRef<NodeJS.Timeout>();
 
   const availableEmotions = useMemo(() => {
-    // We need at least 5 emotions to make the game challenging.
     const uniqueEmotions = Array.from(new Map(emotionsList.map(e => [e.name, e])).values());
     if (uniqueEmotions.length < 5) return [];
     return shuffleArray(uniqueEmotions);
   }, [emotionsList]);
+  
+  const allColors = useMemo(() => {
+      if (availableEmotions.length === 0) return ['#FFFFFF'];
+      return availableEmotions.map(e => e.color);
+  }, [availableEmotions]);
 
   const selectNewTarget = useCallback(() => {
     if (availableEmotions.length === 0) return;
@@ -53,11 +62,11 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     setIsPlaying(false);
     if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
     if (dropTimerRef.current) clearInterval(dropTimerRef.current);
+    if (visualUpdateTimerRef.current) clearInterval(visualUpdateTimerRef.current);
   }, []);
   
   const decrementLives = useCallback(() => {
     setLives(l => {
-      // Only decrement if the game is still playing and lives are > 0
       if (!isPlaying || l <= 0) return l;
       
       const newLives = l - 1;
@@ -77,7 +86,6 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     setDrops([]);
     setIsPlaying(true);
     
-    // Select initial target
     const initialTarget = shuffleArray(availableEmotions)[0];
     setTargetEmotion(initialTarget);
 
@@ -88,11 +96,10 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
             .map(drop => ({ ...drop, y: drop.y + drop.speed }))
             .filter(drop => {
               if (drop.y > GAME_HEIGHT) {
-                // If a target drop was missed, decrement lives
                 if (drop.emotion.id === targetEmotion?.id) {
                     decrementLives();
                 }
-                return false; // Remove drop that went off-screen
+                return false;
               }
               return true;
             });
@@ -102,12 +109,12 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
       };
     gameLoopRef.current = requestAnimationFrame(gameLoop);
     
-    // Timer for adding new drops
     dropTimerRef.current = setInterval(() => {
-      if (availableEmotions.length === 0) return;
-      
-      setTargetEmotion(currentTarget => {
-        if (!currentTarget) return currentTarget;
+      setDrops(prev => {
+        if (!isPlaying || availableEmotions.length === 0) return prev;
+
+        const currentTarget = targetEmotion;
+        if (!currentTarget) return prev;
         
         let emotionForDrop: Emotion;
         if (Math.random() < 0.4) { 
@@ -120,17 +127,30 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
         const newDrop: Drop = {
           id: Date.now() + Math.random(),
           emotion: emotionForDrop,
+          displayEmotion: emotionForDrop,
           x: Math.random() * (GAME_WIDTH - 40),
           y: -40,
           speed: 1 + Math.random() * 1.5,
+          color: emotionForDrop.color,
         };
 
-        setDrops(prev => [...prev, newDrop]);
-        return currentTarget;
+        return [...prev, newDrop];
       });
     }, DROP_INTERVAL);
 
-  }, [availableEmotions, stopGame, decrementLives]);
+    visualUpdateTimerRef.current = setInterval(() => {
+        setDrops(prev => {
+            if (!isPlaying) return prev;
+            return prev.map(drop => ({
+                ...drop,
+                displayEmotion: shuffleArray(availableEmotions)[0],
+                color: shuffleArray(allColors)[0]
+            }));
+        });
+    }, VISUAL_UPDATE_INTERVAL);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableEmotions, stopGame, decrementLives, targetEmotion, isPlaying, allColors]);
 
   const handleDropClick = (clickedDrop: Drop) => {
     if (!isPlaying || !targetEmotion) return;
@@ -146,7 +166,6 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
   };
   
   useEffect(() => {
-    // Cleanup on unmount
     return () => stopGame();
   }, [stopGame]);
 
@@ -195,10 +214,16 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
            <div
              key={drop.id}
              className="absolute text-4xl cursor-pointer hover:scale-110 transition-transform"
-             style={{ left: drop.x, top: drop.y }}
+             style={{ 
+                 left: drop.x, 
+                 top: drop.y, 
+                 color: drop.color,
+                 textShadow: `0 0 8px ${drop.color}90`,
+                 transition: 'color 0.3s ease'
+             }}
              onClick={() => handleDropClick(drop)}
            >
-             {drop.emotion.icon}
+             {drop.displayEmotion.icon}
            </div>
          ))}
        </div>
@@ -213,3 +238,5 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     </div>
   );
 }
+
+    
