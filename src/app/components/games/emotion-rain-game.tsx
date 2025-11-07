@@ -26,7 +26,7 @@ const MIN_DROP_INTERVAL = 250; // ms
 const DROP_INTERVAL_DECREMENT = 50; // ms
 const MAX_LIVES = 5;
 const INITIAL_SPEED_MULTIPLIER = 1.0;
-const SPEED_INCREMENT = 0.1; // Increased speed increment
+const SPEED_INCREMENT = 0.1;
 
 export function EmotionRainGame({ emotionsList }: GameProps) {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -47,17 +47,18 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
   }, [emotionsList]);
   
   const selectNewTarget = useCallback(() => {
-    if (availableEmotions.length === 0) return null;
-    let nextTarget;
-    const otherEmotions = availableEmotions.filter(e => e.id !== targetEmotion?.id);
-    if (otherEmotions.length > 0) {
-        nextTarget = shuffleArray(otherEmotions)[0];
-    } else {
-        nextTarget = availableEmotions[0];
-    }
-    setTargetEmotion(nextTarget);
-    return nextTarget;
-  }, [availableEmotions, targetEmotion]);
+    setTargetEmotion(currentTarget => {
+        if (availableEmotions.length === 0) return null;
+        let nextTarget;
+        const otherEmotions = availableEmotions.filter(e => e.id !== currentTarget?.id);
+        if (otherEmotions.length > 0) {
+            nextTarget = shuffleArray(otherEmotions)[0];
+        } else {
+            nextTarget = availableEmotions[0];
+        }
+        return nextTarget;
+    });
+  }, [availableEmotions]);
 
   const handleDropClick = useCallback((clickedDropId: number) => {
     if (!isPlaying) return;
@@ -81,7 +82,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
         setSpeedMultiplier(s => s + SPEED_INCREMENT);
         setDropInterval(d => Math.max(MIN_DROP_INTERVAL, d - DROP_INTERVAL_DECREMENT));
     }
-  }, [isPlaying, selectNewTarget, targetEmotion]);
+  }, [isPlaying, targetEmotion, selectNewTarget]);
   
   const stopGame = useCallback(() => {
       setIsPlaying(false);
@@ -98,10 +99,9 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
     setSpeedMultiplier(INITIAL_SPEED_MULTIPLIER);
     setDropInterval(INITIAL_DROP_INTERVAL);
     
-    const initialTarget = selectNewTarget();
-    if(initialTarget) {
-        setIsPlaying(true);
-    }
+    selectNewTarget();
+    setIsPlaying(true);
+    
   }, [availableEmotions.length, selectNewTarget]);
 
 
@@ -113,7 +113,7 @@ export function EmotionRainGame({ emotionsList }: GameProps) {
   }, [lives, isPlaying, stopGame]);
 
   useEffect(() => {
-    if (!isPlaying) {
+    if (!isPlaying || !targetEmotion) {
       if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
       if (dropTimerRef.current) clearTimeout(dropTimerRef.current);
       return;
