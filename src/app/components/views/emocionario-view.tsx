@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import type { Emotion } from '@/lib/types';
 import { Sparkles, Loader, Trash2, Edit, Wand2 } from 'lucide-react';
 import { defineEmotionMeaning } from '@/ai/flows/define-emotion-meaning';
@@ -102,139 +102,146 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
   };
 
   return (
-    <div className="grid lg:grid-cols-2 gap-6 h-full">
-      <Card className="w-full shadow-lg flex flex-col transition-all duration-300 hover:shadow-xl">
+    <div className="flex flex-col gap-6 h-full">
+      <Card className="w-full shadow-lg flex-shrink-0">
         <CardHeader>
           <CardTitle className="text-2xl font-bold" style={{ color: editingEmotion ? color : 'var(--primary)' }}>
             {editingEmotion ? 'Editar Emoción' : 'Añadir Emoción'}
           </CardTitle>
           <CardDescription>{editingEmotion ? `Modificando "${editingEmotion.name}"` : 'Crea una nueva emoción para tu diario.'}</CardDescription>
         </CardHeader>
-        <CardContent className="flex-grow flex flex-col gap-4 overflow-y-auto">
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <Input
-                placeholder="Nombre de la Emoción (ej. Euforia)"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-              <div>
-                <label className="text-sm font-medium">Icono (emoji)</label>
-                <ScrollArea className="h-40">
-                  <div className="grid grid-cols-8 gap-2 mt-2 bg-muted/50 p-2 rounded-lg">
-                    {AVATAR_EMOJIS.map((emoji, index) => (
-                        <button
-                            type="button"
-                            key={`${emoji}-${index}`}
-                            onClick={() => setIcon(emoji)}
-                            className={cn(
-                                'text-3xl p-1 rounded-lg transition-all flex items-center justify-center aspect-square',
-                                icon === emoji ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
-                            )}
-                        >
-                            {emoji}
-                        </button>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
-              <div className="flex items-center gap-2">
-                <label htmlFor="emotion-color" className="text-sm font-medium">Color:</label>
+        <CardContent>
+            <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-4 items-start">
+              <div className="space-y-4">
                 <Input
-                  id="emotion-color"
-                  type="color"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="w-16 h-10 p-1"
+                  placeholder="Nombre de la Emoción (ej. Euforia)"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
                 />
-              </div>
-              <div className="relative">
-                <Textarea
-                  placeholder="¿Qué significa esta emoción para ti?"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={4}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-2 right-2 text-primary hover:bg-primary/10"
-                  onClick={handleGenerateDescription}
-                  disabled={isAiLoading}
-                >
-                  {isAiLoading ? <Loader className="animate-spin" /> : <Sparkles />}
-                </Button>
-              </div>
-              <div className="flex gap-2 mt-auto">
-                {editingEmotion && (
-                  <Button type="button" variant="outline" onClick={onCancelEdit} className="w-full">
-                    Cancelar Edición
+                <div className="relative">
+                  <Textarea
+                    placeholder="¿Qué significa esta emoción para ti?"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={4}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 text-primary hover:bg-primary/10"
+                    onClick={handleGenerateDescription}
+                    disabled={isAiLoading}
+                  >
+                    {isAiLoading ? <Loader className="animate-spin" /> : <Sparkles />}
                   </Button>
-                )}
-                <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
-                  {editingEmotion ? 'Actualizar Emoción' : 'Añadir Emoción'}
-                </Button>
+                </div>
+              </div>
+              <div className="space-y-4">
+                 <div>
+                    <ScrollArea className="h-40 w-full">
+                      <div className="grid grid-cols-8 gap-2 p-2 rounded-lg bg-muted/50">
+                        {AVATAR_EMOJIS.map((emoji, index) => (
+                            <button
+                                type="button"
+                                key={`${emoji}-${index}`}
+                                onClick={() => setIcon(emoji)}
+                                className={cn(
+                                    'text-3xl p-1 rounded-lg transition-all flex items-center justify-center aspect-square',
+                                    icon === emoji ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
+                                )}
+                            >
+                                {emoji}
+                            </button>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                 <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <label htmlFor="emotion-color" className="text-sm font-medium">Color:</label>
+                        <Input
+                        id="emotion-color"
+                        type="color"
+                        value={color}
+                        onChange={(e) => setColor(e.target.value)}
+                        className="w-16 h-10 p-1"
+                        />
+                    </div>
+                    <div className="flex-grow flex gap-2">
+                        {editingEmotion && (
+                        <Button type="button" variant="outline" onClick={onCancelEdit} className="w-full">
+                            Cancelar Edición
+                        </Button>
+                        )}
+                        <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
+                        {editingEmotion ? 'Actualizar Emoción' : 'Añadir Emoción'}
+                        </Button>
+                    </div>
+                 </div>
               </div>
             </form>
         </CardContent>
       </Card>
-      <Card className="w-full shadow-lg flex flex-col transition-all duration-300 hover:shadow-xl">
+      <Card className="w-full shadow-lg flex flex-col flex-grow min-h-0">
         <CardHeader>
           <CardTitle className="text-2xl font-bold text-primary">Tu Emocionario</CardTitle>
           <CardDescription>Las emociones que has añadido.</CardDescription>
         </CardHeader>
         <CardContent className="flex-grow overflow-hidden">
-          <ScrollArea className="h-full pr-4 -mr-4">
+          <ScrollArea className="w-full whitespace-nowrap">
             {emotionsList.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="flex w-max space-x-4 pb-4">
                 {emotionsList.map((em) => (
-                  <Card key={em.id} className="group relative p-4 overflow-hidden" style={{borderLeft: `4px solid ${em.color}`}}>
-                    <div className="flex items-start gap-4">
-                      <span className="text-3xl mt-1">{em.icon}</span>
-                      <div className="flex-1">
-                          <h3 className="font-bold text-lg text-foreground">{em.name}</h3>
-                          <p className="text-sm text-muted-foreground line-clamp-2">{em.description || 'Sin descripción'}</p>
+                  <Card key={em.id} className="group relative w-64 overflow-hidden" style={{borderLeft: `4px solid ${em.color}`}}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-4">
+                        <span className="text-3xl mt-1">{em.icon}</span>
+                        <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-lg text-foreground truncate">{em.name}</h3>
+                            <p className="text-sm text-muted-foreground line-clamp-3">{em.description || 'Sin descripción'}</p>
+                        </div>
+                        {em.isCustom && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div className="absolute top-2 right-2 bg-accent text-accent-foreground p-1 rounded-full">
+                                  <Wand2 className="h-3 w-3" />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Emoción Personalizada</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
                       </div>
-                      {em.isCustom && (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="absolute top-2 right-2 bg-accent text-accent-foreground p-1 rounded-full">
-                                <Wand2 className="h-3 w-3" />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Emoción Personalizada</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                       )}
-                    </div>
-                    <div className="absolute top-0 right-0 bottom-0 flex items-center justify-end gap-1 p-2 bg-gradient-to-l from-card via-card to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditEmotion(em)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="icon" className="h-8 w-8">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Esta acción no se puede deshacer. Esto eliminará permanentemente la emoción y afectará a las entradas del diario asociadas.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => onDeleteEmotion(em.id)}>Eliminar</AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                     </div>
+                      <div className="absolute top-0 right-0 bottom-0 flex items-center justify-end gap-1 p-2 bg-gradient-to-l from-card via-card to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditEmotion(em)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="destructive" size="icon" className="h-8 w-8">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta acción no se puede deshacer. Esto eliminará permanentemente la emoción y afectará a las entradas del diario asociadas.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => onDeleteEmotion(em.id)}>Eliminar</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                      </div>
+                    </CardContent>
                   </Card>
                 ))}
               </div>
@@ -243,6 +250,7 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
                 <p>Tu emocionario está esperando a que lo llenes.</p>
               </div>
             )}
+            <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </CardContent>
       </Card>
