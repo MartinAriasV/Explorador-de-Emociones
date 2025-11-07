@@ -5,6 +5,7 @@ export type Emotion = {
   icon: string;
   color: string;
   description: string;
+  isCustom: boolean;
 };
 
 export type DiaryEntry = {

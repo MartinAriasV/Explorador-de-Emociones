@@ -22,27 +22,27 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
 
   const allEmotions = useMemo(() => {
-    // Combine predefined emotions with user's custom emotions, ensuring no duplicates by name
     const emotionMap = new Map<string, Emotion>();
-    PREDEFINED_EMOTIONS.forEach(p => emotionMap.set(p.name.toLowerCase(), { ...p, id: p.name, userProfileId: 'system' } as Emotion));
+    PREDEFINED_EMOTIONS.forEach(p => emotionMap.set(p.name.toLowerCase(), { ...p, id: p.name, userProfileId: 'system', isCustom: false } as Emotion));
     emotionsList.forEach(e => emotionMap.set(e.name.toLowerCase(), e));
     return Array.from(emotionMap.values());
   }, [emotionsList]);
   
   const generateQuestion = useCallback(() => {
-    if (allEmotions.length < 4) {
-      return; // Not enough emotions to play
+    const verifiedEmotions = allEmotions.filter(e => !e.isCustom);
+    if (verifiedEmotions.length < 4) {
+      return; // Not enough verified emotions to play
     }
 
-    // 1. Select a random correct emotion *only* from the predefined list for quality questions
-    const correctEmotionPredefined = shuffleArray(PREDEFINED_EMOTIONS)[0];
-    // Find the full emotion object in case the user has customized it
-    const correctEmotion = allEmotions.find(e => e.name.toLowerCase() === correctEmotionPredefined.name.toLowerCase())!;
+    // 1. Select a random correct emotion *only* from the verified list for quality questions
+    const correctEmotion = shuffleArray(verifiedEmotions)[0];
 
     // 2. Get its description or example as the question
-    const questionText = correctEmotionPredefined.example || correctEmotionPredefined.description;
+    // Find the original predefined emotion to get a quality description
+    const predefinedInfo = PREDEFINED_EMOTIONS.find(p => p.name.toLowerCase() === correctEmotion.name.toLowerCase());
+    const questionText = predefinedInfo?.example || predefinedInfo?.description;
 
-    // 3. Select 3 other random incorrect emotions from the full list
+    // 3. Select 3 other random incorrect emotions from the full list (can be custom)
     const otherEmotions = allEmotions.filter(e => e.id !== correctEmotion.id);
     const incorrectOptions = shuffleArray(otherEmotions).slice(0, 3);
     
@@ -83,12 +83,20 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     generateQuestion();
   };
   
-  if (allEmotions.length < 4) {
+  if (allEmotions.filter(e => !e.isCustom).length < 4) {
       return (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
-              <p className="text-lg font-semibold">¡Faltan Emociones!</p>
-              <p>Necesitas al menos 4 emociones en total para jugar a este juego.</p>
-              <p className="text-sm mt-2">Ve a "Descubrir" o "Emocionario" para añadir más.</p>
+              <p className="text-lg font-semibold">¡Faltan Emociones Verificadas!</p>
+              <p>Necesitas al menos 4 emociones no personalizadas para jugar a este juego.</p>
+              <p className="text-sm mt-2">Ve a "Descubrir" para añadir más emociones predefinidas.</p>
+          </div>
+      )
+  }
+
+  if (!currentQuestion) {
+      return (
+          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
+              <p className="text-lg font-semibold">Cargando...</p>
           </div>
       )
   }

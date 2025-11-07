@@ -23,30 +23,32 @@ export function AntonymGame({ emotionsList }: GameProps) {
 
   const allEmotions = useMemo(() => {
     const emotionMap = new Map<string, Emotion>();
-    PREDEFINED_EMOTIONS.forEach(p => emotionMap.set(p.name.toLowerCase(), { ...p, id: p.name, userProfileId: 'system' } as Emotion));
+    // First, add all predefined emotions as non-custom
+    PREDEFINED_EMOTIONS.forEach(p => emotionMap.set(p.name.toLowerCase(), { ...p, id: p.name, userProfileId: 'system', isCustom: false } as Emotion));
+    // Then, overwrite with user's emotions, which might include customized versions of predefined ones
     emotionsList.forEach(e => emotionMap.set(e.name.toLowerCase(), e));
     return Array.from(emotionMap.values());
   }, [emotionsList]);
   
   const generateQuestion = useCallback(() => {
-    if (allEmotions.length < 4) return;
+    const verifiedEmotions = allEmotions.filter(e => !e.isCustom);
+    if (verifiedEmotions.length < 4) return;
 
     const availablePairs = shuffleArray(EMOTION_ANTONYMS);
-    let questionPair: string[] | undefined;
     let questionEmotion: Emotion | undefined;
     let antonymEmotion: Emotion | undefined;
 
     for (const pair of availablePairs) {
-        questionEmotion = allEmotions.find(e => e.name.toLowerCase() === pair[0].toLowerCase());
-        antonymEmotion = allEmotions.find(e => e.name.toLowerCase() === pair[1].toLowerCase());
+        questionEmotion = verifiedEmotions.find(e => e.name.toLowerCase() === pair[0].toLowerCase());
+        antonymEmotion = verifiedEmotions.find(e => e.name.toLowerCase() === pair[1].toLowerCase());
         if (questionEmotion && antonymEmotion) {
-            questionPair = pair;
             break;
         }
     }
     
     if (!questionEmotion || !antonymEmotion) return;
 
+    // Incorrect options can be from all emotions (custom or not)
     const otherEmotions = allEmotions.filter(e => e.id !== questionEmotion!.id && e.id !== antonymEmotion!.id);
     const incorrectOptions = shuffleArray(otherEmotions).slice(0, 3);
     
@@ -81,12 +83,12 @@ export function AntonymGame({ emotionsList }: GameProps) {
     generateQuestion();
   };
   
-  if (allEmotions.length < 4 || !currentQuestion) {
+  if (allEmotions.filter(e => !e.isCustom).length < 4) {
       return (
           <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
-              <p className="text-lg font-semibold">¡Faltan Emociones!</p>
-              <p>Necesitas al menos 4 emociones con antónimos definidos para jugar.</p>
-              <p className="text-sm mt-2">Asegúrate de tener emociones como 'Alegría', 'Tristeza', 'Miedo', 'Confianza', etc.</p>
+              <p className="text-lg font-semibold">¡Faltan Emociones Verificadas!</p>
+              <p>Necesitas al menos 4 emociones no personalizadas con antónimos definidos para jugar.</p>
+              <p className="text-sm mt-2">Asegúrate de tener emociones como 'Alegría', 'Tristeza', 'Miedo', 'Confianza' desde la sección "Descubrir".</p>
           </div>
       );
   }
@@ -100,6 +102,14 @@ export function AntonymGame({ emotionsList }: GameProps) {
             <Button onClick={handleNext}>Jugar de Nuevo</Button>
         </div>
     );
+  }
+
+  if (!currentQuestion) {
+      return (
+          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
+              <p className="text-lg font-semibold">Cargando...</p>
+          </div>
+      )
   }
 
   return (

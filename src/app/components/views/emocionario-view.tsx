@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Emotion } from '@/lib/types';
-import { Sparkles, Loader, Trash2, Edit } from 'lucide-react';
+import { Sparkles, Loader, Trash2, Edit, Wand2 } from 'lucide-react';
 import { defineEmotionMeaning } from '@/ai/flows/define-emotion-meaning';
 import { useToast } from '@/hooks/use-toast';
 import { AVATAR_EMOJIS } from '@/lib/constants';
@@ -82,10 +82,13 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
       icon,
       color,
       description,
+      isCustom: true, // Mark as custom when created from this form
     };
     
     if (editingEmotion) {
       emotionData.id = editingEmotion.id;
+      // Preserve the original isCustom flag when editing
+      emotionData.isCustom = editingEmotion.isCustom; 
     }
     
     addEmotion(emotionData);
@@ -190,6 +193,11 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
                     className="p-4 text-center border-2 flex flex-col items-center justify-center aspect-square transition-all group relative hover:scale-105 hover:shadow-md" 
                     style={{ borderColor: em.color }}
                   >
+                    {em.isCustom && (
+                      <div className="absolute top-1 left-1 bg-accent text-accent-foreground p-1 rounded-full" title="Emoción Personalizada">
+                        <Wand2 className="h-3 w-3" />
+                      </div>
+                    )}
                     <p className="text-4xl mb-2">{em.icon}</p>
                     <p className="font-bold truncate w-full" style={{ color: em.color }}>{em.name}</p>
                     <p className="text-xs text-muted-foreground w-full overflow-hidden text-ellipsis whitespace-nowrap">{em.description}</p>

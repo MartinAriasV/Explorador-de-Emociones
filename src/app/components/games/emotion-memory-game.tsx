@@ -2,9 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Emotion, GameProps } from '@/lib/types';
-import { PREDEFINED_EMOTIONS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { RefreshCw } from 'lucide-react';
 
@@ -31,10 +29,10 @@ export function EmotionMemoryGame({ emotionsList }: GameProps) {
   const [isChecking, setIsChecking] = useState(false);
 
   const availableEmotions = useMemo(() => {
-    const emotionMap = new Map<string, Emotion>();
-    PREDEFINED_EMOTIONS.forEach(p => emotionMap.set(p.name.toLowerCase(), { ...p, id: p.name, userProfileId: 'system' } as Emotion));
-    emotionsList.forEach(e => emotionMap.set(e.name.toLowerCase(), e));
-    return Array.from(emotionMap.values());
+    // Prioritize verified emotions, but allow custom ones if not enough verified ones are available.
+    const verified = emotionsList.filter(e => !e.isCustom);
+    const custom = emotionsList.filter(e => e.isCustom);
+    return [...shuffleArray(verified), ...shuffleArray(custom)];
   }, [emotionsList]);
   
   const setupGame = () => {
@@ -47,7 +45,7 @@ export function EmotionMemoryGame({ emotionsList }: GameProps) {
         return;
     }
     
-    const gameEmotions = shuffleArray(availableEmotions).slice(0, CARD_COUNT);
+    const gameEmotions = availableEmotions.slice(0, CARD_COUNT);
 
     const gameCards: Omit<MemoryCard, 'id' | 'isFlipped' | 'isMatched'>[] = [];
     gameEmotions.forEach((emotion) => {
@@ -67,7 +65,8 @@ export function EmotionMemoryGame({ emotionsList }: GameProps) {
 
   useEffect(() => {
     setupGame();
-  }, [availableEmotions]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [emotionsList]);
 
   const handleCardClick = (index: number) => {
     if (isChecking || cards[index].isFlipped || flippedCards.length >= 2) {

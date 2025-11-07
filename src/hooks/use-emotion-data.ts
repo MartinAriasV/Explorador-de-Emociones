@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useFirebase, useCollection, useDoc } from '@/firebase';
-import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import type { Emotion, DiaryEntry, UserProfile, Reward } from '@/lib/types';
-import { addDocumentToCollectionNonBlocking } from '@/firebase/non-blocking-updates';
+import { addDocumentToCollectionNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak } from '@/lib/utils';
 import { REWARDS } from '@/lib/constants';
 import type { User } from 'firebase/auth';
@@ -50,13 +50,13 @@ export function useEmotionData(user: User | null) {
   const checkAndUnlockRewards = useCallback(async (
     trigger: 'addEntry' | 'addEmotion' | 'share' | 'recoverDay'
   ) => {
-      if (!userProfileRef) return;
+      if (!userProfileRef || !user) return;
 
       // Get the most up-to-date data directly from Firestore to avoid state inconsistencies
       const freshProfileSnap = await getDoc(userProfileRef);
       const freshProfile = freshProfileSnap.data() as UserProfile;
-      const diaryEntriesCollection = collection(firestore, 'users', user!.uid, 'diaryEntries');
-      const emotionsCollection = collection(firestore, 'users', user!.uid, 'emotions');
+      const diaryEntriesCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
+      const emotionsCollection = collection(firestore, 'users', user.uid, 'emotions');
 
       const diarySnapshot = await getDocs(diaryEntriesCollection);
       const currentDiaryEntries = diarySnapshot.docs.map(d => d.data() as DiaryEntry);
@@ -137,22 +137,27 @@ export function useEmotionData(user: User | null) {
   };
 
   // --- Data Mutation Functions ---
-  const setUserProfile = async (profile: Partial<Omit<UserProfile, 'id'>>) => {
+  const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
     if (!userProfileRef) return;
-    // Use updateDoc for safe, non-destructive updates.
-    await updateDoc(userProfileRef, profile);
+    updateDocumentNonBlocking(userProfileRef, profile);
   };
-
+  
   const saveEmotion = async (emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string }) => {
     if (!user) return;
     const emotionsCollection = collection(firestore, 'users', user.uid, 'emotions');
     
     const isNew = !emotionData.id;
 
+    const dataToSave = {
+      ...emotionData,
+      userProfileId: user.uid,
+    };
+
     if (emotionData.id) {
-      await updateDoc(doc(emotionsCollection, emotionData.id), { ...emotionData, userProfileId: user.uid });
+      const emotionRef = doc(emotionsCollection, emotionData.id);
+      await updateDocumentNonBlocking(emotionRef, dataToSave);
     } else {
-      await addDocumentToCollectionNonBlocking(emotionsCollection, { ...emotionData, userProfileId: user.uid });
+      await addDocumentToCollectionNonBlocking(emotionsCollection, dataToSave);
     }
     
     if (isNew) {
