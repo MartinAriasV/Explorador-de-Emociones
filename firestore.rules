@@ -34,13 +34,14 @@ service cloud.firestore {
     match /users/{userId}/emotions/{emotionId} {
       allow read, delete: if isOwner(userId);
       allow create, update: if isOwner(userId)
-        && request.resource.data.keys().hasAll(['userProfileId', 'name', 'icon', 'color', 'description'])
-        && request.resource.data.size() == 5
+        && request.resource.data.keys().hasAll(['userProfileId', 'name', 'icon', 'color', 'description', 'isCustom'])
+        && (request.resource.data.size() == 6 || request.resource.data.size() == 5)
         && request.resource.data.userProfileId == userId
         && request.resource.data.name is string
         && request.resource.data.icon is string
         && request.resource.data.color is string
-        && request.resource.data.description is string;
+        && request.resource.data.description is string
+        && request.resource.data.isCustom is bool;
     }
   }
 }
