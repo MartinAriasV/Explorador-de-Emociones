@@ -14,6 +14,7 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 const difficulties: QuizQuestion['difficulty'][] = ['Fácil', 'Medio', 'Difícil', 'Experto'];
+const RECENT_HISTORY_SIZE = 5; // Avoid repeating the last 5 questions
 
 export function GuessEmotionGame({ emotionsList }: GameProps) {
   const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion | null>(null);
@@ -23,6 +24,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
   const [score, setScore] = useState(0);
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
   const [difficultyIndex, setDifficultyIndex] = useState(0);
+  const [questionHistory, setQuestionHistory] = useState<string[]>([]);
 
   // All emotions available to the user, including custom ones. Used for generating incorrect options.
   const allUserEmotions = useMemo(() => {
@@ -45,10 +47,21 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     let possibleQuestions = QUIZ_QUESTIONS.filter(q => {
         const difficultyMatch = q.difficulty === currentDifficulty;
         const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
-        return difficultyMatch && answerExists;
+        // Filter out questions that are in the recent history
+        const notInHistory = !questionHistory.includes(q.question);
+        return difficultyMatch && answerExists && notInHistory;
     });
 
-    // 2. Fallback: If no questions found, try 'Fácil'
+    // 2. Fallback: If no non-repeated questions found for current difficulty, try any from current difficulty
+    if (possibleQuestions.length === 0) {
+        possibleQuestions = QUIZ_QUESTIONS.filter(q => {
+             const difficultyMatch = q.difficulty === currentDifficulty;
+             const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
+             return difficultyMatch && answerExists;
+        });
+    }
+
+    // 3. Fallback: If still no questions, try 'Fácil'
     if (possibleQuestions.length === 0) {
         possibleQuestions = QUIZ_QUESTIONS.filter(q => {
             const difficultyMatch = q.difficulty === 'Fácil';
@@ -56,15 +69,15 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
             return difficultyMatch && answerExists;
         });
     }
-
-    // 3. If still no questions, log an error. This shouldn't happen if constants are correct.
+    
+    // 4. If still no questions, log an error. This shouldn't happen if constants are correct.
     if (possibleQuestions.length === 0) {
         console.error("No valid quiz questions could be generated. The user may be missing key predefined emotions.");
         setCurrentQuestion(null);
         return;
     }
 
-    // 4. Select a random question and find its correct emotion from the predefined list
+    // 5. Select a random question and find its correct emotion from the predefined list
     const randomQuestion = shuffleArray(possibleQuestions)[0];
     const correctEmotion = allPredefinedEmotions.find(e => e.name.toLowerCase() === randomQuestion.correctAnswer.toLowerCase());
 
@@ -75,7 +88,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
         return;
     }
 
-    // 5. Generate options: the correct one + 3 incorrect ones from the user's full list
+    // 6. Generate options: the correct one + 3 incorrect ones from the user's full list
     const incorrectOptions = shuffleArray(allUserEmotions.filter(e => e.name.toLowerCase() !== correctEmotion.name.toLowerCase())).slice(0, 3);
     const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
 
@@ -84,20 +97,28 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     setIsAnswered(false);
     setSelectedAnswer(null);
 
-  }, [difficultyIndex, allUserEmotions, allPredefinedEmotions]);
+    // 7. Update history
+    const newHistory = [...questionHistory, randomQuestion.question];
+    if (newHistory.length > RECENT_HISTORY_SIZE) {
+        newHistory.shift(); // Keep history size manageable
+    }
+    setQuestionHistory(newHistory);
+
+  }, [difficultyIndex, allUserEmotions, allPredefinedEmotions, questionHistory]);
 
 
   useEffect(() => {
     if (allUserEmotions.length >= 4) {
       generateQuestion();
     }
-  }, [allUserEmotions.length, generateQuestion]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allUserEmotions.length]);
 
   const handleAnswer = (answer: Emotion) => {
     if (isAnswered) return;
 
     setSelectedAnswer(answer);
-    setIsAnswered(true);
+    setIsAnswered(true); // This should trigger the feedback UI
     setQuestionsAnswered(prev => prev + 1);
 
     if (answer.name.toLowerCase() === currentQuestion?.correctAnswer.toLowerCase()) {
@@ -115,6 +136,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
       setScore(0);
       setQuestionsAnswered(0);
       setDifficultyIndex(0); // Reset difficulty
+      setQuestionHistory([]); // Reset history for new game
     }
     generateQuestion();
   };
@@ -207,4 +229,3 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     </div>
   );
 }
-
