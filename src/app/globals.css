@@ -33,7 +33,6 @@ body {
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 1.25rem;
-    --page-background: hsl(var(--background));
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 224 71.4% 4.1%;
@@ -81,59 +80,6 @@ body {
     --sidebar-ring: 255 78% 60%;
   }
 
-  .theme-ocean {
-    --background: 210 40% 98%;
-    --foreground: 215 28% 17%;
-    --card: 210 40% 100%;
-    --card-foreground: 215 28% 17%;
-    --popover: 210 40% 100%;
-    --popover-foreground: 215 28% 17%;
-    --primary: 205 90% 45%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 215 28% 17%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215 20% 45%;
-    --accent: 190 80% 50%;
-    --accent-foreground: 210 40% 98%;
-    --border: 210 40% 90%;
-    --input: 210 40% 90%;
-    --ring: 205 90% 45%;
-  }
-  
-  .theme-forest {
-    --page-background: linear-gradient(-45deg, #d8e5d8, #afc2af, #95ab95, #6a8c6a);
-    --foreground: 120 25% 15%;
-    --card: 120 15% 100%;
-    --card-foreground: 120 25% 15%;
-    --popover: 120 15% 100%;
-    --popover-foreground: 120 25% 15%;
-    --primary: 130 60% 40%;
-    --primary-foreground: 120 20% 98%;
-    --secondary: 120 15% 96%;
-    --secondary-foreground: 120 25% 15%;
-    --muted: 120 15% 96%;
-    --muted-foreground: 120 15% 45%;
-    --accent: 110 70% 45%;
-    --accent-foreground: 120 20% 98%;
-    --border: 120 15% 90%;
-    --input: 120 15% 90%;
-    --ring: 130 60% 40%;
-  }
-
-  .dark.theme-forest {
-    --foreground: 120 10% 95%;
-    --card: 120 25% 12%;
-    --card-foreground: 120 10% 95%;
-    --popover: 120 25% 12%;
-    --popover-foreground: 120 10% 95%;
-    --primary: 130 50% 50%;
-    --secondary: 120 20% 15%;
-    --muted: 120 20% 15%;
-    --accent: 110 60% 55%;
-    --border: 120 20% 20%;
-    --input: 120 20% 20%;
-  }
 }
 
 @layer base {
@@ -141,20 +87,9 @@ body {
     @apply border-border;
   }
   body {
-    background: var(--page-background);
-    @apply text-foreground;
+    @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-  }
-
-  .theme-forest body,
-  .theme-forest .bg-background {
-    background-color: transparent;
-  }
-
-  body.theme-forest {
-    animation: forest-gradient 20s ease infinite;
-    background-size: 400% 400%;
   }
 }
 
@@ -197,6 +132,16 @@ body {
   .animate-gradient-slow {
     background-size: 200% 200%;
     animation: gradient-animation 15s ease infinite;
+  }
+  .bg-forest-gradient {
+    background: linear-gradient(-45deg, #d8e5d8, #afc2af, #95ab95, #6a8c6a);
+    background-size: 400% 400%;
+    animation: forest-gradient 20s ease infinite;
+  }
+  .dark .bg-forest-gradient {
+    background: linear-gradient(-45deg, #2a3d2a, #3b503b, #4c644c, #2a3d2a);
+    background-size: 400% 400%;
+    animation: forest-gradient 20s ease infinite;
   }
 }
 

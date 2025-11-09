@@ -84,20 +84,12 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const isForestTheme = themeItem?.value === 'theme-forest';
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-  
     const body = document.body;
-    body.classList.remove('light', 'dark', 'theme-forest');
-    body.classList.add(theme); // Add 'light' or 'dark'
-    if (isForestTheme) {
-      body.classList.add('theme-forest');
-    }
+    body.classList.remove('light', 'dark');
+    body.classList.add(theme);
+  }, [theme]);
   
-    return () => {
-      body.classList.remove('theme-forest');
-    };
-  }, [theme, isForestTheme]);
-
+  const backgroundClass = isForestTheme ? 'bg-forest-gradient' : 'bg-background';
 
   const addInitialEmotions = useCallback(async (userId: string) => {
     if (!firestore) return;
@@ -583,7 +575,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-screen bg-background">
+      <div className={cn("fixed inset-0 -z-10", backgroundClass)} />
+      <div className="flex h-screen w-screen bg-transparent">
         <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
         <main className="flex-1 flex flex-col overflow-hidden bg-transparent">
           <header className="p-2 md:hidden flex items-center border-b bg-card/80 backdrop-blur-sm">
