@@ -187,7 +187,7 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
                   {diaryEntries.slice().reverse().map((entry) => {
                     const emotion = getEmotionById(entry.emotionId);
                     return (
-                      <Card key={entry.id} className="p-4 group relative overflow-hidden">
+                      <Card key={entry.id} className="p-4 group relative overflow-hidden" style={{ borderLeft: `4px solid ${emotion?.color || 'grey'}` }}>
                         <div className="flex items-start gap-4">
                           <span className="text-3xl mt-1">{emotion?.icon}</span>
                           <div className="flex-1">
