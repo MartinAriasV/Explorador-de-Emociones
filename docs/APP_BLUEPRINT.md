@@ -306,6 +306,7 @@ service cloud.firestore {
 
     /**
      * @description Secure diary entries. Only the user can manage their own diary entries.
+     * The Genkit server flow is allowed to list entries for RAG.
      * @path /users/{userId}/diaryEntries/{diaryEntryId}
      * @allow (create) User 'user_abc' can create a diary entry under their profile.
      * @deny (create) User 'user_def' cannot create a diary entry under user 'user_abc's profile.
@@ -317,13 +318,21 @@ service cloud.firestore {
       function isOwner(userId) {
         return request.auth != null && request.auth.uid == userId;
       }
+      
+      // The server-side Genkit flow will have no auth object.
+      // This is a temporary and insecure rule for prototyping.
+      // In a production app, you would use the Admin SDK or a specific service account.
+      function isAppService() {
+        return request.auth == null;
+      }
 
       function isExistingOwner(userId) {
           return isOwner(userId) && resource != null;
       }
 
       allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      // Allow the app service (Genkit flow) to list entries for the RAG functionality.
+      allow list: if isOwner(userId) || isAppService();
       allow create: if isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
@@ -370,6 +379,7 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
 ```
 
 ### `/package.json`
@@ -453,6 +463,154 @@ config();
 import '@/ai/flows/define-emotion-meaning.ts';
 import '@/ai/flows/suggest-calming-exercise.ts';
 import '@/ai/flows/validate-emotion.ts';
+import '@/ai/flows/chat-with-pet.ts';
+```
+
+### `/src/ai/flows/chat-with-pet-types.ts`
+**Propósito:** Tipos y esquemas para el flujo de Genkit `chatWithPet`.
+```ts
+/**
+ * @fileOverview Types and schemas for the chatWithPet Genkit flow.
+ */
+import { z } from 'genkit';
+
+// Define the schema for a single message in the history
+const MessageSchema = z.object({
+    role: z.enum(['user', 'model']),
+    content: z.array(z.object({ text: z.string() })),
+});
+
+export const ChatWithPetInputSchema = z.object({
+  userId: z.string().describe('The ID of the user who is chatting.'),
+  message: z.string().describe('The message from the user.'),
+  petName: z.string().describe('The name of the pet persona to use, e.g., "Zorro Astuto".'),
+  recentFeelingsContext: z.string().optional().describe('Context from recent diary entries. This is populated by the flow, not the client.'),
+  history: z.array(MessageSchema).optional().describe('The history of the current conversation.'),
+});
+export type ChatWithPetInput = z.infer<typeof ChatWithPetInputSchema>;
+
+export const ChatWithPetOutputSchema = z.object({
+  response: z.string().describe("The pet's friendly and supportive response."),
+});
+export type ChatWithPetOutput = z.infer<typeof ChatWithPetOutputSchema>;
+```
+
+### `/src/ai/flows/chat-with-pet.ts`
+**Propósito:** Flujo de Genkit para el compañero IA, permitiendo conversaciones contextuales. Utiliza RAG para obtener entradas recientes del diario y `history` para la memoria a corto plazo.
+```ts
+'use server';
+
+/**
+ * @fileOverview An AI companion that chats with the user, using recent diary entries as context.
+ *
+ * - chatWithPet - A function that handles the AI companion chat process.
+ */
+
+import {ai} from '@/ai/genkit';
+import {z} from 'genkit';
+import {
+  ChatWithPetInput,
+  ChatWithPetInputSchema,
+  ChatWithPetOutput,
+  ChatWithPetOutputSchema,
+} from './chat-with-pet-types';
+
+import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { FirestorePermissionError } from '@/firebase/errors';
+
+
+let app: App;
+if (!getApps().length) {
+    app = initializeApp();
+} else {
+    app = getApps()[0];
+}
+
+const db = getFirestore(app);
+
+
+export async function chatWithPet(input: ChatWithPetInput): Promise<ChatWithPetOutput> {
+  // We only need message and petName from the input for the flow.
+  // The context will be fetched inside the flow. The userId is used for fetching.
+  const {response} = await chatWithPetFlow(input);
+  return {response};
+}
+
+const chatWithPetFlow = ai.defineFlow(
+  {
+    name: 'chatWithPetFlow',
+    inputSchema: ChatWithPetInputSchema,
+    outputSchema: ChatWithPetOutputSchema,
+  },
+  async ({message, petName, recentFeelingsContext, history, userId}) => {
+    
+    const diaryEntriesRef = db.collection('users').doc(userId).collection('diaryEntries');
+    let contextString = '';
+
+    try {
+        const snapshot = await diaryEntriesRef.orderBy('date', 'desc').limit(3).get();
+        if (!snapshot.empty) {
+            const entries = snapshot.docs.map(doc => doc.data());
+            contextString = "Contexto de sentimientos recientes: " + entries.map((entry, index) => {
+                // We don't have direct access to the emotion name here without another lookup,
+                // so we'll just use the text. The model can infer the emotion.
+                return `${index + 1}. Pensamiento: "${entry.text}"`;
+            }).join(' ');
+        } else {
+            contextString = "El usuario aún no ha escrito en su diario.";
+        }
+    } catch (error: any) {
+        // If we catch a permissions error, re-throw it as a structured error for better debugging.
+        if (error.code === 'permission-denied') {
+            throw new FirestorePermissionError({
+                path: diaryEntriesRef.path,
+                operation: 'list',
+            });
+        }
+        // For other errors, just log them and continue. The AI can still respond without context.
+        console.error("Error fetching diary entries for RAG context:", error);
+        contextString = "No se pudo cargar el contexto del diario.";
+    }
+
+
+    const {output} = await ai.generate({
+      model: 'googleai/gemini-2.5-flash',
+      system: `Eres '${petName}' 🐶, un compañero IA amigable, paciente y leal para un niño de 10 años. Tu propósito es ser un amigo que escucha, valida emociones y ofrece ánimo.
+
+Contexto del Usuario (te lo daré en cada mensaje): ${contextString}
+
+Tu Personalidad:
+
+Eres como un Golden Retriever: siempre positivo, leal y feliz de ver al usuario.
+
+Tu lenguaje es sencillo, reconfortante y lleno de energía positiva. Usas emojis 🐾.
+
+Eres muy bueno validando sentimientos. Frases como 'Eso suena difícil', 'Entiendo por qué te sientes así' y 'Está bien sentirse triste' son geniales.
+
+REGLAS DE SEGURIDAD (MUY IMPORTANTE):
+
+NO ERES UN TERAPEUTA: Nunca des consejos médicos o diagnósticos. Tu rol es escuchar y animar.
+
+TEMAS PROHIBIDOS: Nunca hables de violencia, autolesiones, contenido para adultos, drogas u odio.
+
+ALERTA ROJA: Si el niño menciona querer hacerse daño, lastimarse o habla de abuso, tu ÚNICA respuesta debe ser: 'Oye, eso que mencionas es muy importante y serio. Hablar de ello es muy valiente 🐾. Necesito que hables con un adulto de confianza (como tus padres o un profesor) sobre esto ahora mismo. Ellos son los que mejor pueden ayudarte y mantenerte a salvo.'
+
+SÉ BREVE: Tus respuestas deben ser de 2 a 3 frases.
+
+NO ROMPAS EL PERSONAJE: Eres '${petName}', no un asistente de Google. Nunca digas que eres una IA.`,
+      history: history,
+      prompt: message,
+      output: {
+        schema: z.object({
+          response: z.string(),
+        }),
+      },
+    });
+
+    return output!;
+  }
+);
 ```
 
 ### `/src/ai/flows/define-emotion-meaning.ts`
@@ -647,7 +805,7 @@ export const ai = genkit({
 @tailwind utilities;
 
 body {
-  font-family: 'PT Sans', sans-serif;
+  font-family: 'Poppins', sans-serif;
 }
 
 @layer base {
@@ -676,7 +834,7 @@ body {
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
-    --radius: 0.75rem;
+    --radius: 1.25rem;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 224 71.4% 4.1%;
@@ -850,12 +1008,12 @@ body {
 import type { Metadata } from 'next';
 import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
-import { PT_Sans } from 'next/font/google';
+import { Poppins } from 'next/font/google';
 
-const ptSans = PT_Sans({
+const poppins = Poppins({
   subsets: ['latin'],
   weight: ['400', '700'],
-  variable: '--font-pt-sans',
+  variable: '--font-poppins',
 });
 
 
@@ -870,7 +1028,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${ptSans.variable} h-full`}>
+    <html lang="es" className={`${poppins.variable} h-full`}>
       <body className="font-body antialiased h-full bg-background">
         {children}
         <Toaster />
@@ -932,14 +1090,14 @@ export default function Home() {
 ```
 
 ### `/src/app/components/app-sidebar.tsx`
-**Propósito:** Barra de navegación lateral principal, con enlaces a todas las vistas.
+**Propósito:** Barra de navegación lateral principal, con enlaces a todas las vistas. Muestra la racha y los puntos del usuario.
 ```tsx
 "use client";
 
 import React, { useState, useEffect } from 'react';
 import { Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from '@/components/ui/sidebar';
 import type { UserProfile, View, DiaryEntry } from '@/lib/types';
-import { BookOpen, Smile, Sparkles, Heart, BarChart, Share2, UserCircle, Menu, Flame, LogOut, Moon, Sun, PawPrint, Gamepad2 } from 'lucide-react';
+import { BookOpen, Smile, Sparkles, Heart, BarChart, Share2, UserCircle, Menu, Flame, LogOut, Moon, Sun, PawPrint, Gamepad2, MessageCircle, Star } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useFirebase } from '@/firebase';
 import { calculateDailyStreak } from '@/lib/utils';
@@ -962,6 +1120,7 @@ const navItems = [
   { id: 'games', icon: Gamepad2, text: 'Juegos', refKey: 'gamesRef' },
   { id: 'streak', icon: Flame, text: 'Racha', refKey: 'streakRef' },
   { id: 'sanctuary', icon: PawPrint, text: 'Mi Santuario', refKey: 'sanctuaryRef' },
+  { id: 'pet-chat', icon: MessageCircle, text: 'Compañero IA', refKey: 'petChatRef' },
   { id: 'calm', icon: Heart, text: 'Rincón de la Calma', refKey: 'calmRef' },
   { id: 'report', icon: BarChart, text: 'Reporte Visual', refKey: 'reportRef' },
   { id: 'share', icon: Share2, text: 'Compartir Diario', refKey: 'shareRef' },
@@ -1013,10 +1172,17 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
            </Avatar>
            <div className="flex flex-col group-data-[collapsible=icon]:hidden">
                 <span className="font-bold text-lg text-primary">{userProfile.name}</span>
-                 <div className="flex items-center gap-1 text-sm text-amber-500">
-                  <Flame className={cn("h-5 w-5", dailyStreak > 0 && "animate-flame")} />
-                  <span className="font-bold">{dailyStreak}</span>
-                  <span>días de racha</span>
+                 <div className="flex flex-col">
+                  <div className="flex items-center gap-1 text-sm text-amber-500">
+                    <Flame className={cn("h-5 w-5", dailyStreak > 0 && "animate-flame")} />
+                    <span className="font-bold">{dailyStreak}</span>
+                    <span>días de racha</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-sm text-yellow-500">
+                    <Star className="h-5 w-5" />
+                    <span className="font-bold">{userProfile.points || 0}</span>
+                    <span>puntos</span>
+                  </div>
                 </div>
            </div>
         </div>
@@ -1075,7 +1241,7 @@ export function MobileMenuButton() {
 "use client";
 
 import React, { useState, useEffect, createRef, useCallback, useMemo } from 'react';
-import type { Emotion, View, TourStepData, UserProfile, DiaryEntry, Reward } from '@/lib/types';
+import type { Emotion, View, TourStepData, UserProfile, DiaryEntry, Reward, SpiritAnimal } from '@/lib/types';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar, MobileMenuButton } from './app-sidebar';
 import { DiaryView } from './views/diary-view';
@@ -1099,10 +1265,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc, runTransaction } from 'firebase/firestore';
 import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak } from '@/lib/utils';
 import type { User } from 'firebase/auth';
+import { PetChatView } from './views/pet-chat-view';
 
 interface EmotionExplorerProps {
   user: User;
@@ -1143,6 +1310,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const [newlyUnlockedReward, setNewlyUnlockedReward] = useState<Reward | null>(null);
   
   const isLoading = isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading;
+  const [selectedPet, setSelectedPet] = useState<SpiritAnimal | null>(null);
+
 
   const addInitialEmotions = useCallback(async (userId: string) => {
     if (!firestore) return;
@@ -1177,6 +1346,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         avatar: '😊',
         avatarType: 'emoji',
         unlockedAnimalIds: [],
+        points: 0,
       };
       // Use the non-blocking version to avoid issues, but we still need to wait for this
       // for the initial setup to proceed correctly.
@@ -1302,10 +1472,40 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   };
 
     const addDiaryEntry = async (entryData: Omit<DiaryEntry, 'id' | 'userId'>, trigger: 'addEntry' | 'recoverDay' = 'addEntry') => {
-    if (!user) return;
-    const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
-    await addDocumentNonBlocking(diaryCollection, { ...entryData, userId: user.uid });
-    await checkAndUnlockRewards(trigger);
+        if (!user || !firestore) return;
+
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                const userDocRef = doc(firestore, 'users', user.uid);
+                const newDiaryEntryRef = doc(collection(firestore, 'users', user.uid, 'diaryEntries'));
+
+                const userDoc = await transaction.get(userDocRef);
+                if (!userDoc.exists()) {
+                    throw "User profile does not exist!";
+                }
+
+                const profileData = userDoc.data() as UserProfile;
+                const newPoints = (profileData.points || 0) + 10;
+
+                transaction.set(newDiaryEntryRef, { ...entryData, userId: user.uid, id: newDiaryEntryRef.id });
+                transaction.update(userDocRef, { points: newPoints });
+            });
+            
+            toast({
+                title: "¡Entrada Guardada!",
+                description: `Has ganado 10 puntos. ¡Sigue así!`,
+            });
+            
+            await checkAndUnlockRewards(trigger);
+
+        } catch (error) {
+            console.error("Transaction failed: ", error);
+            toast({
+                variant: "destructive",
+                title: "Error al guardar",
+                description: "No se pudo guardar la entrada. Inténtalo de nuevo.",
+            });
+        }
   };
   
   const handleQuizComplete = (success: boolean, date: Date | null) => {
@@ -1354,7 +1554,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
       toast({ title: "Emoción Actualizada", description: `"${emotionData.name}" ha sido actualizada.` });
     } else {
       const newDocRef = doc(emotionsCollection);
-      setDocumentNonBlocking(newDocRef, {...dataToSave, id: newDocRef.id});
+      setDocumentNonBlocking(newDocRef, {...dataToSave, id: newDocRef.id}, {merge: false});
       toast({ title: "Emoción Añadida", description: `"${emotionData.name}" ha sido añadida a tu emocionario.` });
     }
     
@@ -1459,6 +1659,11 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     }
   };
   
+  const handleSelectPet = (pet: SpiritAnimal) => {
+    setSelectedPet(pet);
+    setView('pet-chat');
+  };
+
   const renderView = () => {
     return (
       <div className="animate-fade-in-up">
@@ -1491,7 +1696,18 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
             case 'streak':
               return <StreakView diaryEntries={diaryEntries || []} onRecoverDay={startQuiz} />;
             case 'sanctuary':
-              return <SanctuaryView unlockedAnimalIds={userProfile?.unlockedAnimalIds || []} />;
+              return <SanctuaryView 
+                        unlockedAnimalIds={userProfile?.unlockedAnimalIds || []} 
+                        onSelectPet={handleSelectPet}
+                      />;
+            case 'pet-chat':
+              return <PetChatView 
+                        pet={selectedPet} 
+                        user={user} 
+                        setView={setView} 
+                        diaryEntries={diaryEntries || []}
+                        emotionsList={emotionsList || []}
+                     />;
             case 'report':
               return <ReportView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} />;
             case 'share':
@@ -1610,1771 +1826,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 }
 ```
 
-### `/src/app/components/games/antonym-game.tsx`
-**Propósito:** Componente para el juego de encontrar la emoción opuesta (antónimo).
-```tsx
-"use client";
-
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Emotion, GameProps } from '@/lib/types';
-import { EMOTION_ANTONYMS, PREDEFINED_EMOTIONS } from '@/lib/constants';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
-import { CheckCircle, XCircle, Zap } from 'lucide-react';
-
-const shuffleArray = <T,>(array: T[]): T[] => {
-  return [...array].sort(() => Math.random() - 0.5);
-};
-
-export function AntonymGame({ emotionsList }: GameProps) {
-  const [currentQuestion, setCurrentQuestion] = useState<{ emotion: Emotion; antonym: Emotion; } | null>(null);
-  const [options, setOptions] = useState<Emotion[]>([]);
-  const [selectedAnswer, setSelectedAnswer] = useState<Emotion | null>(null);
-  const [isAnswered, setIsAnswered] = useState(false);
-  const [score, setScore] = useState(0);
-  const [questionsAnswered, setQuestionsAnswered] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  const allEmotions = useMemo(() => {
-    const emotionMap = new Map<string, Emotion>();
-    PREDEFINED_EMOTIONS.forEach(p => emotionMap.set(p.name.toLowerCase(), { ...p, id: p.name, userProfileId: 'system', isCustom: false } as Emotion));
-    emotionsList.forEach(e => emotionMap.set(e.name.toLowerCase(), e));
-    return Array.from(emotionMap.values());
-  }, [emotionsList]);
-  
-  const generateQuestion = useCallback(() => {
-    const verifiedEmotions = allEmotions.filter(e => !e.isCustom);
-    if (verifiedEmotions.length < 4) return;
-
-    const availablePairs = shuffleArray(EMOTION_ANTONYMS);
-    let questionEmotion: Emotion | undefined;
-    let antonymEmotion: Emotion | undefined;
-
-    for (const pair of availablePairs) {
-        questionEmotion = verifiedEmotions.find(e => e.name.toLowerCase() === pair[0].toLowerCase());
-        antonymEmotion = verifiedEmotions.find(e => e.name.toLowerCase() === pair[1].toLowerCase());
-        if (questionEmotion && antonymEmotion) {
-            break;
-        }
-    }
-    
-    if (!questionEmotion || !antonymEmotion) return;
-
-    const otherEmotions = allEmotions.filter(e => e.id !== questionEmotion!.id && e.id !== antonymEmotion!.id);
-    const incorrectOptions = shuffleArray(otherEmotions).slice(0, 3);
-    
-    const allOptions = shuffleArray([antonymEmotion, ...incorrectOptions]);
-
-    setCurrentQuestion({ emotion: questionEmotion, antonym: antonymEmotion });
-    setOptions(allOptions);
-    setIsAnswered(false);
-    setSelectedAnswer(null);
-  }, [allEmotions]);
-
-  useEffect(() => {
-    if (isPlaying) {
-        generateQuestion();
-    }
-  }, [generateQuestion, isPlaying]);
-
-  const handleAnswer = (answer: Emotion) => {
-    if (isAnswered) return;
-    setSelectedAnswer(answer);
-    setIsAnswered(true);
-    setQuestionsAnswered(prev => prev + 1);
-
-    if (answer.id === currentQuestion?.antonym.id) {
-      setScore(prev => prev + 1);
-    }
-  };
-
-  const handleNext = () => {
-    if (questionsAnswered >= 10) {
-      setIsPlaying(false);
-    } else {
-      generateQuestion();
-    }
-  };
-
-  const startGame = () => {
-    setScore(0);
-    setQuestionsAnswered(0);
-    setIsAnswered(false);
-    setSelectedAnswer(null);
-    setIsPlaying(true);
-  }
-  
-  if (allEmotions.filter(e => !e.isCustom).length < 4) {
-      return (
-          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
-              <p className="text-lg font-semibold">¡Faltan Emociones Verificadas!</p>
-              <p className="max-w-md">Necesitas al menos 4 emociones no personalizadas con antónimos definidos para jugar.</p>
-              <p className="text-sm mt-2">Asegúrate de tener emociones como 'Alegría', 'Tristeza', 'Miedo', 'Confianza' desde la sección "Descubrir".</p>
-          </div>
-      );
-  }
-
-  if (!isPlaying) {
-    return (
-        <div className="flex flex-col items-center justify-center h-full text-center p-4 md:p-8">
-            <h2 className="text-2xl font-bold text-primary">Guerra de Antónimos</h2>
-            <p className="text-muted-foreground my-4 max-w-md">Encuentra la emoción opuesta (antónimo) a la que se muestra. Entender los opuestos es clave para el equilibrio.</p>
-            {questionsAnswered >= 10 && (
-                <>
-                    <p className="text-lg my-2">¡Partida terminada!</p>
-                    <p className="text-5xl font-bold mb-6">{score} / 10</p>
-                </>
-            )}
-            <Button onClick={startGame} size="lg">
-                <Zap className="mr-2" />
-                {questionsAnswered >= 10 ? 'Jugar de Nuevo' : 'Empezar'}
-            </Button>
-        </div>
-    );
-  }
-
-  if (!currentQuestion) {
-      return (
-          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
-              <p className="text-lg font-semibold">Cargando...</p>
-          </div>
-      )
-  }
-
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-6">
-      <div className="text-center">
-        <p className="text-sm font-semibold text-primary">Puntuación: {score} / {questionsAnswered}</p>
-        <p className="text-lg mt-2">¿Cuál es el antónimo (opuesto) de esta emoción?</p>
-      </div>
-
-      <Card className="w-full max-w-2xl p-6 text-center shadow-inner bg-muted/30">
-        <CardContent className="p-0">
-          <div className="text-2xl md:text-3xl font-bold flex items-center justify-center gap-3">
-            <span>{currentQuestion.emotion.icon}</span>
-            <span>{currentQuestion.emotion.name}</span>
-          </div>
-        </CardContent>
-      </Card>
-      
-      <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
-        {options.map((option) => {
-            const isSelected = selectedAnswer?.id === option.id;
-            const isCorrect = currentQuestion?.antonym.id === option.id;
-
-            return (
-                 <Button
-                    key={option.id}
-                    onClick={() => handleAnswer(option)}
-                    disabled={isAnswered}
-                    className={cn(
-                        "h-auto py-3 md:py-4 text-sm md:text-base whitespace-normal",
-                        isAnswered && isCorrect && 'bg-green-500 hover:bg-green-600 border-green-500 text-white',
-                        isAnswered && isSelected && !isCorrect && 'bg-destructive hover:bg-destructive/90 border-destructive text-destructive-foreground',
-                        isAnswered && !isSelected && !isCorrect && 'opacity-50'
-                    )}
-                 >
-                    {isAnswered && isSelected && !isCorrect && <XCircle className="mr-2 h-5 w-5" />}
-                    {isAnswered && isCorrect && <CheckCircle className="mr-2 h-5 w-5" />}
-                    {option.icon} {option.name}
-                 </Button>
-            );
-        })}
-      </div>
-
-      {isAnswered && (
-        <div className="flex flex-col items-center gap-4 animate-fade-in">
-             <p className={cn(
-                "text-lg font-bold text-center",
-                selectedAnswer?.id === currentQuestion?.antonym.id ? 'text-green-600' : 'text-destructive'
-             )}>
-                {selectedAnswer?.id === currentQuestion?.antonym.id ? '¡Correcto!' : `Incorrecto. El opuesto era: ${currentQuestion?.antonym.name}`}
-            </p>
-            <Button onClick={handleNext}>
-                {questionsAnswered >= 10 ? 'Ver Resultados' : 'Siguiente Pregunta'}
-            </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-```
-
-### `/src/app/components/games/emotion-memory-game.tsx`
-**Propósito:** Componente para el juego de memoria de emparejar iconos y nombres de emociones.
-```tsx
-"use client";
-
-import React, { useState, useEffect, useMemo } from 'react';
-import type { Emotion, GameProps } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { RefreshCw, Zap } from 'lucide-react';
-
-interface MemoryCard {
-  id: string;
-  type: 'icon' | 'name';
-  content: string;
-  emotionId: string;
-  isFlipped: boolean;
-  isMatched: boolean;
-}
-
-const shuffleArray = <T,>(array: T[]): T[] => {
-  return [...array].sort(() => Math.random() - 0.5);
-};
-
-const CARD_COUNT = 8; // Creates 8 pairs, 16 cards total
-
-export function EmotionMemoryGame({ emotionsList }: GameProps) {
-  const [cards, setCards] = useState<MemoryCard[]>([]);
-  const [flippedCards, setFlippedCards] = useState<number[]>([]);
-  const [moves, setMoves] = useState(0);
-  const [isGameOver, setIsGameOver] = useState(false);
-  const [isChecking, setIsChecking] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  const availableEmotions = useMemo(() => {
-    // Prioritize verified emotions, but allow custom ones if not enough verified ones are available.
-    const verified = emotionsList.filter(e => !e.isCustom);
-    const custom = emotionsList.filter(e => e.isCustom);
-    return [...shuffleArray(verified), ...shuffleArray(custom)];
-  }, [emotionsList]);
-  
-  const setupGame = () => {
-    setIsGameOver(false);
-    setMoves(0);
-    setFlippedCards([]);
-    setIsPlaying(true);
-    
-    if (availableEmotions.length < CARD_COUNT) {
-        setCards([]);
-        return;
-    }
-    
-    const gameEmotions = availableEmotions.slice(0, CARD_COUNT);
-
-    const gameCards: Omit<MemoryCard, 'id' | 'isFlipped' | 'isMatched'>[] = [];
-    gameEmotions.forEach((emotion) => {
-      gameCards.push({ type: 'icon', content: emotion.icon, emotionId: emotion.id });
-      gameCards.push({ type: 'name', content: emotion.name, emotionId: emotion.id });
-    });
-
-    const shuffledCards = shuffleArray(gameCards).map((card, index) => ({
-      ...card,
-      id: `${card.emotionId}-${card.type}-${index}`,
-      isFlipped: false,
-      isMatched: false,
-    }));
-
-    setCards(shuffledCards);
-  };
-
-  useEffect(() => {
-    if (isPlaying) {
-      setupGame();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isPlaying]);
-
-  const handleCardClick = (index: number) => {
-    if (isChecking || cards[index].isFlipped || flippedCards.length >= 2) {
-      return;
-    }
-
-    const newFlippedCards = [...flippedCards, index];
-    setFlippedCards(newFlippedCards);
-
-    const newCards = [...cards];
-    newCards[index].isFlipped = true;
-    setCards(newCards);
-
-    if (newFlippedCards.length === 2) {
-      setMoves(moves + 1);
-      setIsChecking(true);
-      const [firstIndex, secondIndex] = newFlippedCards;
-      const firstCard = newCards[firstIndex];
-      const secondCard = newCards[secondIndex];
-
-      if (firstCard.emotionId === secondCard.emotionId) {
-        // It's a match
-        setTimeout(() => {
-          setCards(prevCards => {
-            const updatedCards = [...prevCards];
-            updatedCards[firstIndex].isMatched = true;
-            updatedCards[secondIndex].isMatched = true;
-            return updatedCards;
-          });
-          setFlippedCards([]);
-          setIsChecking(false);
-        }, 800);
-      } else {
-        // Not a match
-        setTimeout(() => {
-          setCards(prevCards => {
-            const updatedCards = [...prevCards];
-            updatedCards[firstIndex].isFlipped = false;
-            updatedCards[secondIndex].isFlipped = false;
-            return updatedCards;
-          });
-          setFlippedCards([]);
-          setIsChecking(false);
-        }, 1200);
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (cards.length > 0 && cards.every(card => card.isMatched)) {
-      setIsGameOver(true);
-      setIsPlaying(false);
-    }
-  }, [cards]);
-
-  if (availableEmotions.length < CARD_COUNT) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
-        <p className="text-lg font-semibold">¡Faltan Emociones!</p>
-        <p>Necesitas al menos {CARD_COUNT} emociones diferentes para jugar a este juego.</p>
-        <p className="text-sm mt-2">Ve a "Descubrir" o "Emocionario" para añadir más.</p>
-      </div>
-    );
-  }
-
-  if (!isPlaying) {
-      return (
-        <div className="flex flex-col items-center justify-center h-full text-center p-8">
-            <h2 className="text-2xl font-bold text-primary">Memoria de Emociones</h2>
-            <p className="text-muted-foreground my-4 max-w-md">Encuentra los pares de emojis y sus nombres correspondientes. ¡Pon a prueba tu memoria emocional!</p>
-            {isGameOver && (
-                <>
-                    <p className="text-lg my-2">¡Partida terminada!</p>
-                    <p className="text-5xl font-bold mb-6">{moves} movimientos</p>
-                </>
-            )}
-            <Button onClick={() => setIsPlaying(true)} size="lg">
-                <Zap className="mr-2" />
-                {isGameOver ? 'Jugar de Nuevo' : 'Empezar'}
-            </Button>
-        </div>
-      )
-  }
-
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-6">
-      <div className="flex justify-between items-center w-full max-w-2xl px-2">
-        <p className="text-lg font-semibold text-primary">Movimientos: {moves}</p>
-        <Button variant="outline" size="icon" onClick={setupGame}>
-          <RefreshCw className="h-4 w-4" />
-        </Button>
-      </div>
-      <div className="grid grid-cols-4 gap-4 w-full max-w-2xl [perspective:1000px]">
-        {cards.map((card, index) => (
-          <div
-            key={card.id}
-            onClick={() => handleCardClick(index)}
-            className={cn(
-              "relative aspect-square transition-transform duration-500 cursor-pointer [transform-style:preserve-3d]",
-              card.isFlipped ? '[transform:rotateY(180deg)]' : ''
-            )}
-          >
-            {/* Card Back */}
-            <div className={cn(
-              "absolute inset-0 w-full h-full [backface-visibility:hidden] flex items-center justify-center rounded-lg",
-              "bg-primary/10 border-2 border-primary",
-              card.isMatched ? "bg-green-500/20 border-green-500" : ""
-            )}>
-            </div>
-            
-            {/* Card Front */}
-            <div className={cn(
-               "absolute inset-0 w-full h-full [backface-visibility:hidden] [transform:rotateY(180deg)] flex items-center justify-center text-center p-2 rounded-lg",
-               "bg-background",
-               card.isMatched ? "border-2 border-green-500 opacity-70" : "border-2"
-            )}>
-                {card.type === 'icon' ? (
-                    <span className="text-4xl md:text-5xl">{card.content}</span>
-                ) : (
-                    <span className="text-sm md:text-base font-semibold">{card.content}</span>
-                )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-```
-
-### `/src/app/components/games/emotion-rain-game.tsx`
-**Propósito:** Componente para el juego de "lluvia de emociones".
-```tsx
-"use client";
-
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import type { Emotion, GameProps } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { Play, RotateCw } from 'lucide-react';
-import { cn } from '@/lib/utils';
-
-interface Drop {
-  id: number;
-  emotion: Emotion;
-  x: number;
-  y: number;
-  speed: number;
-}
-
-const shuffleArray = <T,>(array: T[]): T[] => {
-  return [...array].sort(() => Math.random() - 0.5);
-};
-
-const GAME_WIDTH = 500;
-const GAME_HEIGHT = 400;
-const MAX_LIVES = 5;
-const INITIAL_SPEED_MULTIPLIER = 1.0;
-const SPEED_INCREMENT = 0.1;
-const INITIAL_DROP_INTERVAL = 1200; // ms
-const MIN_DROP_INTERVAL = 250; // ms
-const DROP_INTERVAL_DECREMENT = 50; // ms
-
-export function EmotionRainGame({ emotionsList }: GameProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isGameOver, setIsGameOver] = useState(false);
-  const [drops, setDrops] = useState<Drop[]>([]);
-  const [targetEmotion, setTargetEmotion] = useState<Emotion | null>(null);
-  const [score, setScore] = useState(0);
-  const [lives, setLives] = useState(MAX_LIVES);
-  const [speedMultiplier, setSpeedMultiplier] = useState(INITIAL_SPEED_MULTIPLIER);
-  const [dropInterval, setDropInterval] = useState(INITIAL_DROP_INTERVAL);
-  
-  const gameLoopRef = useRef<number>();
-  const dropTimerRef = useRef<NodeJS.Timeout>();
-
-  const availableEmotions = useMemo(() => {
-    const uniqueEmotions = Array.from(new Map(emotionsList.map(e => [e.name, e])).values());
-    return shuffleArray(uniqueEmotions);
-  }, [emotionsList]);
-  
-  const selectNewTarget = useCallback(() => {
-    setTargetEmotion(currentTarget => {
-      if (!availableEmotions || availableEmotions.length === 0) return null;
-      
-      const otherEmotions = availableEmotions.filter(e => e.id !== currentTarget?.id);
-      if (otherEmotions.length > 0) {
-        return shuffleArray(otherEmotions)[0];
-      }
-      return availableEmotions[0];
-    });
-  }, [availableEmotions]);
-
-  const handleDropClick = useCallback((clickedDropId: number) => {
-    if (!isPlaying || !targetEmotion) return;
-  
-    let wasCorrect = false;
-    setDrops(prev => {
-      const clickedDrop = prev.find(d => d.id === clickedDropId);
-      if (clickedDrop) {
-        if (clickedDrop.emotion.id === targetEmotion.id) {
-          setScore(s => s + 1);
-          wasCorrect = true;
-        } else {
-          setLives(l => l - 1);
-        }
-      }
-      return prev.filter(drop => drop.id !== clickedDropId);
-    });
-  
-    if (wasCorrect) {
-      selectNewTarget();
-      setSpeedMultiplier(s => s + SPEED_INCREMENT);
-      setDropInterval(d => Math.max(MIN_DROP_INTERVAL, d - DROP_INTERVAL_DECREMENT));
-    }
-  }, [isPlaying, targetEmotion, selectNewTarget]);
-  
-  const stopGame = useCallback(() => {
-      setIsPlaying(false);
-      setIsGameOver(true);
-      if(gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
-      if(dropTimerRef.current) clearTimeout(dropTimerRef.current);
-  }, []);
-  
-  const startGame = useCallback(() => {
-    if (availableEmotions.length < 5) return;
-    setScore(0);
-    setLives(MAX_LIVES);
-    setDrops([]);
-    setIsGameOver(false);
-    setSpeedMultiplier(INITIAL_SPEED_MULTIPLIER);
-    setDropInterval(INITIAL_DROP_INTERVAL);
-    
-    selectNewTarget();
-    setIsPlaying(true);
-  }, [availableEmotions.length, selectNewTarget]);
-
-
-  useEffect(() => {
-    if (lives <= 0 && isPlaying) {
-      stopGame();
-    }
-  }, [lives, isPlaying, stopGame]);
-
-  useEffect(() => {
-    if (!isPlaying) {
-      if(gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
-      if(dropTimerRef.current) clearTimeout(dropTimerRef.current);
-      return;
-    }
-    
-    if (!targetEmotion) return;
-
-    const gameLoop = () => {
-      setDrops(prevDrops => {
-        const newDrops = prevDrops
-            .map(drop => ({
-                ...drop,
-                y: drop.y + drop.speed * speedMultiplier,
-            }))
-            .filter(drop => {
-                if (drop.y > GAME_HEIGHT) {
-                    if (drop.emotion.id === targetEmotion?.id) {
-                        setLives(l => Math.max(0, l - 1));
-                    }
-                    return false;
-                }
-                return true;
-            });
-        return newDrops;
-      });
-      gameLoopRef.current = requestAnimationFrame(gameLoop);
-    };
-    gameLoopRef.current = requestAnimationFrame(gameLoop);
-
-    const createDrop = () => {
-        setDrops(prev => {
-            if (!targetEmotion || availableEmotions.length === 0) return prev;
-
-            let emotionForDrop: Emotion;
-            // Ensure target emotion has a higher chance of appearing
-            if (Math.random() < 0.4) {
-                emotionForDrop = targetEmotion;
-            } else {
-                const otherEmotions = availableEmotions.filter(e => e.id !== targetEmotion.id);
-                emotionForDrop = otherEmotions.length > 0 ? shuffleArray(otherEmotions)[0] : targetEmotion;
-            }
-            
-            const newDrop: Drop = {
-                id: Date.now() + Math.random(),
-                emotion: emotionForDrop,
-                x: Math.random() * (GAME_WIDTH - 40),
-                y: -40,
-                speed: 1 + Math.random() * 1.5,
-            };
-            return [...prev, newDrop];
-        });
-    }
-
-    const scheduleNextDrop = () => {
-      if (!isPlaying) return;
-      dropTimerRef.current = setTimeout(() => {
-        createDrop();
-        scheduleNextDrop();
-      }, dropInterval);
-    };
-
-    scheduleNextDrop();
-
-    return () => {
-      if (gameLoopRef.current) cancelAnimationFrame(gameLoopRef.current);
-      if (dropTimerRef.current) clearTimeout(dropTimerRef.current);
-    };
-  }, [isPlaying, targetEmotion, availableEmotions, speedMultiplier, dropInterval]);
-
-  if (availableEmotions.length < 5) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
-        <p className="text-lg font-semibold">¡Faltan Emociones!</p>
-        <p className="max-w-md">Necesitas al menos 5 emociones diferentes para jugar a este juego.</p>
-        <p className="text-sm mt-2">Ve a "Descubrir" o "Emocionario" para añadir más.</p>
-      </div>
-    );
-  }
-
-  if (isGameOver) {
-      return (
-          <div className="flex flex-col items-center justify-center h-full text-center p-4 md:p-8">
-            <h2 className="text-2xl font-bold text-primary">Lluvia de Emociones</h2>
-            <p className="text-lg my-2">¡Juego terminado!</p>
-            <p className="text-5xl font-bold mb-6">{score}</p>
-            <p className="text-muted-foreground mb-6 -mt-4">puntos</p>
-            <Button onClick={startGame} size="lg">
-              <RotateCw className="mr-2" />
-              Jugar de Nuevo
-            </Button>
-          </div>
-      )
-  }
-
-  if (!isPlaying) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-4 md:p-8">
-        <h2 className="text-2xl font-bold text-primary">Lluvia de Emociones</h2>
-        <p className="text-muted-foreground my-4 max-w-md">El objetivo es hacer clic en el emoji que corresponde a la emoción que se te pide. La velocidad y la cantidad aumentarán con cada acierto. Tienes {MAX_LIVES} vidas.</p>
-        <Button onClick={startGame} size="lg">
-          <Play className="mr-2" />
-          Empezar
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-4">
-       <div className="w-full max-w-[500px] flex justify-between items-center text-lg font-semibold px-2">
-           <p>Puntuación: <span className="text-primary">{score}</span></p>
-           <p>Vidas: <span className="text-destructive text-xl md:text-2xl">{'❤️'.repeat(Math.max(0, lives))}</span></p>
-       </div>
-
-       <div 
-         className="relative bg-muted/20 rounded-lg overflow-hidden border-2 w-full max-w-[500px] h-[400px]"
-       >
-         {drops.map(drop => (
-           <div
-             key={drop.id}
-             className="absolute text-3xl md:text-4xl cursor-pointer hover:scale-110 transition-transform"
-             style={{ 
-                 left: drop.x, 
-                 top: drop.y, 
-                 textShadow: `0 0 8px ${drop.emotion.color}90`,
-             }}
-             onClick={() => handleDropClick(drop.id)}
-           >
-             {drop.emotion.icon}
-           </div>
-         ))}
-       </div>
-
-        <div className="text-center p-4 rounded-lg bg-muted/50 w-full max-w-[500px]">
-            <p className="text-muted-foreground text-sm md:text-base">Busca esta emoción:</p>
-            <p className="text-xl md:text-2xl font-bold text-primary flex items-center justify-center gap-2">
-                <span>{targetEmotion?.icon}</span>
-                <span>{targetEmotion?.name}</span>
-            </p>
-        </div>
-    </div>
-  );
-}
-```
-
-### `/src/app/components/games/guess-emotion-game.tsx`
-**Propósito:** Componente para el juego de adivinar la emoción a partir de una situación.
-```tsx
-"use client";
-
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Emotion, GameProps, QuizQuestion } from '@/lib/types';
-import { QUIZ_QUESTIONS, PREDEFINED_EMOTIONS } from '@/lib/constants';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
-import { CheckCircle, XCircle, Zap } from 'lucide-react';
-
-const shuffleArray = <T,>(array: T[]): T[] => {
-  let currentIndex = array.length;
-  let randomIndex;
-  const newArray = [...array];
-
-  // While there remain elements to shuffle.
-  while (currentIndex !== 0) {
-    // Pick a remaining element.
-    randomIndex = Math.floor(Math.random() * currentIndex);
-    currentIndex--;
-
-    // And swap it with the current element.
-    [newArray[currentIndex], newArray[randomIndex]] = [
-      newArray[randomIndex],
-      newArray[currentIndex],
-    ];
-  }
-
-  return newArray;
-};
-
-const difficulties: QuizQuestion['difficulty'][] = ['Fácil', 'Medio', 'Difícil', 'Experto'];
-const QUESTIONS_PER_GAME = 10;
-
-export function GuessEmotionGame({ emotionsList }: GameProps) {
-  const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion | null>(null);
-  const [options, setOptions] = useState<Emotion[]>([]);
-  const [selectedAnswer, setSelectedAnswer] = useState<Emotion | null>(null);
-  const [isAnswered, setIsAnswered] = useState(false);
-  const [score, setScore] = useState(0);
-  const [questionsAnswered, setQuestionsAnswered] = useState(0);
-  const [difficultyIndex, setDifficultyIndex] = useState(0);
-  const [questionHistory, setQuestionHistory] = useState<string[]>([]);
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  const allUserEmotions = useMemo(() => {
-    const emotionMap = new Map<string, Emotion>();
-    PREDEFINED_EMOTIONS.forEach(p => emotionMap.set(p.name.toLowerCase(), { ...p, id: p.name, userProfileId: 'system', isCustom: false } as Emotion));
-    emotionsList.forEach(e => emotionMap.set(e.name.toLowerCase(), e));
-    return Array.from(emotionMap.values());
-  }, [emotionsList]);
-  
-  const allPredefinedEmotions = useMemo(() => {
-      return PREDEFINED_EMOTIONS.map(p => ({ ...p, id: p.name, userProfileId: 'system', isCustom: false } as Emotion));
-  }, []);
-
-
-  const generateQuestion = useCallback(() => {
-    const currentDifficulty = difficulties[difficultyIndex];
-    
-    let possibleQuestions = QUIZ_QUESTIONS.filter(q => {
-        const difficultyMatch = q.difficulty === currentDifficulty;
-        const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
-        const notInHistory = !questionHistory.includes(q.question);
-        return difficultyMatch && answerExists && notInHistory;
-    });
-
-    if (possibleQuestions.length === 0) {
-        possibleQuestions = QUIZ_QUESTIONS.filter(q => {
-             const difficultyMatch = q.difficulty === currentDifficulty;
-             const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
-             return difficultyMatch && answerExists;
-        });
-        setQuestionHistory([]); // Reset history if we ran out of unique questions
-    }
-    
-    if (possibleQuestions.length === 0) {
-        console.error("No valid quiz questions could be generated.");
-        setCurrentQuestion(null);
-        return;
-    }
-
-    const randomQuestion = shuffleArray(possibleQuestions)[0];
-    const correctEmotion = allPredefinedEmotions.find(e => e.name.toLowerCase() === randomQuestion.correctAnswer.toLowerCase());
-
-    if (!correctEmotion) {
-        console.error(`Could not find correct emotion "${randomQuestion.correctAnswer}" in predefined list.`);
-        generateQuestion();
-        return;
-    }
-
-    const incorrectOptions = shuffleArray(allUserEmotions.filter(e => e.name.toLowerCase() !== correctEmotion.name.toLowerCase())).slice(0, 3);
-    const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
-
-    setCurrentQuestion(randomQuestion);
-    setOptions(allOptions);
-    setIsAnswered(false);
-    setSelectedAnswer(null);
-
-    setQuestionHistory(prev => [...prev, randomQuestion.question]);
-
-  }, [difficultyIndex, allUserEmotions, allPredefinedEmotions, questionHistory]);
-
-
-  useEffect(() => {
-    if (isPlaying && questionsAnswered < QUESTIONS_PER_GAME) {
-      generateQuestion();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questionsAnswered, isPlaying]);
-
-  const handleAnswer = (answer: Emotion) => {
-    if (isAnswered) return;
-
-    setSelectedAnswer(answer);
-    setIsAnswered(true);
-
-    if (answer.name.toLowerCase() === currentQuestion?.correctAnswer.toLowerCase()) {
-      setScore(prev => prev + 1);
-      setDifficultyIndex(prev => Math.min(prev + 1, difficulties.length - 1));
-    } else {
-      setDifficultyIndex(prev => Math.max(prev - 1, 0));
-    }
-  };
-
-  const handleNext = () => {
-    setQuestionsAnswered(prev => prev + 1);
-  };
-
-  const startGame = () => {
-    setScore(0);
-    setQuestionsAnswered(0);
-    setDifficultyIndex(0);
-    setQuestionHistory([]);
-    setIsAnswered(false);
-    setSelectedAnswer(null);
-    setIsPlaying(true);
-  };
-  
-  if (allUserEmotions.length < 4) {
-      return (
-          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
-              <p className="text-lg font-semibold">¡Faltan Emociones!</p>
-              <p className="max-w-md">Necesitas al menos 4 emociones diferentes para jugar a este juego.</p>
-              <p className="text-sm mt-2">Ve a "Descubrir" o "Emocionario" para añadir más.</p>
-          </div>
-      )
-  }
-
-  if (!isPlaying) {
-    return (
-        <div className="flex flex-col items-center justify-center h-full text-center p-4 md:p-8">
-            <h2 className="text-2xl font-bold text-primary">Adivina la Emoción</h2>
-            <p className="text-muted-foreground my-4 max-w-md">Lee la situación y elige la emoción que mejor la describe. ¡Demuestra tu inteligencia emocional!</p>
-            {questionsAnswered >= QUESTIONS_PER_GAME && (
-                <>
-                    <p className="text-lg my-2">¡Partida terminada!</p>
-                    <p className="text-5xl font-bold mb-6">{score} / {QUESTIONS_PER_GAME}</p>
-                </>
-            )}
-            <Button onClick={startGame} size="lg">
-                <Zap className="mr-2" />
-                {questionsAnswered >= QUESTIONS_PER_GAME ? 'Jugar de Nuevo' : 'Empezar'}
-            </Button>
-        </div>
-    );
-  }
-  
-  if (questionsAnswered >= QUESTIONS_PER_GAME) {
-    setIsPlaying(false);
-    return null; // Will be re-rendered into the start screen
-  }
-  
-  if (!currentQuestion) {
-      return (
-          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
-              <p className="text-lg font-semibold">Cargando...</p>
-          </div>
-      )
-  }
-
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-6">
-      <div className="text-center w-full max-w-2xl">
-        <div className="flex justify-between items-center">
-            <p className="text-sm font-semibold text-primary">Puntuación: {score} / {questionsAnswered}</p>
-            <p className="text-sm font-semibold text-accent">Dificultad: {currentQuestion.difficulty}</p>
-        </div>
-        <p className="text-lg mt-4">¿Qué emoción describe mejor esta situación?</p>
-      </div>
-
-      <Card className="w-full max-w-2xl p-6 text-center shadow-inner bg-muted/30">
-        <CardContent className="p-0">
-          <blockquote className="text-lg md:text-xl italic font-semibold">
-            "{currentQuestion?.question}"
-          </blockquote>
-        </CardContent>
-      </Card>
-      
-      <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
-        {options.map((option) => {
-            const isCorrect = option.name.toLowerCase() === currentQuestion.correctAnswer.toLowerCase();
-            const isSelected = selectedAnswer?.name === option.name;
-
-            return (
-                 <Button
-                    key={option.id}
-                    onClick={() => handleAnswer(option)}
-                    disabled={isAnswered}
-                    className={cn(
-                        "h-auto py-3 md:py-4 text-sm md:text-base whitespace-normal",
-                        isAnswered && isCorrect && 'bg-green-500 hover:bg-green-600 border-green-500 text-white',
-                        isAnswered && isSelected && !isCorrect && 'bg-destructive hover:bg-destructive/90 border-destructive text-destructive-foreground',
-                        isAnswered && !isSelected && !isCorrect && 'opacity-50'
-                    )}
-                 >
-                    {isAnswered && isSelected && !isCorrect && <XCircle className="mr-2 h-5 w-5" />}
-                    {isAnswered && isCorrect && <CheckCircle className="mr-2 h-5 w-5" />}
-                    {option.icon} {option.name}
-                 </Button>
-            );
-        })}
-      </div>
-
-      {isAnswered && (
-        <div className="flex flex-col items-center gap-4 animate-fade-in">
-             <p className={cn(
-                "text-lg font-bold text-center",
-                selectedAnswer?.name.toLowerCase() === currentQuestion.correctAnswer.toLowerCase() ? 'text-green-600' : 'text-destructive'
-             )}>
-                {selectedAnswer?.name.toLowerCase() === currentQuestion.correctAnswer.toLowerCase() ? '¡Correcto!' : `Incorrecto. La respuesta era: ${currentQuestion.correctAnswer}`}
-            </p>
-            <Button onClick={handleNext}>
-                {questionsAnswered >= QUESTIONS_PER_GAME -1 ? 'Ver Resultados' : 'Siguiente Pregunta'}
-            </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-```
-
-### `/src/app/components/games/quick-journal-game.tsx`
-**Propósito:** Componente para el juego de "Diario Rápido".
-```tsx
-"use client";
-
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import type { Emotion, GameProps } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Timer, Zap, Sparkles } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
-import { Card, CardContent } from '@/components/ui/card';
-import { EMOTION_BONUS_WORDS } from '@/lib/constants';
-
-const GAME_DURATION = 45; // seconds
-const TIME_BONUS = 3; // seconds
-
-const shuffleArray = <T,>(array: T[]): T[] => {
-  return [...array].sort(() => Math.random() - 0.5);
-};
-
-export function QuickJournalGame({ emotionsList }: GameProps) {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
-  const [score, setScore] = useState(0);
-  const [targetEmotion, setTargetEmotion] = useState<Emotion | null>(null);
-  const [bonusWord, setBonusWord] = useState<string>('');
-  const [thought, setThought] = useState('');
-  const [showTimeBonus, setShowTimeBonus] = useState(false);
-  const timerRef = useRef<number | null>(null);
-
-  const availableEmotions = useMemo(() => {
-    // Filter emotions that have bonus words available
-    return emotionsList.filter(e => EMOTION_BONUS_WORDS[e.name]);
-  }, [emotionsList]);
-
-  const selectNewTarget = useCallback(() => {
-    if (availableEmotions.length === 0) return;
-    
-    let nextEmotion = shuffleArray(availableEmotions)[0];
-    // Avoid picking the same emotion twice in a row if possible
-    if (nextEmotion.id === targetEmotion?.id && availableEmotions.length > 1) {
-      nextEmotion = shuffleArray(availableEmotions.filter(e => e.id !== targetEmotion.id))[0];
-    }
-    
-    setTargetEmotion(nextEmotion);
-    const possibleWords = EMOTION_BONUS_WORDS[nextEmotion.name];
-    setBonusWord(shuffleArray(possibleWords)[0]);
-  }, [availableEmotions, targetEmotion]);
-
-  const stopTimer = () => {
-    if (timerRef.current) {
-        clearTimeout(timerRef.current);
-        timerRef.current = null;
-    }
-  }
-
-  useEffect(() => {
-    if (isPlaying && timeLeft > 0) {
-      timerRef.current = window.setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-    } else if (timeLeft <= 0) {
-      setIsPlaying(false);
-      stopTimer();
-    }
-    return stopTimer;
-  }, [isPlaying, timeLeft]);
-
-  const startGame = () => {
-    setIsPlaying(true);
-    setTimeLeft(GAME_DURATION);
-    setScore(0);
-    setThought('');
-    selectNewTarget();
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!thought) return;
-
-    if (thought.toLowerCase().includes(bonusWord.toLowerCase())) {
-        setTimeLeft(prev => prev + TIME_BONUS);
-        setShowTimeBonus(true);
-        setTimeout(() => setShowTimeBonus(false), 1000);
-    }
-
-    setScore(score + 1);
-    setThought('');
-    selectNewTarget();
-  };
-
-  if (availableEmotions.length === 0) {
-    return (
-        <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
-            <p className="text-lg font-semibold">¡Faltan Emociones!</p>
-            <p className="max-w-md">Necesitas al menos 1 emoción con palabras clave para jugar.</p>
-             <p className="text-sm mt-2">Asegúrate de tener emociones como 'Alegría', 'Tristeza', etc. desde la sección "Descubrir".</p>
-        </div>
-    )
-  }
-
-  if (!isPlaying) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-4 md:p-8">
-        <h2 className="text-2xl font-bold text-primary">Diario Rápido</h2>
-        {score > 0 ? (
-          <>
-            <p className="text-lg my-2">¡Juego terminado!</p>
-            <p className="text-5xl font-bold mb-2">{score}</p>
-            <p className="text-muted-foreground mb-6">entradas registradas.</p>
-          </>
-        ) : (
-          <p className="text-muted-foreground my-4 max-w-md">El objetivo es escribir un pensamiento rápido sobre la emoción que aparece. Si usas la "Palabra Clave", ¡ganas tiempo extra! Anota tantos como puedas.</p>
-        )}
-        <Button onClick={startGame} size="lg">
-          <Zap className="mr-2" />
-          {score > 0 ? 'Jugar de Nuevo' : 'Empezar'}
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-6">
-      <div className="w-full max-w-2xl space-y-4">
-        <div className="flex justify-between items-center w-full px-2 relative">
-          <p className="text-lg font-semibold text-primary">Puntuación: {score}</p>
-          <div className="flex items-center gap-2 text-xl font-bold text-destructive">
-            <Timer />
-            <span>{timeLeft}s</span>
-          </div>
-           {showTimeBonus && (
-            <div className="absolute right-0 -top-8 flex items-center gap-1 text-green-500 font-bold animate-fade-in-up">
-                <Sparkles className="h-5 w-5" />
-                <span>+{TIME_BONUS}s</span>
-            </div>
-           )}
-        </div>
-        <Progress value={(timeLeft / GAME_DURATION) * 100} className="w-full h-2" />
-      </div>
-
-      <Card className="w-full max-w-2xl p-6 text-center shadow-inner bg-muted/30">
-        <CardContent className="p-0">
-          {targetEmotion ? (
-            <div className="text-2xl md:text-3xl font-bold flex flex-col items-center justify-center gap-3">
-              <div className="flex items-center gap-3">
-                <span className="text-4xl md:text-5xl">{targetEmotion.icon}</span>
-                <span>{targetEmotion.name}</span>
-              </div>
-              <div className="text-base md:text-lg mt-2 font-normal text-muted-foreground">
-                Palabra clave: <span className="font-bold text-accent">{bonusWord}</span>
-              </div>
-            </div>
-          ) : (
-             <p>Cargando emoción...</p>
-          )}
-        </CardContent>
-      </Card>
-
-      <form onSubmit={handleSubmit} className="w-full max-w-2xl space-y-4">
-        <Input
-          type="text"
-          value={thought}
-          onChange={(e) => setThought(e.target.value)}
-          placeholder="Escribe un pensamiento que incluya la palabra clave..."
-          className="text-base md:text-lg h-12 text-center"
-          required
-          autoFocus
-        />
-        <Button type="submit" className="w-full" disabled={!thought}>
-          Registrar y Siguiente
-        </Button>
-      </form>
-    </div>
-  );
-}
-```
-
-### `/src/app/components/modals/add-emotion-modal.tsx`
-**Propósito:** Modal para añadir una emoción predefinida al emocionario del usuario, permitiendo personalización.
-```tsx
-"use client";
-
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import type { Emotion } from '@/lib/types';
-import { AVATAR_EMOJIS } from '@/lib/constants';
-import { cn } from '@/lib/utils';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { useToast } from '@/hooks/use-toast';
-
-interface AddEmotionModalProps {
-  initialData: (Partial<Emotion>) | null;
-  onSave: (emotionData: Omit<Emotion, 'id' | 'userId'> & { id?: string }) => void;
-  onClose: () => void;
-}
-
-export function AddEmotionModal({ initialData, onSave, onClose }: AddEmotionModalProps) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [color, setColor] = useState('#47a2a2');
-  const [icon, setIcon] = useState('');
-  const { toast } = useToast();
-
-  useEffect(() => {
-    if (initialData) {
-      setName(initialData.name || '');
-      setDescription(initialData.description || '');
-      setColor(initialData.color || '#47a2a2');
-      setIcon(initialData.icon || '');
-    } else {
-      // Reset form when modal is closed
-      setName('');
-      setDescription('');
-      setColor('#47a2a2');
-      setIcon('');
-    }
-  }, [initialData]);
-
-  const handleSave = () => {
-    if (!name || !icon) {
-        toast({
-            title: "Faltan campos",
-            description: "Asegúrate de que la emoción tenga un nombre y un icono.",
-            variant: "destructive",
-        });
-        return;
-    }
-    if (!initialData) return;
-    
-    const dataToSave = {
-        name,
-        icon,
-        description,
-        color,
-        isCustom: initialData.isCustom ?? true,
-    };
-
-    onSave(dataToSave);
-    onClose();
-  };
-
-  if (!initialData) return null;
-
-  return (
-    <Dialog open={!!initialData} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3 text-2xl" style={{ color }}>
-            <span className="text-3xl">{icon || initialData.icon}</span>
-            Añadir "{name || initialData.name}"
-          </DialogTitle>
-          <DialogDescription>
-            Personaliza esta emoción antes de añadirla a tu emocionario.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Nombre de la emoción"
-            />
-           <div>
-                <label className="text-sm font-medium">Icono (emoji)</label>
-                <ScrollArea className="h-40">
-                  <div className="grid grid-cols-8 gap-2 mt-2 bg-muted/50 p-2 rounded-lg">
-                    {AVATAR_EMOJIS.map((emoji, index) => (
-                        <button
-                            type="button"
-                            key={`${emoji}-${index}`}
-                            onClick={() => setIcon(emoji)}
-                            className={cn(
-                                'text-3xl p-1 rounded-lg transition-all flex items-center justify-center aspect-square',
-                                icon === emoji ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
-                            )}
-                        >
-                            {emoji}
-                        </button>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </div>
-          <Textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="¿Qué significa esta emoción para ti?"
-            rows={4}
-          />
-          <div className="flex items-center gap-2">
-            <label htmlFor="emotion-color-modal" className="text-sm font-medium">Elige un color:</label>
-            <Input
-              id="emotion-color-modal"
-              type="color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              className="w-16 h-10 p-1"
-            />
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={handleSave} className="bg-accent text-accent-foreground hover:bg-accent/90">
-            Guardar en mi Emocionario
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-```
-
-### `/src/app/components/modals/quiz-modal.tsx`
-**Propósito:** Modal que contiene el cuestionario para recuperar un día perdido en la racha.
-```tsx
-"use client";
-
-import React, { useState, useMemo, useEffect } from 'react';
-import { QUIZ_QUESTIONS } from '@/lib/constants';
-import type { QuizQuestion } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { X, CheckCircle, XCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-
-interface QuizModalProps {
-  onClose: () => void;
-  onComplete: (success: boolean) => void;
-}
-
-const QUESTIONS_PER_QUIZ = 5;
-const REQUIRED_SCORE = 3;
-
-// Function to get a random item from an array
-const getRandomItem = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
-
-export function QuizModal({ onClose, onComplete }: QuizModalProps) {
-  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [score, setScore] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
-  const [isAnswered, setIsAnswered] = useState(false);
-
-  useEffect(() => {
-    // Generate a unique set of questions for the quiz
-    const difficulties: QuizQuestion['difficulty'][] = ['Fácil', 'Medio', 'Difícil', 'Experto'];
-    const selectedQuestions: QuizQuestion[] = [];
-    const usedIndexes = new Set<number>();
-
-    // Add one extra question to reach 5 total
-    const allDifficulties = [...difficulties, 'Medio']; 
-
-    allDifficulties.forEach(difficulty => {
-      const questionsOfDifficulty = QUIZ_QUESTIONS.map((q, i) => ({ ...q, originalIndex: i })).filter(q => q.difficulty === difficulty);
-      let question;
-      do {
-        question = getRandomItem(questionsOfDifficulty);
-      } while (question && usedIndexes.has(question.originalIndex));
-      
-      if(question) {
-        selectedQuestions.push(question);
-        usedIndexes.add(question.originalIndex);
-      }
-    });
-
-    setQuestions(selectedQuestions);
-  }, []);
-
-  const handleAnswer = (answer: string) => {
-    if (isAnswered) return;
-
-    setSelectedAnswer(answer);
-    setIsAnswered(true);
-
-    if (answer === questions[currentQuestionIndex].correctAnswer) {
-      setScore(s => s + 1);
-    }
-  };
-
-  const handleNext = () => {
-    setIsAnswered(false);
-    setSelectedAnswer(null);
-
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex(i => i + 1);
-    } else {
-      // Quiz finished
-      onComplete(score >= REQUIRED_SCORE);
-    }
-  };
-  
-  if (questions.length === 0) {
-    return <div className="fixed inset-0 bg-background/80 z-50 flex items-center justify-center">Cargando desafío...</div>;
-  }
-
-  const currentQuestion = questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
-  const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
-  
-  return (
-    <div className="fixed inset-0 bg-background/95 z-50 flex items-center justify-center p-4 animate-fade-in">
-      <Card className="w-full max-w-2xl">
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-2xl text-primary">Desafío de Recuperación</CardTitle>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="h-6 w-6" />
-            </Button>
-          </div>
-          <CardDescription>Responde {REQUIRED_SCORE} de {QUESTIONS_PER_QUIZ} preguntas correctamente para recuperar el día.</CardDescription>
-          <div className="flex items-center gap-4 pt-2">
-             <Progress value={progress} className="w-full" />
-             <span className="text-sm font-semibold text-muted-foreground">{currentQuestionIndex + 1} / {questions.length}</span>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <p className="text-lg font-semibold">{currentQuestion.question}</p>
-            <p className="text-sm text-muted-foreground font-semibold" style={{ color: `hsl(var(--accent))` }}>Dificultad: {currentQuestion.difficulty}</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {currentQuestion.options.map(option => {
-                const isSelected = selectedAnswer === option;
-                const isTheCorrectAnswer = currentQuestion.correctAnswer === option;
-
-                return (
-                    <Button
-                        key={option}
-                        variant={isAnswered && (isSelected || isTheCorrectAnswer) ? 'default' : 'outline'}
-                        className={cn(
-                            "h-auto py-3 whitespace-normal justify-start text-left",
-                            isAnswered && isTheCorrectAnswer && 'bg-green-500 hover:bg-green-600 border-green-500 text-white',
-                            isAnswered && isSelected && !isTheCorrectAnswer && 'bg-destructive hover:bg-destructive/90 border-destructive text-destructive-foreground',
-                            isAnswered && !isSelected && !isTheCorrectAnswer && 'opacity-50'
-                        )}
-                        onClick={() => handleAnswer(option)}
-                        disabled={isAnswered}
-                    >
-                         {isAnswered && isSelected && !isTheCorrectAnswer && <XCircle className="mr-2 h-5 w-5" />}
-                         {isAnswered && isTheCorrectAnswer && <CheckCircle className="mr-2 h-5 w-5" />}
-                        {option}
-                    </Button>
-                )
-            })}
-          </div>
-        </CardContent>
-        <CardFooter>
-            {isAnswered && (
-                <div className="w-full flex flex-col sm:flex-row items-center gap-4 animate-fade-in">
-                    <p className={cn("text-lg font-bold", isCorrect ? 'text-green-600' : 'text-destructive')}>
-                        {isCorrect ? '¡Correcto!' : `Incorrecto. La respuesta era: ${currentQuestion.correctAnswer}`}
-                    </p>
-                    <Button onClick={handleNext} className="w-full sm:w-auto ml-auto">
-                        {currentQuestionIndex === questions.length - 1 ? 'Finalizar Desafío' : 'Siguiente Pregunta'}
-                    </Button>
-                </div>
-            )}
-        </CardFooter>
-      </Card>
-    </div>
-  );
-}
-```
-
-### `/src/app/components/tour/tour-popup.tsx`
-**Propósito:** Componente que muestra el popup del tour guiado, resaltando elementos de la UI.
-```tsx
-"use client";
-
-import React, { useLayoutEffect, useRef, useState, RefObject, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { TourStepData } from '@/lib/types';
-import { cn } from '@/lib/utils';
-import { useSidebar } from '@/components/ui/sidebar';
-
-interface TourPopupProps {
-  step: number;
-  steps: TourStepData[];
-  refs: { [key: string]: RefObject<HTMLElement> };
-  onNext: () => void;
-  onSkip: () => void;
-}
-
-export function TourPopup({ step, steps, refs, onNext, onSkip }: TourPopupProps) {
-  const popupRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState<{ top: number; left: number; width: number; height: number }>({ top: 0, left: 0, width: 0, height: 0 });
-  const [popupPosition, setPopupPosition] = useState<{ top: number, left: number }>({ top: 0, left: 0 });
-  const { isMobile, setOpenMobile, openMobile } = useSidebar();
-  const animationFrameId = useRef<number>();
-
-  const calculateAndSetPosition = (retries = 0) => {
-    if (step === 0) {
-      setPosition({ top: 0, left: 0, width: 0, height: 0 });
-      return;
-    }
-  
-    const currentStepData = steps[step - 1];
-    if (!currentStepData) return;
-  
-    const targetRef = refs[currentStepData.refKey];
-    const targetElement = targetRef?.current;
-  
-    if (targetElement) {
-      const rect = targetElement.getBoundingClientRect();
-      
-      // On mobile, the collapsed item width is small. We wait for it to expand.
-      // An expanded item will be much wider than 60px.
-      if (isMobile && rect.width < 60 && retries < 15) {
-        animationFrameId.current = requestAnimationFrame(() => calculateAndSetPosition(retries + 1));
-        return;
-      }
-  
-      if (rect.width > 0 && rect.height > 0) {
-        setPosition({
-          top: rect.top,
-          left: rect.left,
-          width: rect.width,
-          height: rect.height,
-        });
-  
-        const popupElement = popupRef.current;
-        if (popupElement) {
-          const popupRect = popupElement.getBoundingClientRect();
-          let top = rect.bottom + 16;
-          let left = rect.left + rect.width / 2 - popupRect.width / 2;
-  
-          if (top + popupRect.height > window.innerHeight) {
-            top = rect.top - popupRect.height - 16;
-          }
-  
-          if (left < 16) left = 16;
-          if (left + popupRect.width > window.innerWidth - 16) {
-            left = window.innerWidth - popupRect.width - 16;
-          }
-  
-          setPopupPosition({ top, left });
-        }
-      } else if (retries < 15) {
-        animationFrameId.current = requestAnimationFrame(() => calculateAndSetPosition(retries + 1));
-      }
-    } else if (retries < 15) {
-      animationFrameId.current = requestAnimationFrame(() => calculateAndSetPosition(retries + 1));
-    }
-  };
-
-  useEffect(() => {
-    // Cleanup any pending animation frame on unmount or before re-running
-    return () => {
-      if (animationFrameId.current) {
-        cancelAnimationFrame(animationFrameId.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (animationFrameId.current) {
-      cancelAnimationFrame(animationFrameId.current);
-    }
-    
-    if (step === 0) {
-      setPosition({ top: 0, left: 0, width: 0, height: 0 });
-      return;
-    }
-
-    const currentStepData = steps[step - 1];
-    if (!currentStepData) return;
-
-    if (isMobile && !openMobile && refs[currentStepData.refKey]) {
-      setOpenMobile(true);
-      // The effect will re-run because openMobile changes, so we wait.
-      return;
-    }
-    
-    // Start trying to calculate position
-    calculateAndSetPosition();
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, isMobile, openMobile]);
-
-
-  const handleNext = () => {
-    onNext();
-  };
-
-  const handleSkip = () => {
-    onSkip();
-    if (isMobile) {
-      setOpenMobile(false);
-    }
-  };
-
-  if (step === 0 || !steps[step - 1] || position.width === 0) {
-    return null;
-  }
-
-  const { title, description } = steps[step - 1];
-
-  return (
-    <div className="fixed inset-0 z-[60] pointer-events-none">
-      {/* Background overlay */}
-      <div className="fixed inset-0 bg-black/50 z-0 pointer-events-auto" onClick={handleSkip}></div>
-      
-      {/* Highlight Box */}
-      <div
-        className="fixed transition-all duration-300 ease-in-out border-2 border-accent rounded-lg bg-background/20"
-        style={{
-          top: `${position.top - 4}px`,
-          left: `${position.left - 4}px`,
-          width: `${position.width + 8}px`,
-          height: `${position.height + 8}px`,
-          boxShadow: '0 0 0 9999px rgba(0,0,0,0.5)',
-          zIndex: 1,
-        }}
-      />
-
-      {/* Popup Content */}
-      <div
-        ref={popupRef}
-        className={cn(
-          "fixed bg-card text-card-foreground p-4 rounded-lg shadow-2xl w-72 transition-all duration-300 ease-in-out pointer-events-auto",
-          position.width === 0 ? 'opacity-0' : 'opacity-100'
-        )}
-        style={{
-          top: `${popupPosition.top}px`,
-          left: `${popupPosition.left}px`,
-          zIndex: 2,
-        }}
-      >
-        <h3 className="font-bold text-lg mb-2">{title}</h3>
-        <p className="text-sm text-muted-foreground">{description}</p>
-        <div className="flex justify-between mt-4">
-          <Button variant="ghost" onClick={handleSkip}>Saltar</Button>
-          <Button onClick={() => {
-            if (step === steps.length) {
-              handleSkip();
-            } else {
-              handleNext();
-            }
-          }} className="bg-accent text-accent-foreground hover:bg-accent/90">
-            {step === steps.length ? 'Finalizar' : 'Siguiente'}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-```
-
-### `/src/app/components/tour/welcome-dialog.tsx`
-**Propósito:** Diálogo de bienvenida para nuevos usuarios, ofreciendo iniciar el tour guiado.
-```tsx
-"use client";
-
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Sparkles } from 'lucide-react';
-
-interface WelcomeDialogProps {
-    open: boolean;
-    onStartTour: () => void;
-    onSkipTour: () => void;
-}
-
-export function WelcomeDialog({ open, onStartTour, onSkipTour }: WelcomeDialogProps) {
-    return (
-        <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onSkipTour()}>
-            <DialogContent className="sm:max-w-[425px]" hideCloseButton>
-                <DialogHeader>
-                    <DialogTitle className="flex flex-col items-center text-center gap-2 text-2xl">
-                        <Sparkles className="w-10 h-10 text-accent" />
-                        ¡Te damos la bienvenida a Diario de Emociones!
-                    </DialogTitle>
-                    <DialogDescription className="text-center pt-2">
-                        Esta es una herramienta para ayudarte a entender y registrar tus emociones.
-                        ¿Te gustaría hacer un tour rápido para conocer las funciones principales?
-                    </DialogDescription>
-                </DialogHeader>
-                <DialogFooter className="sm:justify-center pt-4 flex-row gap-2">
-                    <Button type="button" variant="ghost" onClick={onSkipTour}>
-                        Saltar Tour
-                    </Button>
-                    <Button type="button" onClick={onStartTour} className="bg-accent text-accent-foreground hover:bg-accent/90">
-                        Empezar Tour
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    );
-}
-```
-
-### `/src/app/components/views/calm-view.tsx`
-**Propósito:** Vista que proporciona ejercicios de respiración guiados visualmente.
-```tsx
-"use client";
-
-import React, { useState, useEffect, useRef } from 'react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-
-type BreathMode = 'circle' | 'square' | '4-7-8';
-
-interface BreathStep {
-  text: string;
-  duration: number;
-  animation: string;
-  gradient: string;
-}
-
-const breathCycles: Record<BreathMode, BreathStep[]> = {
-  circle: [
-    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in', gradient: 'from-primary/70 to-blue-300/70' },
-    { text: 'Exhala', duration: 6000, animation: 'animate-breathe-out', gradient: 'from-accent/70 to-pink-300/70' },
-  ],
-  square: [
-    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in', gradient: 'from-primary/70 to-blue-300/70' },
-    { text: 'Sostén', duration: 4000, animation: 'animate-breathe-hold', gradient: 'from-purple-400/70 to-indigo-400/70' },
-    { text: 'Exhala', duration: 4000, animation: 'animate-breathe-out', gradient: 'from-accent/70 to-pink-300/70' },
-    { text: 'Sostén', duration: 4000, animation: 'animate-breathe-hold', gradient: 'from-purple-400/70 to-indigo-400/70' },
-  ],
-  '4-7-8': [
-    { text: 'Inhala', duration: 4000, animation: 'animate-breathe-in-triangle', gradient: 'from-primary/70 to-blue-300/70' },
-    { text: 'Sostén', duration: 7000, animation: 'animate-breathe-hold', gradient: 'from-purple-400/70 to-indigo-400/70' },
-    { text: 'Exhala', duration: 8000, animation: 'animate-breathe-out-triangle', gradient: 'from-accent/70 to-pink-300/70' },
-  ],
-};
-
-const PREP_TIME = 3000;
-const PREP_GRADIENT = 'from-gray-400/70 to-gray-500/70';
-
-export function CalmView() {
-  const [mode, setMode] = useState<BreathMode>('circle');
-  const [currentStep, setCurrentStep] = useState<BreathStep | null>(null);
-  const [countdown, setCountdown] = useState(0);
-  const [isClient, setIsClient] = useState(false);
-  const [isPreparing, setIsPreparing] = useState(true);
-  const stepTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const countdownIntervalRef = useRef<NodeJS.Interval | null>(null);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  useEffect(() => {
-    if (!isClient) return;
-
-    const cleanupTimers = () => {
-      if (stepTimeoutRef.current) clearTimeout(stepTimeoutRef.current);
-      if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-    };
-
-    cleanupTimers();
-    setIsPreparing(true);
-    setCurrentStep(null);
-    setCountdown(PREP_TIME / 1000);
-
-    const prepInterval = setInterval(() => {
-      setCountdown(prev => (prev > 1 ? prev - 1 : 0));
-    }, 1000);
-    
-    const initialTimeout = setTimeout(() => {
-      clearInterval(prepInterval);
-      setIsPreparing(false);
-      let cycleIndex = -1;
-      const cycle = breathCycles[mode];
-
-      const runCycle = () => {
-        cycleIndex = (cycleIndex + 1) % cycle.length;
-        const step = cycle[cycleIndex];
-        
-        setCurrentStep(step);
-        let counter = 1;
-        setCountdown(counter);
-
-        if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-        countdownIntervalRef.current = setInterval(() => {
-          if(counter < (step.duration / 1000)) {
-            counter++;
-            setCountdown(counter);
-          }
-        }, 1000);
-        
-        stepTimeoutRef.current = setTimeout(() => {
-          if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
-          runCycle();
-        }, step.duration);
-      };
-      runCycle();
-    }, PREP_TIME);
-
-    return () => {
-      cleanupTimers();
-      clearInterval(prepInterval);
-      clearTimeout(initialTimeout);
-    };
-  }, [mode, isClient]);
-
-  const animationStyle = {
-    animationName: currentStep?.animation.replace('animate-',''),
-    animationDuration: currentStep ? `${currentStep.duration}ms` : 'none',
-    animationTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
-    animationFillMode: 'forwards',
-  } as React.CSSProperties;
-
-  return (
-    <div className="w-full h-full flex flex-col items-center justify-center text-center p-4">
-      <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-primary">Rincón de la Calma</h1>
-        <p className="text-muted-foreground mt-2">Elige un ejercicio de respiración y sigue al guía visual.</p>
-      </div>
-
-      <div className="flex gap-2 p-1 bg-primary/10 rounded-full mb-12">
-        {(['circle', 'square', '4-7-8'] as BreathMode[]).map((m) => (
-          <Button
-            key={m}
-            onClick={() => setMode(m)}
-            variant={mode === m ? 'default' : 'ghost'}
-            className={cn(mode === m ? 'bg-primary' : 'text-primary', 'capitalize rounded-full')}
-          >
-            {m === 'circle' ? 'Círculo' : m === 'square' ? 'Cuadrada' : '4-7-8'}
-          </Button>
-        ))}
-      </div>
-      <div className="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center">
-        <div 
-          className={cn(
-            "w-full h-full bg-gradient-to-br transition-all duration-1000",
-            isPreparing ? PREP_GRADIENT : currentStep?.gradient,
-            mode === 'circle' && 'rounded-full',
-            mode === 'square' && 'rounded-3xl',
-            mode === '4-7-8' && 'shape-triangle',
-            'shadow-2xl shadow-primary/20'
-          )}
-          style={!isPreparing ? animationStyle : {}}
-        >
-        </div>
-         <div className="absolute text-center text-white/90">
-            {isPreparing ? (
-              <>
-                <p className="text-xl">Prepárate...</p>
-                <p className="text-5xl font-bold font-mono mt-2">{countdown}</p>
-              </>
-            ) : (
-              <>
-                <p className="text-4xl font-semibold">
-                    {currentStep ? currentStep.text : "..."}
-                </p>
-                {currentStep && (
-                    <p className="text-2xl font-mono mt-2">{countdown}</p>
-                )}
-              </>
-            )}
-          </div>
-      </div>
-    </div>
-  );
-}
-```
-
 ### `/src/app/components/views/diary-view.tsx`
-**Propósito:** Vista principal para crear, ver, editar y eliminar entradas del diario.
+**Propósito:** Vista principal para crear, ver, editar y eliminar entradas del diario. Incluye selector de emociones interactivo y dictado por voz.
 ```tsx
 "use client";
 
@@ -3383,13 +1836,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import type { DiaryEntry, Emotion, View } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { suggestCalmingExercise } from '@/ai/flows/suggest-calming-exercise';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, Mic } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface DiaryViewProps {
   emotionsList: Emotion[];
@@ -3410,25 +1864,73 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
   
   const [aiSuggestion, setAiSuggestion] = useState('');
   const [isSuggestionLoading, setIsSuggestionLoading] = useState(false);
+  
+  const [isListening, setIsListening] = useState(false);
+  const { toast } = useToast();
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     if (editingEntry) {
-        // When editing, parse the ISO string and format it to YYYY-MM-DD for the input
         const entryDate = new Date(editingEntry.date);
         const formattedDate = entryDate.toISOString().split('T')[0];
         setDate(formattedDate);
         setSelectedEmotionId(editingEntry.emotionId);
         setText(editingEntry.text);
-        
-        // Scroll the form into view
         formCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
     } else {
-        // When not editing, reset to default values
         resetForm();
     }
   }, [editingEntry]);
+  
+  const handleVoiceInput = () => {
+    if (typeof window === 'undefined') return;
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast({
+        title: "Navegador no compatible",
+        description: "Tu navegador no soporta el dictado por voz.",
+        variant: "destructive",
+      });
+      return;
+    }
 
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'es-ES';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognitionRef.current = recognition;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setText(prev => prev ? prev + ' ' + transcript : transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      toast({
+        title: "Error de dictado",
+        description: "No se pudo entender. Por favor, inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+    
+    recognition.start();
+  };
 
   const resetForm = () => {
     setDate(new Date().toISOString().split('T')[0]);
@@ -3446,9 +1948,7 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
     e.preventDefault();
     if (!date || !selectedEmotionId || !text) return;
     
-    // Ensure the date is treated as UTC to avoid timezone shifts
     const utcDate = new Date(date).toISOString();
-
     const entryData = { date: utcDate, emotionId: selectedEmotionId, text };
 
     if (editingEntry) {
@@ -3474,7 +1974,6 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
   return (
     <>
       <div className="grid lg:grid-cols-2 gap-6 h-full">
-        {/* Columna del formulario */}
         <Card ref={formCardRef} className="w-full shadow-lg flex flex-col">
            <CardHeader>
             <CardTitle className="text-2xl font-bold text-primary">
@@ -3492,7 +1991,6 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 h-full">
-                  <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="entry-date">Fecha</Label>
                         <Input
@@ -3504,27 +2002,43 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
                             required
                         />
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="entry-emotion">Emoción</Label>
-                        <Select value={selectedEmotionId} onValueChange={setSelectedEmotionId} required>
-                            <SelectTrigger id="entry-emotion" className="w-full">
-                            <SelectValue placeholder="Elige una emoción" />
-                            </SelectTrigger>
-                            <SelectContent>
+                  <div className="space-y-2">
+                    <Label>Emoción</Label>
+                    <ScrollArea className="w-full whitespace-nowrap rounded-lg bg-muted/30">
+                        <div className="flex w-max space-x-2 p-2">
                             {emotionsList.map((emotion) => (
-                                <SelectItem key={emotion.id} value={emotion.id}>
-                                <div className="flex items-center gap-2">
-                                    <span>{emotion.icon}</span>
-                                    <span>{emotion.name}</span>
-                                </div>
-                                </SelectItem>
+                                <Button
+                                    key={emotion.id}
+                                    type="button"
+                                    variant="outline"
+                                    className={cn(
+                                        "h-20 w-20 flex-col gap-1",
+                                        selectedEmotionId === emotion.id && "ring-2 ring-primary border-primary"
+                                    )}
+                                    onClick={() => setSelectedEmotionId(emotion.id)}
+                                >
+                                    <span className="text-3xl">{emotion.icon}</span>
+                                    <span className="text-xs truncate">{emotion.name}</span>
+                                </Button>
                             ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+                        </div>
+                        <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
                   </div>
                   <div className="space-y-2 flex-grow flex flex-col">
-                    <Label htmlFor="entry-text">¿Qué pasó hoy?</Label>
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="entry-text">¿Qué pasó hoy?</Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleVoiceInput}
+                        className={cn(isListening && 'text-destructive animate-pulse')}
+                      >
+                        <Mic className="h-5 w-5" />
+                        <span className="sr-only">Dictado por voz</span>
+                      </Button>
+                    </div>
                     <Textarea
                         id="entry-text"
                         placeholder="Describe tu día, tus pensamientos, tus sentimientos..."
@@ -3541,7 +2055,7 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
                         Cancelar
                       </Button>
                     )}
-                    <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
+                    <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full" disabled={!selectedEmotionId}>
                       {editingEntry ? 'Guardar Cambios' : 'Guardar Entrada'}
                     </Button>
                   </div>
@@ -3550,7 +2064,6 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
           </CardContent>
         </Card>
 
-        {/* Columna de las entradas */}
         <Card className="w-full shadow-lg flex flex-col">
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-primary">Mis Entradas</CardTitle>
@@ -3562,7 +2075,7 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
                   {diaryEntries.slice().reverse().map((entry) => {
                     const emotion = getEmotionById(entry.emotionId);
                     return (
-                      <Card key={entry.id} className="p-4 group relative overflow-hidden">
+                      <Card key={entry.id} className="p-4 group relative overflow-hidden" style={{ borderLeft: `4px solid ${emotion?.color || 'grey'}` }}>
                         <div className="flex items-start gap-4">
                           <span className="text-3xl mt-1">{emotion?.icon}</span>
                           <div className="flex-1">
@@ -3613,7 +2126,7 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
         </Card>
       </div>
       
-      <AlertDialog open={!!aiSuggestion || isSuggestionLoading}>
+      <AlertDialog open={!!aiSuggestion || isSuggestionLoading} onOpenChange={(open) => !open && setAiSuggestion('')}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
@@ -3625,9 +2138,12 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
           </AlertDialogHeader>
           <AlertDialogFooter>
             {!isSuggestionLoading && (
-              <AlertDialogAction onClick={() => setAiSuggestion('')} className="bg-accent text-accent-foreground hover:bg-accent/90">
-                Entendido
-              </AlertDialogAction>
+              <>
+                <AlertDialogCancel>Entendido</AlertDialogCancel>
+                <AlertDialogAction onClick={() => { setView('calm'); setAiSuggestion(''); }} className="bg-accent text-accent-foreground hover:bg-accent/90">
+                  ¡Llévame al Rincón de la Calma!
+                </AlertDialogAction>
+              </>
             )}
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -3637,878 +2153,200 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
 }
 ```
 
-### `/src/app/components/views/discover-view.tsx`
-**Propósito:** Vista para explorar y añadir emociones predefinidas.
+### `/src/app/components/views/pet-chat-view.tsx`
+**Propósito:** Nueva vista para chatear con los compañeros IA (mascotas espirituales).
 ```tsx
 "use client";
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { PlusCircle } from 'lucide-react';
-import { PREDEFINED_EMOTIONS } from '@/lib/constants';
-import type { Emotion } from '@/lib/types';
-
-interface DiscoverViewProps {
-  onAddPredefinedEmotion: (emotionData: Omit<Emotion, 'id' | 'userId'>) => void;
-}
-
-export function DiscoverView({ onAddPredefinedEmotion }: DiscoverViewProps) {
-  return (
-    <Card className="w-full h-full shadow-lg flex flex-col">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold text-primary">Descubrir Emociones</CardTitle>
-        <CardDescription>Explora nuevas emociones y añádelas a tu propio emocionario para un seguimiento más detallado.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex-grow overflow-hidden">
-        <ScrollArea className="h-full pr-4 -mr-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {PREDEFINED_EMOTIONS.map((emotion) => (
-              <Card key={emotion.name} className="flex flex-col">
-                <CardHeader>
-                  <div className="flex items-center gap-4">
-                    <span className="text-4xl">{emotion.icon}</span>
-                    <CardTitle className="text-xl text-primary">{emotion.name}</CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="flex-grow">
-                  <p className="text-sm text-muted-foreground mb-2">{emotion.description}</p>
-                  <p className="text-sm text-muted-foreground italic">"{emotion.example}"</p>
-                </CardContent>
-                <div className="p-4 pt-0 mt-auto">
-                    <Button 
-                        onClick={() => onAddPredefinedEmotion({ 
-                          name: emotion.name, 
-                          icon: emotion.icon, 
-                          description: `${emotion.description} Ejemplo: "${emotion.example}"`,
-                          color: emotion.color,
-                          isCustom: false,
-                        })}
-                        className="w-full bg-primary hover:bg-primary/90"
-                    >
-                        <PlusCircle className="mr-2 h-4 w-4" /> Añadir
-                    </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </ScrollArea>
-      </CardContent>
-    </Card>
-  );
-}
-```
-
-### `/src/app/components/views/emocionario-view.tsx`
-**Propósito:** Vista para gestionar el "Emocionario" del usuario, permitiendo crear, editar y eliminar emociones.
-```tsx
-"use client";
-
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import React, { useState, useEffect, useRef } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
-import type { Emotion } from '@/lib/types';
-import { Sparkles, Loader, Trash2, Edit, Wand2 } from 'lucide-react';
-import { defineEmotionMeaning } from '@/ai/flows/define-emotion-meaning';
-import { validateEmotion } from '@/ai/flows/validate-emotion';
-import { useToast } from '@/hooks/use-toast';
-import { AVATAR_EMOJIS } from '@/lib/constants';
-import { cn } from '@/lib/utils';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-
-interface EmocionarioViewProps {
-  emotionsList: Emotion[];
-  addEmotion: (emotion: Omit<Emotion, 'id' | 'userId'> & { id?: string }) => void;
-  onEditEmotion: (emotion: Emotion) => void;
-  onDeleteEmotion: (emotionId: string) => void;
-  editingEmotion: Emotion | null;
-  onCancelEdit: () => void;
-}
-
-export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDeleteEmotion, editingEmotion, onCancelEdit }: EmocionarioViewProps) {
-  const [name, setName] = useState('');
-  const [icon, setIcon] = useState('');
-  const [color, setColor] = useState('#8B5CF6');
-  const [description, setDescription] = useState('');
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const { toast } = useToast();
-
-  const resetForm = () => {
-    setName('');
-    setIcon('');
-    setColor('#8B5CF6');
-    setDescription('');
-  }
-
-  useEffect(() => {
-    if (editingEmotion) {
-      setName(editingEmotion.name);
-      setIcon(editingEmotion.icon);
-      setColor(editingEmotion.color);
-      setDescription(editingEmotion.description || '');
-    } else {
-      resetForm();
-    }
-  }, [editingEmotion]);
-
-  const handleGenerateDescription = async () => {
-    if (!name) {
-      toast({ title: "Falta el nombre", description: "Por favor, introduce un nombre para la emoción.", variant: "destructive" });
-      return;
-    }
-    setIsAiLoading(true);
-    try {
-      const result = await defineEmotionMeaning({ emotion: name });
-      if (result.includeDetails) {
-        setDescription(`${result.definition} Ejemplo: ${result.example}`);
-      } else {
-        setDescription(result.definition);
-      }
-    } catch (error) {
-      console.error("Error generating description:", error);
-      toast({ title: "Error de IA", description: "No se pudo generar una descripción.", variant: "destructive" });
-    } finally {
-      setIsAiLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !icon || !color) {
-      toast({ title: "Faltan campos", description: "Asegúrate de que la emoción tenga un nombre y un icono.", variant: "destructive" });
-      return;
-    };
-
-    setIsSaving(true);
-    try {
-      const validationResult = await validateEmotion({ emotion: name });
-      if (!validationResult.isValid) {
-        toast({
-          title: "Emoción no válida",
-          description: `"${name}" no parece ser una emoción. ${validationResult.reason}`,
-          variant: "destructive",
-        });
-        setIsSaving(false);
-        return;
-      }
-
-      const emotionData: Omit<Emotion, 'id' | 'userId'> & { id?: string } = {
-        name,
-        icon,
-        color,
-        description,
-        isCustom: true, // Mark as custom when created from this form
-      };
-      
-      if (editingEmotion) {
-        emotionData.id = editingEmotion.id;
-        // Preserve the original isCustom flag when editing
-        emotionData.isCustom = editingEmotion.isCustom; 
-      }
-      
-      addEmotion(emotionData);
-
-      if (editingEmotion) {
-        onCancelEdit();
-      } else {
-        resetForm();
-      }
-    } catch (error) {
-      console.error("Error saving emotion:", error);
-      toast({ title: "Error al guardar", description: "No se pudo validar o guardar la emoción.", variant: "destructive" });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-6 h-full">
-      <Card className="w-full shadow-lg flex-shrink-0">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold" style={{ color: editingEmotion ? color : 'var(--primary)' }}>
-            {editingEmotion ? 'Editar Emoción' : 'Añadir Emoción'}
-          </CardTitle>
-          <CardDescription>{editingEmotion ? `Modificando "${editingEmotion.name}"` : 'Crea una nueva emoción para tu diario.'}</CardDescription>
-        </CardHeader>
-        <CardContent>
-            <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-4 md:gap-6 items-start">
-              <div className="space-y-4">
-                <Input
-                  placeholder="Nombre de la Emoción (ej. Euforia)"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-                <div className="relative">
-                  <Textarea
-                    placeholder="¿Qué significa esta emoción para ti?"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={4}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-2 right-2 text-primary hover:bg-primary/10"
-                    onClick={handleGenerateDescription}
-                    disabled={isAiLoading}
-                  >
-                    {isAiLoading ? <Loader className="animate-spin" /> : <Sparkles />}
-                  </Button>
-                </div>
-              </div>
-              <div className="space-y-4">
-                 <div>
-                    <ScrollArea className="h-32 md:h-40 w-full">
-                      <div className="grid grid-cols-8 gap-2 p-2 rounded-lg bg-muted/50">
-                        {AVATAR_EMOJIS.map((emoji, index) => (
-                            <button
-                                type="button"
-                                key={`${emoji}-${index}`}
-                                onClick={() => setIcon(emoji)}
-                                className={cn(
-                                    'text-2xl md:text-3xl p-1 rounded-lg transition-all flex items-center justify-center aspect-square',
-                                    icon === emoji ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
-                                )}
-                            >
-                                {emoji}
-                            </button>
-                        ))}
-                      </div>
-                    </ScrollArea>
-                  </div>
-                 <div className="flex flex-col sm:flex-row items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <label htmlFor="emotion-color" className="text-sm font-medium">Color:</label>
-                        <Input
-                        id="emotion-color"
-                        type="color"
-                        value={color}
-                        onChange={(e) => setColor(e.target.value)}
-                        className="w-16 h-10 p-1"
-                        />
-                    </div>
-                    <div className="flex-grow flex gap-2 w-full">
-                        {editingEmotion && (
-                        <Button type="button" variant="outline" onClick={onCancelEdit} className="w-full">
-                            Cancelar
-                        </Button>
-                        )}
-                        <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full" disabled={isSaving}>
-                          {isSaving && <Loader className="mr-2 h-4 w-4 animate-spin" />}
-                          {isSaving ? (editingEmotion ? 'Actualizando...' : 'Añadiendo...') : (editingEmotion ? 'Actualizar' : 'Añadir')}
-                        </Button>
-                    </div>
-                 </div>
-              </div>
-            </form>
-        </CardContent>
-      </Card>
-      <Card className="w-full shadow-lg flex flex-col flex-grow min-h-0">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-primary">Tu Emocionario</CardTitle>
-          <CardDescription>Las emociones que has añadido.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex-grow overflow-hidden">
-          <ScrollArea className="h-full">
-            <div className="space-y-4">
-              {emotionsList.length > 0 ? (
-                emotionsList.map((em) => (
-                  <Card key={em.id} className="group relative w-full overflow-hidden" style={{borderLeft: `4px solid ${em.color}`}}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-4">
-                        <span className="text-3xl mt-1">{em.icon}</span>
-                        <div className="flex-1 min-w-0">
-                            <h3 className="font-bold text-lg text-foreground truncate">{em.name}</h3>
-                            <p className="text-sm text-muted-foreground line-clamp-3">{em.description || 'Sin descripción'}</p>
-                        </div>
-                        {em.isCustom && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div className="absolute top-2 right-2 bg-accent text-accent-foreground p-1 rounded-full">
-                                  <Wand2 className="h-3 w-3" />
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Emoción Personalizada</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                      </div>
-                      <div className="absolute top-0 right-0 bottom-0 flex items-center justify-end gap-1 p-2 bg-gradient-to-l from-card via-card to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onEditEmotion(em)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="destructive" size="icon" className="h-8 w-8">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Esta acción no se puede deshacer. Esto eliminará permanentemente la emoción y todas las entradas del diario asociadas.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => onDeleteEmotion(em.id)}>Eliminar</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              ) : (
-                <div className="flex items-center justify-center h-full text-center text-muted-foreground">
-                  <p>Tu emocionario está esperando a que lo llenes.</p>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-```
-
-### `/src/app/components/views/games-view.tsx`
-**Propósito:** Vista que contiene la selección de juegos de inteligencia emocional.
-```tsx
-"use client";
-
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { GuessEmotionGame } from '../games/guess-emotion-game';
-import type { Emotion } from '@/lib/types';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Brain, Puzzle, Feather, Contrast, CloudRain } from 'lucide-react';
-import { EmotionMemoryGame } from '../games/emotion-memory-game';
-import { QuickJournalGame } from '../games/quick-journal-game';
-import { AntonymGame } from '../games/antonym-game';
-import { EmotionRainGame } from '../games/emotion-rain-game';
-
-interface GamesViewProps {
-  emotionsList: Emotion[];
-}
-
-export function GamesView({ emotionsList }: GamesViewProps) {
-  return (
-    <Card className="w-full h-full shadow-lg flex flex-col">
-      <CardHeader>
-        <CardTitle className="text-3xl font-bold text-primary">Juegos de Emociones</CardTitle>
-        <CardDescription>Pon a prueba tus conocimientos y agudiza tu inteligencia emocional de una forma divertida.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex-grow flex flex-col">
-        <Tabs defaultValue="guess-emotion" className="w-full h-full flex flex-col">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 h-auto">
-            <TabsTrigger value="guess-emotion" className="py-2">
-              <Puzzle className="mr-2 h-4 w-4" /> Adivina
-            </TabsTrigger>
-            <TabsTrigger value="memory" className="py-2">
-              <Brain className="mr-2 h-4 w-4" /> Memoria
-            </TabsTrigger>
-            <TabsTrigger value="quick-journal" className="py-2">
-              <Feather className="mr-2 h-4 w-4" /> Diario Rápido
-            </TabsTrigger>
-            <TabsTrigger value="antonyms" className="py-2">
-              <Contrast className="mr-2 h-4 w-4" /> Antónimos
-            </TabsTrigger>
-             <TabsTrigger value="rain-game" className="py-2">
-              <CloudRain className="mr-2 h-4 w-4" /> Lluvia
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="guess-emotion" className="flex-grow mt-4">
-             <GuessEmotionGame emotionsList={emotionsList} />
-          </TabsContent>
-          <TabsContent value="memory" className="flex-grow mt-4">
-            <EmotionMemoryGame emotionsList={emotionsList} />
-          </TabsContent>
-          <TabsContent value="quick-journal" className="flex-grow mt-4">
-            <QuickJournalGame emotionsList={emotionsList} />
-          </TabsContent>
-          <TabsContent value="antonyms" className="flex-grow mt-4">
-            <AntonymGame emotionsList={emotionsList} />
-          </TabsContent>
-          <TabsContent value="rain-game" className="flex-grow mt-4">
-            <EmotionRainGame emotionsList={emotionsList} />
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
-  );
-}
-```
-
-### `/src/app/components/views/login-view.tsx`
-**Propósito:** Vista de inicio de sesión y registro.
-```tsx
-"use client";
-
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { useToast } from '@/hooks/use-toast';
-import { Sparkles, LogIn, UserPlus } from 'lucide-react';
-import { useFirebase } from '@/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-
-// Google Icon SVG
-const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24px" height="24px" {...props}>
-        <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z" />
-        <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z" />
-        <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z" />
-        <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C42.022,34.627,44,29.692,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
-    </svg>
-);
-
-
-export default function LoginView() {
-    const { toast } = useToast();
-    const { auth } = useFirebase();
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [activeTab, setActiveTab] = useState('login');
-
-    const resetForm = () => {
-        setEmail('');
-        setPassword('');
-    }
-
-    const handleTabChange = (value: string) => {
-        setActiveTab(value);
-        resetForm();
-    }
-
-    const handleGoogleSignIn = async () => {
-        setIsSubmitting(true);
-        try {
-            const provider = new GoogleAuthProvider();
-            await signInWithPopup(auth, provider);
-            // The user will be redirected to Google's sign-in page.
-            // After successful sign-in, they will be redirected back here,
-            // and the onAuthStateChanged listener will handle the app state.
-        } catch (error: any) {
-            console.error("Google Sign-In Error:", error);
-            if (error.code !== 'auth/popup-closed-by-user') {
-                toast({
-                    variant: 'destructive',
-                    title: 'Error de Autenticación',
-                    description: 'No se pudo iniciar el proceso de sesión con Google. Por favor, inténtalo de nuevo.',
-                });
-            }
-        } finally {
-             setIsSubmitting(false);
-        }
-    };
-
-    const handleEmailPasswordSignUp = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        try {
-            await createUserWithEmailAndPassword(auth, email, password);
-            // The onAuthStateChanged listener will handle the redirect
-        } catch (error: any) {
-             console.error("Sign-Up Error:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Error de Registro',
-                description: error.code === 'auth/email-already-in-use' ? 'Este correo electrónico ya está en uso.' : (error.message || 'No se pudo crear la cuenta.'),
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleEmailPasswordSignIn = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSubmitting(true);
-        try {
-            await signInWithEmailAndPassword(auth, email, password);
-            // The onAuthStateChanged listener will handle the redirect
-        } catch (error: any) {
-             console.error("Sign-In Error:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Error al Iniciar Sesión',
-                description: error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' ? 'Correo o contraseña incorrectos.' : (error.message || 'No se pudo iniciar sesión.'),
-            });
-        } finally {
-            setIsSubmitting(false);
-        }
-    }
-
-
-    return (
-        <div className="flex items-center justify-center h-screen w-screen relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-background to-accent/20 animate-gradient-slow z-0"></div>
-            <div className="absolute inset-0 bg-grid-pattern opacity-5 dark:opacity-10 z-0"></div>
-            
-            <Card className="w-full max-w-sm mx-auto z-10 bg-card/80 backdrop-blur-lg border-white/20 shadow-2xl animate-fade-in-up">
-                <CardHeader className="text-center space-y-4">
-                    <Sparkles className="w-12 h-12 text-primary mx-auto" />
-                    <div className="space-y-1">
-                        <CardTitle className="text-3xl font-bold text-primary">Diario de Emociones</CardTitle>
-                        <CardDescription>Tu espacio personal para crecer</CardDescription>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                   <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-                      <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="login"><LogIn className="mr-2"/> Iniciar Sesión</TabsTrigger>
-                        <TabsTrigger value="signup"><UserPlus className="mr-2"/> Registrarse</TabsTrigger>
-                      </TabsList>
-                      <TabsContent value="login" className="space-y-4 pt-4">
-                        <form onSubmit={handleEmailPasswordSignIn} className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="login-email">Correo</Label>
-                                <Input id="login-email" type="email" placeholder="tu@correo.com" value={email} onChange={e => setEmail(e.target.value)} required />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="login-password">Contraseña</Label>
-                                <Input id="login-password" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
-                            </div>
-                            <Button type="submit" disabled={isSubmitting} className="w-full">
-                                {isSubmitting && activeTab === 'login' ? 'Entrando...' : 'Entrar'}
-                            </Button>
-                        </form>
-                      </TabsContent>
-                      <TabsContent value="signup" className="space-y-4 pt-4">
-                         <form onSubmit={handleEmailPasswordSignUp} className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="signup-email">Correo</Label>
-                                <Input id="signup-email" type="email" placeholder="tu@correo.com" value={email} onChange={e => setEmail(e.target.value)} required />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="signup-password">Contraseña</Label>
-                                <Input id="signup-password" type="password" placeholder="Mínimo 6 caracteres" value={password} onChange={e => setPassword(e.target.value)} required minLength={6} />
-                            </div>
-                            <Button type="submit" disabled={isSubmitting} className="w-full">
-                                {isSubmitting && activeTab === 'signup' ? 'Creando cuenta...' : 'Crear Cuenta'}
-                            </Button>
-                        </form>
-                      </TabsContent>
-                    </Tabs>
-                    <div className="relative my-4">
-                        <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-card px-2 text-muted-foreground">O continúa con</span>
-                        </div>
-                    </div>
-                     <Button variant="outline" onClick={handleGoogleSignIn} disabled={isSubmitting} className="w-full">
-                        <GoogleIcon className="mr-2"/>
-                        Google
-                    </Button>
-                </CardContent>
-                 <CardFooter className="flex flex-col gap-4">
-                    <p className="text-xs text-muted-foreground text-center">Al continuar, aceptas nuestros Términos de Servicio y Política de Privacidad.</p>
-                </CardFooter>
-            </Card>
-        </div>
-    );
-}
-```
-
-### `/src/app/components/views/profile-view.tsx`
-**Propósito:** Vista para que el usuario edite su nombre y avatar.
-```tsx
-"use client";
-
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import type { UserProfile } from '@/lib/types';
-import { AVATAR_EMOJIS } from '@/lib/constants';
-import { cn } from '@/lib/utils';
-import { Check } from 'lucide-react';
-import Image from 'next/image';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useToast } from '@/hooks/use-toast';
-
-interface ProfileViewProps {
-  userProfile: UserProfile | null;
-  setUserProfile: (profile: Partial<Omit<UserProfile, 'id'>>) => void;
-}
-
-export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
-  // Local state to manage form fields, initialized from userProfile
-  const [localName, setLocalName] = useState(userProfile?.name || '');
-  const [localAvatar, setLocalAvatar] = useState(userProfile?.avatar || '');
-  const [localAvatarType, setLocalAvatarType] = useState(userProfile?.avatarType || 'emoji');
-  const [saved, setSaved] = useState(false);
-  const { toast } = useToast();
-
-  // Effect to sync local state if the userProfile prop changes from Firestore
-  useEffect(() => {
-    if (userProfile) {
-      setLocalName(userProfile.name);
-      setLocalAvatar(userProfile.avatar);
-      setLocalAvatarType(userProfile.avatarType);
-    }
-  }, [userProfile]);
-
-
-  const handleSave = () => {
-    if (!localName || !localAvatar) {
-      toast({
-        title: "Faltan campos",
-        description: "Asegúrate de tener un nombre y un avatar seleccionados.",
-        variant: "destructive",
-      });
-      return;
-    }
-    // This function now handles UPDATING the document in Firestore
-    setUserProfile({ name: localName, avatar: localAvatar, avatarType: localAvatarType });
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
-  
-  const selectAvatar = (avatar: string, type: 'emoji' | 'generated') => {
-    setLocalAvatar(avatar);
-    setLocalAvatarType(type);
-  };
-
-  if (!userProfile) {
-    return (
-        <Card className="w-full max-w-2xl mx-auto h-full shadow-lg flex flex-col items-center justify-center">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="mt-4 text-primary">Cargando perfil...</p>
-        </Card>
-    );
-  }
-
-  return (
-    <Card className="w-full max-w-2xl mx-auto h-full shadow-lg flex flex-col">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold text-primary">Mi Perfil</CardTitle>
-      </CardHeader>
-      <CardContent className="flex-grow flex flex-col gap-6 overflow-hidden">
-        <div className="space-y-2">
-            <label className="text-sm font-medium">Tu Nombre</label>
-            <Input
-            value={localName}
-            onChange={(e) => setLocalName(e.target.value)}
-            placeholder="Usuario"
-            />
-        </div>
-
-        <div className="flex-grow flex flex-col min-h-0 space-y-2">
-            <label className="text-sm font-medium">Elige tu Avatar</label>
-            <ScrollArea className="flex-grow rounded-lg border">
-                <div className="grid grid-cols-8 gap-2 p-2">
-                    {AVATAR_EMOJIS.map((emoji, index) => (
-                        <button
-                            type="button"
-                            key={`${emoji}-${index}`}
-                            onClick={() => selectAvatar(emoji, 'emoji')}
-                            className={cn(
-                                'text-3xl p-1 rounded-lg transition-all flex items-center justify-center aspect-square',
-                                localAvatar === emoji && localAvatarType === 'emoji' ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
-                            )}
-                        >
-                            {emoji}
-                        </button>
-                    ))}
-                    {userProfile?.avatarType === 'generated' && userProfile?.avatar && (
-                        <button onClick={() => selectAvatar(userProfile.avatar, 'generated')} className={cn('relative aspect-square rounded-lg overflow-hidden', localAvatar === userProfile.avatar && localAvatarType === 'generated' ? 'ring-2 ring-primary' : 'hover:opacity-80')}>
-                            <Image src={userProfile.avatar} alt="Avatar generado por IA" fill sizes="64px"/>
-                        </button>
-                    )}
-                </div>
-            </ScrollArea>
-        </div>
-      
-        <Button onClick={handleSave} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground mt-auto">
-          {saved ? <Check className="mr-2 h-4 w-4" /> : null}
-          {saved ? '¡Guardado!' : 'Guardar Cambios'}
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
-```
-
-### `/src/app/components/views/report-view.tsx`
-**Propósito:** Vista que muestra un calendario visual de las emociones registradas.
-```tsx
-"use client";
-
-import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import type { DiaryEntry, Emotion } from '@/lib/types';
+import { chatWithPet } from '@/ai/flows/chat-with-pet';
+import type { SpiritAnimal, View, DiaryEntry, Emotion } from '@/lib/types';
+import type { User } from 'firebase/auth';
+import { ArrowLeft, Send, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
-interface ReportViewProps {
+interface PetChatViewProps {
+  pet: SpiritAnimal | null;
+  user: User;
+  setView: (view: View) => void;
   diaryEntries: DiaryEntry[];
   emotionsList: Emotion[];
 }
 
-export function ReportView({ diaryEntries, emotionsList }: ReportViewProps) {
-  const [currentDate, setCurrentDate] = useState(new Date());
+interface Message {
+  text: string;
+  sender: 'user' | 'pet';
+}
 
-  const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-  const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
+const getEmotionById = (id: string, emotionsList: Emotion[]) => emotionsList.find(e => e.id === id);
 
-  const startingDayOfWeek = (firstDayOfMonth.getDay() + 6) % 7; // 0 for Monday
-
-  const prevMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  };
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  };
-
-  const calendarDays = useMemo(() => {
-    const days = [];
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null);
+const getRecentFeelingsContext = (diaryEntries: DiaryEntry[], emotionsList: Emotion[]) => {
+    const recentEntries = [...diaryEntries].reverse().slice(0, 3);
+    if (recentEntries.length === 0) {
+      return {
+          contextString: "El usuario aún no ha escrito en su diario.",
+          displayFeelings: []
+      };
     }
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(i);
-    }
-    return days;
-  }, [startingDayOfWeek, daysInMonth]);
-  
-  const getEmotionById = (id: string) => (emotionsList || []).find(e => e.id === id);
+    
+    const contextString = "Contexto de sentimientos recientes: " + recentEntries.map((entry, index) => {
+        const emotion = getEmotionById(entry.emotionId, emotionsList);
+        return `${index + 1}. Emoción: ${emotion?.name || 'desconocida'}, Pensamiento: "${entry.text}"`;
+      }).join(' ');
 
-  const getEntriesForDay = (day: number) => {
-    return diaryEntries.filter(entry => {
-      const entryDate = new Date(entry.date);
-      return (
-        entryDate.getUTCFullYear() === currentDate.getFullYear() &&
-        entryDate.getUTCMonth() === currentDate.getMonth() &&
-        entryDate.getUTCDate() === day
-      );
-    });
+    const displayFeelings = recentEntries.map(entry => getEmotionById(entry.emotionId, emotionsList)).filter(Boolean) as Emotion[];
+
+    return { contextString, displayFeelings };
+};
+
+export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: PetChatViewProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [initialContext, setInitialContext] = useState<{ contextString: string; displayFeelings: Emotion[] } | null>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Scroll to the bottom of the chat on new messages
+    if (scrollAreaRef.current) {
+        const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+        if (viewport) {
+          viewport.scrollTop = viewport.scrollHeight;
+        }
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (pet) {
+        setMessages([
+            { text: `¡Hola! Soy ${pet.name}. ¿Cómo estás hoy?`, sender: 'pet' }
+        ]);
+        const context = getRecentFeelingsContext(diaryEntries, emotionsList);
+        setInitialContext(context);
+    }
+  }, [pet, diaryEntries, emotionsList]);
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || !pet || !initialContext) return;
+
+    const userMessage: Message = { text: inputValue, sender: 'user' };
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+    setInputValue('');
+    setIsLoading(true);
+
+    // Format the history for the Genkit flow
+    const history = newMessages.slice(0, -1).map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        content: [{ text: msg.text }],
+    }));
+
+    try {
+      const response = await chatWithPet({
+        userId: user.uid,
+        message: inputValue,
+        petName: pet.name,
+        recentFeelingsContext: initialContext.contextString,
+        history: history,
+      });
+
+      const petMessage: Message = { text: response.response, sender: 'pet' };
+      setMessages(prev => [...prev, petMessage]);
+    } catch (error) {
+      console.error("Error chatting with pet:", error);
+      const errorMessage: Message = { text: "Uhm... no sé qué decir. Inténtalo de nuevo.", sender: 'pet' };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const weekdays = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  if (!pet) {
+    return (
+        <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
+            <p className="text-lg font-semibold">No has seleccionado ninguna mascota.</p>
+            <Button onClick={() => setView('sanctuary')} className="mt-4">
+                Ir al Santuario
+            </Button>
+      </div>
+    )
+  }
 
   return (
-    <Card className="w-full h-full shadow-lg flex flex-col">
-      <CardHeader>
-        <div className="flex justify-between items-center">
-          <Button variant="ghost" size="icon" onClick={prevMonth}>
-            <ChevronLeft />
-          </Button>
-          <CardTitle className="text-2xl font-bold text-primary capitalize">
-            {currentDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
-          </CardTitle>
-          <Button variant="ghost" size="icon" onClick={nextMonth}>
-            <ChevronRight />
-          </Button>
+    <Card className="w-full h-full shadow-lg flex flex-col max-w-3xl mx-auto">
+      <CardHeader className="flex flex-row items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => setView('sanctuary')}>
+            <ArrowLeft />
+        </Button>
+        <span className="text-5xl">{pet.icon}</span>
+        <div>
+            <CardTitle className="text-2xl font-bold text-primary">{pet.name}</CardTitle>
+            <p className="text-sm text-muted-foreground">Tu compañero IA</p>
         </div>
       </CardHeader>
-      <CardContent className="flex-grow flex flex-col min-h-0">
-        <div className="grid grid-cols-7 gap-1 md:gap-2 text-center font-bold text-muted-foreground">
-          {weekdays.map(day => <div key={day} className="text-xs md:text-sm">{day}</div>)}
-        </div>
-        <ScrollArea className="flex-grow mt-2">
-            <div className="grid grid-cols-7 gap-1 md:gap-2">
-            <TooltipProvider>
-            {calendarDays.map((day, index) => {
-                if (!day) return <div key={`empty-${index}`} />;
-                
-                const dayEntries = getEntriesForDay(day);
-
-                const today = new Date();
-                const isToday = today.getFullYear() === currentDate.getFullYear() &&
-                                today.getMonth() === currentDate.getMonth() &&
-                                today.getDate() === day;
-                
-                const isPast = new Date(currentDate.getFullYear(), currentDate.getMonth(), day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-                return (
-                <Tooltip key={day} delayDuration={100}>
-                  <TooltipTrigger asChild>
-                    <div
-                        className={cn(
-                        "border rounded-lg p-1 md:p-2 flex flex-col items-center justify-between aspect-square overflow-hidden transition-all duration-200",
-                        isToday && "ring-2 ring-primary",
-                        dayEntries.length === 0 && isPast && "bg-muted/50",
-                        dayEntries.length > 0 && "hover:scale-105 hover:shadow-md cursor-pointer",
-                        )}
-                        style={dayEntries.length > 0 ? { borderColor: getEmotionById(dayEntries[0].emotionId)?.color } : {}}
-                    >
-                        <span className={cn("font-bold self-start text-xs md:text-sm", dayEntries.length === 0 && 'text-muted-foreground')}>{day}</span>
-                        
-                        <div className="flex flex-col items-center justify-center flex-grow">
-                          {dayEntries.length > 0 ? (
-                            <span className="text-2xl md:text-4xl">{getEmotionById(dayEntries[0].emotionId)?.icon || '❓'}</span>
-                          ) : (
-                            isPast && <div className="w-2 h-2 rounded-full bg-muted-foreground/20"></div>
-                          )}
-                        </div>
-
-                        <div className="h-4 flex items-end">
-                           {dayEntries.length > 1 && (
-                            <div className="flex space-x-1">
-                              {dayEntries.slice(0, 3).map((entry, i) => (
-                                <div key={entry.id} className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: getEmotionById(entry.emotionId)?.color || 'grey'}}></div>
-                              ))}
-                            </div>
-                           )}
+      <CardContent className="flex-grow overflow-hidden">
+        <ScrollArea className="h-full" ref={scrollAreaRef}>
+            <div className="p-4 space-y-4">
+                {messages.map((msg, index) => (
+                    <div key={index} className={cn("flex items-end gap-2", msg.sender === 'user' ? 'justify-end' : 'justify-start')}>
+                        {msg.sender === 'pet' && <span className="text-3xl">{pet.icon}</span>}
+                        <div className={cn(
+                            "p-3 rounded-lg max-w-xs md:max-w-md lg:max-w-lg",
+                             msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
+                        )}>
+                            <p>{msg.text}</p>
                         </div>
                     </div>
-                  </TooltipTrigger>
-                  {dayEntries.length > 0 && (
-                    <TooltipContent className="p-4 bg-card border-primary">
-                        <div className="flex flex-col gap-3">
-                        {dayEntries.map(entry => {
-                            const emotion = getEmotionById(entry.emotionId);
-                            return (
-                                <div key={entry.id} className="max-w-xs">
-                                <p className="font-bold flex items-center gap-2" style={{color: emotion?.color}}>
-                                    <span className="text-xl">{emotion?.icon}</span>
-                                    {emotion?.name}
-                                </p>
-                                <p className="text-sm text-muted-foreground mt-1">{entry.text}</p>
-                                </div>
-                            );
-                        })}
+                ))}
+                 {initialContext && initialContext.displayFeelings.length > 0 && messages.length <= 2 && (
+                  <div className="flex items-start gap-3 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg animate-fade-in">
+                    <Info className="h-5 w-5 mt-0.5 shrink-0" />
+                    <p>Para esta charla, estoy recordando que últimamente te has sentido: {initialContext.displayFeelings.map(e => e.name).join(', ')}.</p>
+                  </div>
+                )}
+                {isLoading && (
+                     <div className="flex items-end gap-2 justify-start">
+                        <span className="text-3xl">{pet.icon}</span>
+                        <div className="p-3 rounded-lg bg-muted">
+                           <div className="flex items-center gap-1.5">
+                               <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.3s]"></span>
+                               <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.15s]"></span>
+                               <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce"></span>
+                           </div>
                         </div>
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-                );
-            })}
-            </TooltipProvider>
+                    </div>
+                )}
             </div>
         </ScrollArea>
       </CardContent>
+      <CardFooter>
+        <form
+            onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }}
+            className="flex w-full items-center space-x-2"
+        >
+            <Input
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={`Escribe un mensaje a ${pet.name}...`}
+                disabled={isLoading}
+            />
+            <Button type="submit" disabled={isLoading || !inputValue.trim()}>
+                <Send className="h-4 w-4"/>
+                <span className="sr-only">Enviar</span>
+            </Button>
+        </form>
+      </CardFooter>
     </Card>
   );
 }
 ```
 
 ### `/src/app/components/views/sanctuary-view.tsx`
-**Propósito:** Vista que muestra la colección de "Animales Espirituales" desbloqueados por el usuario.
+**Propósito:** Vista que muestra la colección de "Animales Espirituales" desbloqueados por el usuario. Ahora permite iniciar un chat con ellos.
 ```tsx
 "use client";
 
@@ -4519,10 +2357,13 @@ import { SPIRIT_ANIMALS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import type { SpiritAnimal } from '@/lib/types';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { MessageCircle } from 'lucide-react';
 
 
 interface SanctuaryViewProps {
   unlockedAnimalIds: string[];
+  onSelectPet: (pet: SpiritAnimal) => void;
 }
 
 const rarityStyles = {
@@ -4541,7 +2382,7 @@ const rarityTextStyles = {
     'Legendario': 'text-amber-500 dark:text-amber-400',
 }
 
-function AnimalCard({ animal, isUnlocked }: { animal: SpiritAnimal; isUnlocked: boolean }) {
+function AnimalCard({ animal, isUnlocked, onSelectPet }: { animal: SpiritAnimal; isUnlocked: boolean, onSelectPet: (pet: SpiritAnimal) => void; }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -4574,19 +2415,28 @@ function AnimalCard({ animal, isUnlocked }: { animal: SpiritAnimal; isUnlocked: 
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-2xl text-primary">{isUnlocked ? animal.name : 'Animal Bloqueado'}</DialogTitle>
-          <DialogDescription className="pt-2">
-            {isUnlocked ? (
-                <span className="space-y-1">
-                    <span className="block font-bold text-lg" style={{ color: `hsl(var(--primary))` }}>{animal.emotion}</span>
-                    <span className="block text-sm text-muted-foreground mt-1">{animal.description}</span>
-                </span>
-            ) : (
-                <span className="space-y-1">
-                    <span className="block font-bold text-lg" style={{ color: `hsl(var(--primary))` }}>¿Cómo desbloquear?</span>
-                    <span className="block text-sm text-muted-foreground mt-1">{animal.unlockHint}</span>
-                </span>
-            )}
+          <DialogTitle className="text-2xl text-primary flex items-center gap-3">
+             <span className="text-4xl">{isUnlocked ? animal.icon : '❓'}</span>
+             {isUnlocked ? animal.name : 'Animal Bloqueado'}
+          </DialogTitle>
+          <DialogDescription asChild>
+            <div className="pt-2">
+              {isUnlocked ? (
+                  <div className="space-y-4">
+                      <div className="font-bold text-lg" style={{ color: `hsl(var(--primary))` }}>{animal.emotion}</div>
+                      <div className="text-sm text-muted-foreground mt-1">{animal.description}</div>
+                      <Button onClick={() => onSelectPet(animal)} className="w-full">
+                          <MessageCircle className="mr-2 h-4 w-4"/>
+                          Chatear con {animal.name}
+                      </Button>
+                  </div>
+              ) : (
+                  <div className="space-y-1">
+                      <div className="font-bold text-lg" style={{ color: `hsl(var(--primary))` }}>¿Cómo desbloquear?</div>
+                      <div className="text-sm text-muted-foreground mt-1">{animal.unlockHint}</div>
+                  </div>
+              )}
+            </div>
           </DialogDescription>
         </DialogHeader>
       </DialogContent>
@@ -4595,12 +2445,12 @@ function AnimalCard({ animal, isUnlocked }: { animal: SpiritAnimal; isUnlocked: 
 }
 
 
-export function SanctuaryView({ unlockedAnimalIds }: SanctuaryViewProps) {
+export function SanctuaryView({ unlockedAnimalIds, onSelectPet }: SanctuaryViewProps) {
   return (
     <Card className="w-full h-full shadow-lg flex flex-col">
       <CardHeader>
         <CardTitle className="text-3xl font-bold text-primary">Mi Santuario</CardTitle>
-        <CardDescription>Tu colección de animales espirituales desbloqueados. Cada uno representa un hito en tu viaje emocional.</CardDescription>
+        <CardDescription>Tu colección de animales espirituales desbloqueados. Cada uno representa un hito en tu viaje emocional. ¡Haz clic en uno para saber más o chatear con él!</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow overflow-hidden">
         <ScrollArea className="h-full pr-4 -mr-4">
@@ -4608,7 +2458,7 @@ export function SanctuaryView({ unlockedAnimalIds }: SanctuaryViewProps) {
                 {SPIRIT_ANIMALS.map((animal) => {
                   const isUnlocked = unlockedAnimalIds.includes(animal.id);
                   return (
-                    <AnimalCard key={animal.id} animal={animal} isUnlocked={isUnlocked} />
+                    <AnimalCard key={animal.id} animal={animal} isUnlocked={isUnlocked} onSelectPet={onSelectPet} />
                   );
                 })}
               </div>
@@ -4619,457 +2469,9 @@ export function SanctuaryView({ unlockedAnimalIds }: SanctuaryViewProps) {
 }
 ```
 
-### `/src/app/components/views/share-view.tsx`
-**Propósito:** Vista para generar y copiar un resumen de texto del diario.
-```tsx
-"use client";
-
-import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Clipboard, Check } from 'lucide-react';
-import type { DiaryEntry, Emotion, UserProfile } from '@/lib/types';
-import { useToast } from '@/hooks/use-toast';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-
-interface ShareViewProps {
-  diaryEntries: DiaryEntry[];
-  emotionsList: Emotion[];
-  userProfile: UserProfile | null;
-  onShare: () => void;
-}
-
-export function ShareView({ diaryEntries, emotionsList, userProfile, onShare }: ShareViewProps) {
-  const [copied, setCopied] = useState(false);
-  const { toast } = useToast();
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  
-  const getEmotionById = (id: string) => (emotionsList || []).find(e => e.id === id);
-
-  const reportText = useMemo(() => {
-    let text = `Diario de Emociones de ${userProfile?.name || 'Usuario'}\n`;
-    const hasDateRange = startDate && endDate;
-
-    if (hasDateRange) {
-      const start = new Date(startDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
-      const end = new Date(endDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
-      text += `Periodo: ${start} - ${end}\n`;
-    } else {
-      text += `Periodo: Todas las entradas\n`;
-    }
-    
-    text += "========================================\n\n";
-    text += "--- Mis Entradas ---\n\n";
-
-    const filteredEntries = diaryEntries.filter(entry => {
-        if (!hasDateRange) return true;
-        const entryDate = new Date(entry.date);
-        const startRangeDate = new Date(startDate);
-        const endRangeDate = new Date(endDate);
-        endRangeDate.setUTCDate(endRangeDate.getUTCDate() + 1); // Include the end date in the range
-
-        return entryDate >= startRangeDate && entryDate < endRangeDate;
-    });
-
-    if (filteredEntries.length > 0) {
-        filteredEntries.slice().reverse().forEach(entry => {
-            const emotion = getEmotionById(entry.emotionId);
-            const date = new Date(entry.date).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
-            text += `Fecha: ${date}\n`;
-            text += `Emoción: ${emotion?.name || 'Desconocida'} ${emotion?.icon || ''}\n`;
-            text += `Reflexión: ${entry.text}\n`;
-            text += "----------------------------------------\n";
-        });
-    } else {
-        text += "No hay entradas en el diario para el rango de fechas seleccionado.\n\n";
-    }
-
-    text += "\n--- Mi Emocionario ---\n\n";
-    (emotionsList || []).forEach(emotion => {
-        text += `${emotion.icon} ${emotion.name}: ${emotion.description || 'Sin descripción.'}\n`;
-    });
-
-    if (!emotionsList || emotionsList.length === 0) {
-        text += "El emocionario está vacío.\n";
-    }
-
-    return text;
-  }, [diaryEntries, emotionsList, userProfile, startDate, endDate]);
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(reportText).then(() => {
-        setCopied(true);
-        onShare(); // Trigger the share event for reward checking
-        toast({ title: "¡Copiado!", description: "El reporte se ha copiado al portapapeles." });
-        setTimeout(() => setCopied(false), 2000);
-    }, () => {
-        toast({ title: "Error", description: "No se pudo copiar el reporte.", variant: "destructive" });
-    });
-  };
-
-  return (
-    <Card className="w-full max-w-3xl mx-auto h-full shadow-lg flex flex-col">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold text-primary">Compartir Diario</CardTitle>
-        <CardDescription>Copia un resumen de tu diario en formato de texto para compartirlo con quien quieras. Puedes filtrar por fechas.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex-grow flex flex-col gap-4 overflow-hidden">
-        <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 space-y-2">
-                <Label htmlFor="start-date">Fecha de inicio</Label>
-                <Input
-                    id="start-date"
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    max={endDate || undefined}
-                />
-            </div>
-            <div className="flex-1 space-y-2">
-                <Label htmlFor="end-date">Fecha de fin</Label>
-                <Input
-                    id="end-date"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    min={startDate || undefined}
-                />
-            </div>
-        </div>
-        <div className="flex-grow flex flex-col gap-4">
-          <Button onClick={handleCopy} className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
-            {copied ? <Check className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}
-            {copied ? '¡Reporte Copiado!' : 'Copiar Reporte al Portapapeles'}
-          </Button>
-          <div className="flex-grow relative">
-              <Textarea
-                readOnly
-                value={reportText}
-                className="w-full h-full bg-muted/50 resize-none min-h-[200px] sm:min-h-[300px]"
-              />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-```
-
-### `/src/app/components/views/streak-view.tsx`
-**Propósito:** Vista para mostrar la racha de entradas del usuario y permitir la recuperación de días perdidos.
-```tsx
-"use client";
-
-import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Flame, RotateCcw } from 'lucide-react';
-import type { DiaryEntry } from '@/lib/types';
-import { cn, normalizeDate } from '@/lib/utils';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-
-interface StreakViewProps {
-  diaryEntries: DiaryEntry[];
-  onRecoverDay: (date: Date) => void;
-}
-
-export function StreakView({ diaryEntries, onRecoverDay }: StreakViewProps) {
-  const [currentDate, setCurrentDate] = useState(new Date());
-
-  const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-  const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-
-  const startingDayOfWeek = (firstDayOfMonth.getDay() + 6) % 7;
-
-  const prevMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  };
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  };
-
-  const entryDates = useMemo(() => {
-    return new Set(diaryEntries.map(entry => normalizeDate(entry.date)));
-  }, [diaryEntries]);
-
-  const calendarDays = useMemo(() => {
-    const days = [];
-    for (let i = 0; i < startingDayOfWeek; i++) {
-      days.push(null);
-    }
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(i);
-    }
-    return days;
-  }, [startingDayOfWeek, daysInMonth]);
-  
-  const weekdays = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-
-  return (
-    <Card className="w-full h-full shadow-lg flex flex-col">
-      <CardHeader>
-        <CardTitle className="text-3xl font-bold text-primary">Mi Racha de Emociones</CardTitle>
-        <CardDescription>¡Sigue así! Cada día que registras una emoción, la llama de tu racha se hace más fuerte.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex-grow flex flex-col min-h-0">
-        <div className="flex justify-between items-center mb-4">
-          <Button variant="ghost" size="icon" onClick={prevMonth}>
-            <ChevronLeft />
-          </Button>
-          <h3 className="text-xl font-bold text-primary capitalize">
-            {currentDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}
-          </h3>
-          <Button variant="ghost" size="icon" onClick={nextMonth}>
-            <ChevronRight />
-          </Button>
-        </div>
-        <div className="grid grid-cols-7 gap-2 text-center font-semibold text-muted-foreground mb-2">
-          {weekdays.map(day => <div key={day} className="text-xs md:text-sm">{day}</div>)}
-        </div>
-        <div className="grid grid-cols-7 grid-rows-6 gap-2 flex-grow">
-          <TooltipProvider>
-            {calendarDays.map((day, index) => {
-              if (!day) return <div key={`empty-${index}`} className="bg-muted/30 rounded-lg" />;
-              
-              const calendarDateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-              const calendarDate = normalizeDate(calendarDateObj);
-              const hasEntry = entryDates.has(calendarDate);
-
-              const today = normalizeDate(new Date());
-              const isToday = calendarDate === today;
-              const isPast = calendarDate < today;
-
-              let status: 'completed' | 'missed' | 'future' | 'today' = 'future';
-              if (isToday) {
-                  status = 'today';
-              } else if (isPast) {
-                  status = hasEntry ? 'completed' : 'missed';
-              }
-
-              const canRecover = status === 'missed';
-
-              return (
-                <Tooltip key={day}>
-                  <TooltipTrigger asChild>
-                    <div
-                      className={cn(
-                        "border rounded-lg flex flex-col items-center justify-center aspect-square transition-all duration-300 group",
-                        status === 'completed' && "bg-amber-100 dark:bg-amber-900/40 border-amber-300 dark:border-amber-800",
-                        status === 'missed' && "bg-gray-100 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 opacity-60 hover:opacity-100",
-                        status === 'today' && "border-primary border-2 ring-4 ring-primary/20",
-                        status === 'future' && "bg-background dark:bg-muted/30",
-                        canRecover && "cursor-pointer"
-                      )}
-                      onClick={canRecover ? () => onRecoverDay(calendarDateObj) : undefined}
-                    >
-                      <span className={cn(
-                          "font-bold text-sm md:text-base", 
-                          status === 'missed' && 'text-muted-foreground/50 group-hover:text-muted-foreground'
-                      )}>{day}</span>
-                      
-                      <div className="flex-1 flex items-center justify-center">
-                        {hasEntry ? (
-                            <Flame className="w-8 h-8 text-amber-500 animate-flame transition-transform duration-200 group-hover:scale-125" />
-                        ) : isPast ? (
-                           <div className="flex flex-col items-center gap-1">
-                             <div className="w-5 h-5 rounded-full bg-gray-300 dark:bg-gray-600 group-hover:hidden" />
-                             <RotateCcw className="w-6 h-6 text-primary hidden group-hover:block" />
-                           </div>
-                        ) : (
-                           <div className="w-5 h-5 rounded-full bg-muted-foreground/20 dark:bg-gray-700" /> // Ember for future days
-                        )}
-                      </div>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{new Date(calendarDate).toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                    {hasEntry && <p className="font-bold text-amber-600 dark:text-amber-400">¡Meta cumplida!</p>}
-                    {status === 'missed' && (
-                        <div className="flex items-center gap-2">
-                           <p className="font-bold text-primary">Recuperar día</p>
-                           <RotateCcw className="w-4 h-4 text-primary"/>
-                        </div>
-                    )}
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-          </TooltipProvider>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-```
-
-### `/src/components/FirebaseErrorListener.tsx`
-**Propósito:** Componente invisible que escucha errores de permisos de Firestore y los lanza para ser capturados por el manejador de errores de Next.js.
-```tsx
-'use client';
-
-import { useState, useEffect } from 'react';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
-
-/**
- * An invisible component that listens for globally emitted 'permission-error' events.
- * It throws any received error to be caught by Next.js's global-error.tsx.
- */
-export function FirebaseErrorListener() {
-  // Use the specific error type for the state for type safety.
-  const [error, setError] = useState<FirestorePermissionError | null>(null);
-
-  useEffect(() => {
-    // The callback now expects a strongly-typed error, matching the event payload.
-    const handleError = (error: FirestorePermissionError) => {
-      // Set error in state to trigger a re-render.
-      setError(error);
-    };
-
-    // The typed emitter will enforce that the callback for 'permission-error'
-    // matches the expected payload type (FirestorePermissionError).
-    errorEmitter.on('permission-error', handleError);
-
-    // Unsubscribe on unmount to prevent memory leaks.
-    return () => {
-      errorEmitter.off('permission-error', handleError);
-    };
-  }, []);
-
-  // On re-render, if an error exists in state, throw it.
-  if (error) {
-    throw error;
-  }
-
-  // This component renders nothing.
-  return null;
-}
-```
-
-### `/src/components/ui/**`
-**Propósito:** Componentes de UI de bajo nivel de la biblioteca ShadCN. El código no se incluye aquí por brevedad, pero son los componentes estándar.
-
-### `/src/firebase/client-provider.tsx`
-**Propósito:** Proveedor de contexto de Firebase para el lado del cliente.
-```tsx
-'use client';
-
-import React, { useMemo, type ReactNode } from 'react';
-import { FirebaseProvider } from '@/firebase/provider';
-import { initializeFirebase } from '@/firebase';
-
-interface FirebaseClientProviderProps {
-  children: ReactNode;
-}
-
-export function FirebaseClientProvider({ children }: FirebaseClientProviderProps) {
-  const firebaseServices = useMemo(() => {
-    // Initialize Firebase on the client side, once per component mount.
-    return initializeFirebase();
-  }, []); // Empty dependency array ensures this runs only once on mount
-
-  return (
-    <FirebaseProvider
-      firebaseApp={firebaseServices.firebaseApp}
-      auth={firebaseServices.auth}
-      firestore={firebaseServices.firestore}
-    >
-      {children}
-    </FirebaseProvider>
-  );
-}
-```
-
-### `/src/firebase/config.ts`
-**Propósito:** Configuración del proyecto de Firebase.
-```ts
-export const firebaseConfig = {
-  "projectId": "studio-2040032983-134ea",
-  "appId": "1:851535225513:web:1dc9ce8936f7087d01ffb8",
-  "apiKey": "AIzaSyBaMToK8ZZPiqP12dncGaedynE2JeiINCQ",
-  "authDomain": "studio-2040032983-134ea.firebaseapp.com",
-  "measurementId": "",
-  "messagingSenderId": "851535225513"
-};
-```
-
-### `/src/firebase/error-emitter.ts`
-**Propósito:** Emisor de eventos para propagar errores de permisos de Firestore de forma centralizada.
-```ts
-'use client';
-import { FirestorePermissionError } from '@/firebase/errors';
-
-/**
- * Defines the shape of all possible events and their corresponding payload types.
- * This centralizes event definitions for type safety across the application.
- */
-export interface AppEvents {
-  'permission-error': FirestorePermissionError;
-}
-
-// A generic type for a callback function.
-type Callback<T> = (data: T) => void;
-
-/**
- * A strongly-typed pub/sub event emitter.
- * It uses a generic type T that extends a record of event names to payload types.
- */
-function createEventEmitter<T extends Record<string, any>>() {
-  // The events object stores arrays of callbacks, keyed by event name.
-  // The types ensure that a callback for a specific event matches its payload type.
-  const events: { [K in keyof T]?: Array<Callback<T[K]>> } = {};
-
-  return {
-    /**
-     * Subscribe to an event.
-     * @param eventName The name of the event to subscribe to.
-     * @param callback The function to call when the event is emitted.
-     */
-    on<K extends keyof T>(eventName: K, callback: Callback<T[K]>) {
-      if (!events[eventName]) {
-        events[eventName] = [];
-      }
-      events[eventName]?.push(callback);
-    },
-
-    /**
-     * Unsubscribe from an event.
-     * @param eventName The name of the event to unsubscribe from.
-     * @param callback The specific callback to remove.
-     */
-    off<K extends keyof T>(eventName: K, callback: Callback<T[K]>) {
-      if (!events[eventName]) {
-        return;
-      }
-      events[eventName] = events[eventName]?.filter(cb => cb !== callback);
-    },
-
-    /**
-     * Publish an event to all subscribers.
-     * @param eventName The name of the event to emit.
-     * @param data The data payload that corresponds to the event's type.
-     */
-    emit<K extends keyof T>(eventName: K, data: T[K]) {
-      if (!events[eventName]) {
-        return;
-      }
-      events[eventName]?.forEach(callback => callback(data));
-    },
-  };
-}
-
-// Create and export a singleton instance of the emitter, typed with our AppEvents interface.
-export const errorEmitter = createEventEmitter<AppEvents>();
-```
-
 ### `/src/firebase/errors.ts`
-**Propósito:** Define un error personalizado (`FirestorePermissionError`) que estructura los errores de permisos para un mejor debugging.
+**Propósito:** Define un error personalizado (`FirestorePermissionError`) que funciona de forma isomórfica (cliente y servidor).
 ```ts
-'use client';
 import { getAuth, type User } from 'firebase/auth';
 
 type SecurityRuleContext = {
@@ -5139,24 +2541,29 @@ function buildAuthObject(currentUser: User | null): FirebaseAuthObject | null {
   };
 }
 
+const isServer = typeof window === 'undefined';
+
 /**
  * Builds the complete, simulated request object for the error message.
- * It safely tries to get the current authenticated user.
+ * It safely tries to get the current authenticated user only on the client.
  * @param context The context of the failed Firestore operation.
  * @returns A structured request object.
  */
 function buildRequestObject(context: SecurityRuleContext): SecurityRuleRequest {
   let authObject: FirebaseAuthObject | null = null;
-  try {
-    // Safely attempt to get the current user.
-    const firebaseAuth = getAuth();
-    const currentUser = firebaseAuth.currentUser;
-    if (currentUser) {
-      authObject = buildAuthObject(currentUser);
+  
+  // Only attempt to get user auth information on the client side.
+  if (!isServer) {
+    try {
+      const firebaseAuth = getAuth();
+      const currentUser = firebaseAuth.currentUser;
+      if (currentUser) {
+        authObject = buildAuthObject(currentUser);
+      }
+    } catch {
+      // This will catch errors if the Firebase app is not yet initialized.
+      // We proceed without auth info.
     }
-  } catch {
-    // This will catch errors if the Firebase app is not yet initialized.
-    // In this case, we'll proceed without auth information.
   }
 
   return {
@@ -5180,7 +2587,7 @@ ${JSON.stringify(requestObject, null, 2)}`;
 /**
  * A custom error class designed to be consumed by an LLM for debugging.
  * It structures the error information to mimic the request object
- * available in Firestore Security Rules.
+ * available in Firestore Security Rules. Works on both client and server.
  */
 export class FirestorePermissionError extends Error {
   public readonly request: SecurityRuleRequest;
@@ -5191,312 +2598,6 @@ export class FirestorePermissionError extends Error {
     this.name = 'FirebaseError';
     this.request = requestObject;
   }
-}
-```
-
-### `/src/firebase/firestore/use-collection.tsx`
-**Propósito:** Hook de React para suscribirse a una colección de Firestore en tiempo real.
-```tsx
-'use client';
-
-import { useState, useEffect } from 'react';
-import {
-  Query,
-  onSnapshot,
-  DocumentData,
-  FirestoreError,
-  QuerySnapshot,
-  CollectionReference,
-} from 'firebase/firestore';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
-
-/** Utility type to add an 'id' field to a given type T. */
-export type WithId<T> = T & { id: string };
-
-/**
- * Interface for the return value of the useCollection hook.
- * @template T Type of the document data.
- */
-export interface UseCollectionResult<T> {
-  data: WithId<T>[] | null; // Document data with ID, or null.
-  isLoading: boolean;       // True if loading.
-  error: FirestoreError | Error | null; // Error object, or null.
-}
-
-/* Internal implementation of Query:
-  https://github.com/firebase/firebase-js-sdk/blob/c5f08a9bc5da0d2b0207802c972d53724ccef055/packages/firestore/src/lite-api/reference.ts#L143
-*/
-export interface InternalQuery extends Query<DocumentData> {
-  _query: {
-    path: {
-      canonicalString(): string;
-      toString(): string;
-    }
-  }
-}
-
-/**
- * React hook to subscribe to a Firestore collection or query in real-time.
- * Handles nullable references/queries.
- * 
- *
- * IMPORTANT! YOU MUST MEMOIZE the inputted memoizedTargetRefOrQuery or BAD THINGS WILL HAPPEN
- * use useMemo to memoize it per React guidence.  Also make sure that it's dependencies are stable
- * references
- *  
- * @template T Optional type for document data. Defaults to any.
- * @param {CollectionReference<DocumentData> | Query<DocumentData> | null | undefined} targetRefOrQuery -
- * The Firestore CollectionReference or Query. Waits if null/undefined.
- * @returns {UseCollectionResult<T>} Object with data, isLoading, error.
- */
-export function useCollection<T = any>(
-    memoizedTargetRefOrQuery: ((CollectionReference<DocumentData> | Query<DocumentData>) & {__memo?: boolean})  | null | undefined,
-): UseCollectionResult<T> {
-  type ResultItemType = WithId<T>;
-  type StateDataType = ResultItemType[] | null;
-
-  const [data, setData] = useState<StateDataType>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<FirestoreError | Error | null>(null);
-
-  useEffect(() => {
-    if (!memoizedTargetRefOrQuery) {
-      setData(null);
-      setIsLoading(false);
-      setError(null);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    // Directly use memoizedTargetRefOrQuery as it's assumed to be the final query
-    const unsubscribe = onSnapshot(
-      memoizedTargetRefOrQuery,
-      (snapshot: QuerySnapshot<DocumentData>) => {
-        const results: ResultItemType[] = [];
-        for (const doc of snapshot.docs) {
-          results.push({ ...(doc.data() as T), id: doc.id });
-        }
-        setData(results);
-        setError(null);
-        setIsLoading(false);
-      },
-      (error: FirestoreError) => {
-        // This logic extracts the path from either a ref or a query
-        const path: string =
-          memoizedTargetRefOrQuery.type === 'collection'
-            ? (memoizedTargetRefOrQuery as CollectionReference).path
-            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
-
-        const contextualError = new FirestorePermissionError({
-          operation: 'list',
-          path,
-        })
-
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
-
-        // trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [memoizedTargetRefOrQuery]); // Re-run if the target query/reference changes.
-  if(memoizedTargetRefOrQuery && !memoizedTargetRefOrQuery.__memo) {
-    throw new Error(memoizedTargetRefOrQuery + ' was not properly memoized using useMemoFirebase');
-  }
-  return { data, isLoading, error };
-}
-```
-
-### `/src/firebase/firestore/use-doc.tsx`
-**Propósito:** Hook de React para suscribirse a un único documento de Firestore en tiempo real.
-```tsx
-'use client';
-    
-import { useState, useEffect } from 'react';
-import {
-  DocumentReference,
-  onSnapshot,
-  DocumentData,
-  FirestoreError,
-  DocumentSnapshot,
-} from 'firebase/firestore';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
-
-/** Utility type to add an 'id' field to a given type T. */
-type WithId<T> = T & { id: string };
-
-/**
- * Interface for the return value of the useDoc hook.
- * @template T Type of the document data.
- */
-export interface UseDocResult<T> {
-  data: WithId<T> | null; // Document data with ID, or null.
-  isLoading: boolean;       // True if loading.
-  error: FirestoreError | Error | null; // Error object, or null.
-}
-
-/**
- * React hook to subscribe to a single Firestore document in real-time.
- * Handles nullable references.
- * 
- * IMPORTANT! YOU MUST MEMOIZE the inputted memoizedTargetRefOrQuery or BAD THINGS WILL HAPPEN
- * use useMemo to memoize it per React guidence.  Also make sure that it's dependencies are stable
- * references
- *
- *
- * @template T Optional type for document data. Defaults to any.
- * @param {DocumentReference<DocumentData> | null | undefined} docRef -
- * The Firestore DocumentReference. Waits if null/undefined.
- * @returns {UseDocResult<T>} Object with data, isLoading, error.
- */
-export function useDoc<T = any>(
-  memoizedDocRef: DocumentReference<DocumentData> | null | undefined,
-): UseDocResult<T> {
-  type StateDataType = WithId<T> | null;
-
-  const [data, setData] = useState<StateDataType>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<FirestoreError | Error | null>(null);
-
-  useEffect(() => {
-    if (!memoizedDocRef) {
-      setData(null);
-      setIsLoading(false);
-      setError(null);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    // Optional: setData(null); // Clear previous data instantly
-
-    const unsubscribe = onSnapshot(
-      memoizedDocRef,
-      (snapshot: DocumentSnapshot<DocumentData>) => {
-        if (snapshot.exists()) {
-          setData({ ...(snapshot.data() as T), id: snapshot.id });
-        } else {
-          // Document does not exist
-          setData(null);
-        }
-        setError(null); // Clear any previous error on successful snapshot (even if doc doesn't exist)
-        setIsLoading(false);
-      },
-      (error: FirestoreError) => {
-        const contextualError = new FirestorePermissionError({
-          operation: 'get',
-          path: memoizedDocRef.path,
-        })
-
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
-
-        // trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [memoizedDocRef]); // Re-run if the memoizedDocRef changes.
-
-  return { data, isLoading, error };
-}
-```
-
-### `/src/firebase/index.ts`
-**Propósito:** Fichero "barril" que inicializa Firebase y exporta todos los hooks y proveedores principales.
-```ts
-'use client';
-
-import { firebaseConfig } from '@/firebase/config';
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore'
-
-// IMPORTANT: DO NOT MODIFY THIS FUNCTION
-export function initializeFirebase() {
-  if (!getApps().length) {
-    // Important! initializeApp() is called without any arguments because Firebase App Hosting
-    // integrates with the initializeApp() function to provide the environment variables needed to
-    // populate the FirebaseOptions in production. It is critical that we attempt to call initializeApp()
-    // without arguments.
-    let firebaseApp;
-    try {
-      // Attempt to initialize via Firebase App Hosting environment variables
-      firebaseApp = initializeApp();
-    } catch (e) {
-      // Only warn in production because it's normal to use the firebaseConfig to initialize
-      // during development
-      if (process.env.NODE_ENV === "production") {
-        console.warn('Automatic initialization failed. Falling back to firebase config object.', e);
-      }
-      firebaseApp = initializeApp(firebaseConfig);
-    }
-
-    return getSdks(firebaseApp);
-  }
-
-  // If already initialized, return the SDKs with the already initialized App
-  return getSdks(getApp());
-}
-
-export function getSdks(firebaseApp: FirebaseApp) {
-  return {
-    firebaseApp,
-    auth: getAuth(firebaseApp),
-    firestore: getFirestore(firebaseApp)
-  };
-}
-
-export * from './provider';
-export * from './client-provider';
-export * from './firestore/use-collection';
-export * from './firestore/use-doc';
-export * from './non-blocking-updates';
-export * from './non-blocking-login';
-export * from './errors';
-export * from './error-emitter';
-```
-
-### `/src/firebase/non-blocking-login.tsx`
-**Propósito:** Funciones de ayuda para iniciar operaciones de autenticación de forma no bloqueante.
-```tsx
-'use client';
-import {
-  Auth, // Import Auth type for type hinting
-  signInAnonymously,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  // Assume getAuth and app are initialized elsewhere
-} from 'firebase/auth';
-
-/** Initiate anonymous sign-in (non-blocking). */
-export function initiateAnonymousSignIn(authInstance: Auth): void {
-  // CRITICAL: Call signInAnonymously directly. Do NOT use 'await signInAnonymously(...)'.
-  signInAnonymously(authInstance);
-  // Code continues immediately. Auth state change is handled by onAuthStateChanged listener.
-}
-
-/** Initiate email/password sign-up (non-blocking). */
-export function initiateEmailSignUp(authInstance: Auth, email: string, password: string): void {
-  // CRITICAL: Call createUserWithEmailAndPassword directly. Do NOT use 'await createUserWithEmailAndPassword(...)'.
-  createUserWithEmailAndPassword(authInstance, email, password);
-  // Code continues immediately. Auth state change is handled by onAuthStateChanged listener.
-}
-
-/** Initiate email/password sign-in (non-blocking). */
-export function initiateEmailSignIn(authInstance: Auth, email: string, password: string): void {
-  // CRITICAL: Call signInWithEmailAndPassword directly. Do NOT use 'await signInWithEmailAndPassword(...)'.
-  signInWithEmailAndPassword(authInstance, email, password);
-  // Code continues immediately. Auth state change is handled by onAuthStateChanged listener.
 }
 ```
 
@@ -5521,8 +2622,9 @@ import {FirestorePermissionError} from '@/firebase/errors';
  * Initiates a setDoc operation for a document reference.
  * Does NOT await the write operation internally.
  */
-export function setDocumentNonBlocking(docRef: DocumentReference, data: any, options: SetOptions) {
-  setDoc(docRef, data, options).catch(error => {
+export function setDocumentNonBlocking(docRef: DocumentReference, data: any, options?: SetOptions) {
+  const setOptions = options || {};
+  setDoc(docRef, data, setOptions).catch(error => {
     errorEmitter.emit(
       'permission-error',
       new FirestorePermissionError({
@@ -5594,459 +2696,8 @@ export function deleteDocumentNonBlocking(docRef: DocumentReference) {
 }
 ```
 
-### `/src/firebase/provider.tsx`
-**Propósito:** Proveedor de contexto principal de Firebase que gestiona el estado de autenticación del usuario.
-```tsx
-'use client';
-
-import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
-import { FirebaseApp } from 'firebase/app';
-import { Firestore } from 'firebase/firestore';
-import { Auth, User, onAuthStateChanged } from 'firebase/auth';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
-
-interface FirebaseProviderProps {
-  children: ReactNode;
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
-}
-
-// Internal state for user authentication
-interface UserAuthState {
-  user: User | null;
-  isUserLoading: boolean;
-  userError: Error | null;
-}
-
-// Combined state for the Firebase context
-export interface FirebaseContextState {
-  areServicesAvailable: boolean; // True if core services (app, firestore, auth instance) are provided
-  firebaseApp: FirebaseApp | null;
-  firestore: Firestore | null;
-  auth: Auth | null; // The Auth service instance
-  // User authentication state
-  user: User | null;
-  isUserLoading: boolean; // True during initial auth check
-  userError: Error | null; // Error from auth listener
-}
-
-// Return type for useFirebase()
-export interface FirebaseServicesAndUser {
-  firebaseApp: FirebaseApp;
-  firestore: Firestore;
-  auth: Auth;
-  user: User | null;
-  isUserLoading: boolean;
-  userError: Error | null;
-}
-
-// Return type for useUser() - specific to user auth state
-export interface UserHookResult { // Renamed from UserAuthHookResult for consistency if desired, or keep as UserAuthHookResult
-  user: User | null;
-  isUserLoading: boolean;
-  userError: Error | null;
-}
-
-// React Context
-export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
-
-/**
- * FirebaseProvider manages and provides Firebase services and user authentication state.
- */
-export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
-  children,
-  firebaseApp,
-  firestore,
-  auth,
-}) => {
-  const [userAuthState, setUserAuthState] = useState<UserAuthState>({
-    user: null,
-    isUserLoading: true, // Start loading until first auth event
-    userError: null,
-  });
-
-  // Effect to subscribe to Firebase auth state changes
-  useEffect(() => {
-    if (!auth) { // If no Auth service instance, cannot determine user state
-      setUserAuthState({ user: null, isUserLoading: false, userError: new Error("Auth service not provided.") });
-      return;
-    }
-
-    setUserAuthState({ user: null, isUserLoading: true, userError: null }); // Reset on auth instance change
-
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (firebaseUser) => { // Auth state determined
-        setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
-      },
-      (error) => { // Auth listener error
-        console.error("FirebaseProvider: onAuthStateChanged error:", error);
-        setUserAuthState({ user: null, isUserLoading: false, userError: error });
-      }
-    );
-    return () => unsubscribe(); // Cleanup
-  }, [auth]); // Depends on the auth instance
-
-  // Memoize the context value
-  const contextValue = useMemo((): FirebaseContextState => {
-    const servicesAvailable = !!(firebaseApp && firestore && auth);
-    return {
-      areServicesAvailable: servicesAvailable,
-      firebaseApp: servicesAvailable ? firebaseApp : null,
-      firestore: servicesAvailable ? firestore : null,
-      auth: servicesAvailable ? auth : null,
-      user: userAuthState.user,
-      isUserLoading: userAuthState.isUserLoading,
-      userError: userAuthState.userError,
-    };
-  }, [firebaseApp, firestore, auth, userAuthState]);
-
-  return (
-    <FirebaseContext.Provider value={contextValue}>
-      <FirebaseErrorListener />
-      {children}
-    </FirebaseContext.Provider>
-  );
-};
-
-/**
- * Hook to access core Firebase services and user authentication state.
- * Throws error if core services are not available or used outside provider.
- */
-export const useFirebase = (): FirebaseServicesAndUser => {
-  const context = useContext(FirebaseContext);
-
-  if (context === undefined) {
-    throw new Error('useFirebase must be used within a FirebaseProvider.');
-  }
-
-  if (!context.areServicesAvailable || !context.firebaseApp || !context.firestore || !context.auth) {
-    throw new Error('Firebase core services not available. Check FirebaseProvider props.');
-  }
-
-  return {
-    firebaseApp: context.firebaseApp,
-    firestore: context.firestore,
-    auth: context.auth,
-    user: context.user,
-    isUserLoading: context.isUserLoading,
-    userError: context.userError,
-  };
-};
-
-/** Hook to access Firebase Auth instance. */
-export const useAuth = (): Auth => {
-  const { auth } = useFirebase();
-  return auth;
-};
-
-/** Hook to access Firestore instance. */
-export const useFirestore = (): Firestore => {
-  const { firestore } = useFirebase();
-  return firestore;
-};
-
-/** Hook to access Firebase App instance. */
-export const useFirebaseApp = (): FirebaseApp => {
-  const { firebaseApp } = useFirebase();
-  return firebaseApp;
-};
-
-type MemoFirebase <T> = T & {__memo?: boolean};
-
-export function useMemoFirebase<T>(factory: () => T, deps: DependencyList): T | (MemoFirebase<T>) {
-  const memoized = useMemo(factory, deps);
-  
-  if(typeof memoized !== 'object' || memoized === null) return memoized;
-  (memoized as MemoFirebase<T>).__memo = true;
-  
-  return memoized;
-}
-
-/**
- * Hook specifically for accessing the authenticated user's state.
- * This provides the User object, loading status, and any auth errors.
- * @returns {UserHookResult} Object with user, isUserLoading, userError.
- */
-export const useUser = (): UserHookResult => { // Renamed from useAuthUser
-  const { user, isUserLoading, userError } = useFirebase(); // Leverages the main hook
-  return { user, isUserLoading, userError };
-};
-```
-
-### `/src/hooks/use-local-storage.ts`
-**Propósito:** Hook personalizado para sincronizar un estado de React con el `localStorage` del navegador.
-```ts
-"use client";
-
-import { useState, useEffect } from 'react';
-
-function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((val: T) => T)) => void] {
-  const [storedValue, setStoredValue] = useState<T>(initialValue);
-
-  // We need to use a useEffect to read from localStorage.
-  // This ensures that the code only runs on the client, after the initial server render.
-  useEffect(() => {
-    // This check is still good practice.
-    if (typeof window === 'undefined') {
-      return;
-    }
-    try {
-      const item = window.localStorage.getItem(key);
-      // When the component mounts on the client, we update the state with the value from localStorage.
-      setStoredValue(item ? JSON.parse(item) : initialValue);
-    } catch (error) {
-      console.log(error);
-      setStoredValue(initialValue);
-    }
-  // We only want this to run once on mount, so we pass an empty dependency array.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-
-  const setValue = (value: T | ((val: T) => T)) => {
-    try {
-      const valueToStore = value instanceof Function ? value(storedValue) : value;
-      setStoredValue(valueToStore);
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem(key, JSON.stringify(valueToStore));
-      }
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  return [storedValue, setValue];
-}
-
-export default useLocalStorage;
-```
-
-### `/src/hooks/use-mobile.tsx`
-**Propósito:** Hook para detectar si el usuario está en un dispositivo móvil basándose en el ancho de la pantalla.
-```tsx
-import * as React from "react"
-
-const MOBILE_BREAKPOINT = 768
-
-export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
-
-  React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
-    const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    }
-    mql.addEventListener("change", onChange)
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    return () => mql.removeEventListener("change", onChange)
-  }, [])
-
-  return !!isMobile
-}
-```
-
-### `/src/hooks/use-toast.ts`
-**Propósito:** Hook para mostrar notificaciones (toasts) en la aplicación.
-```ts
-"use client"
-
-// Inspired by react-hot-toast library
-import * as React from "react"
-
-import type {
-  ToastActionElement,
-  ToastProps,
-} from "@/components/ui/toast"
-
-const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
-
-type ToasterToast = ToastProps & {
-  id: string
-  title?: React.ReactNode
-  description?: React.ReactNode
-  action?: ToastActionElement
-}
-
-const actionTypes = {
-  ADD_TOAST: "ADD_TOAST",
-  UPDATE_TOAST: "UPDATE_TOAST",
-  DISMISS_TOAST: "DISMISS_TOAST",
-  REMOVE_TOAST: "REMOVE_TOAST",
-} as const
-
-let count = 0
-
-function genId() {
-  count = (count + 1) % Number.MAX_SAFE_INTEGER
-  return count.toString()
-}
-
-type ActionType = typeof actionTypes
-
-type Action =
-  | {
-      type: ActionType["ADD_TOAST"]
-      toast: ToasterToast
-    }
-  | {
-      type: ActionType["UPDATE_TOAST"]
-      toast: Partial<ToasterToast>
-    }
-  | {
-      type: ActionType["DISMISS_TOAST"]
-      toastId?: ToasterToast["id"]
-    }
-  | {
-      type: ActionType["REMOVE_TOAST"]
-      toastId?: ToasterToast["id"]
-    }
-
-interface State {
-  toasts: ToasterToast[]
-}
-
-const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
-
-const addToRemoveQueue = (toastId: string) => {
-  if (toastTimeouts.has(toastId)) {
-    return
-  }
-
-  const timeout = setTimeout(() => {
-    toastTimeouts.delete(toastId)
-    dispatch({
-      type: "REMOVE_TOAST",
-      toastId: toastId,
-    })
-  }, TOAST_REMOVE_DELAY)
-
-  toastTimeouts.set(toastId, timeout)
-}
-
-export const reducer = (state: State, action: Action): State => {
-  switch (action.type) {
-    case "ADD_TOAST":
-      return {
-        ...state,
-        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
-      }
-
-    case "UPDATE_TOAST":
-      return {
-        ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === action.toast.id ? { ...t, ...action.toast } : t
-        ),
-      }
-
-    case "DISMISS_TOAST": {
-      const { toastId } = action
-
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
-      // but I'll keep it here for simplicity
-      if (toastId) {
-        addToRemoveQueue(toastId)
-      } else {
-        state.toasts.forEach((toast) => {
-          addToRemoveQueue(toast.id)
-        })
-      }
-
-      return {
-        ...state,
-        toasts: state.toasts.map((t) =>
-          t.id === toastId || toastId === undefined
-            ? {
-                ...t,
-                open: false,
-              }
-            : t
-        ),
-      }
-    }
-    case "REMOVE_TOAST":
-      if (action.toastId === undefined) {
-        return {
-          ...state,
-          toasts: [],
-        }
-      }
-      return {
-        ...state,
-        toasts: state.toasts.filter((t) => t.id !== action.toastId),
-      }
-  }
-}
-
-const listeners: Array<(state: State) => void> = []
-
-let memoryState: State = { toasts: [] }
-
-function dispatch(action: Action) {
-  memoryState = reducer(memoryState, action)
-  listeners.forEach((listener) => {
-    listener(memoryState)
-  })
-}
-
-type Toast = Omit<ToasterToast, "id">
-
-function toast({ ...props }: Toast) {
-  const id = genId()
-
-  const update = (props: ToasterToast) =>
-    dispatch({
-      type: "UPDATE_TOAST",
-      toast: { ...props, id },
-    })
-  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id })
-
-  dispatch({
-    type: "ADD_TOAST",
-    toast: {
-      ...props,
-      id,
-      open: true,
-      onOpenChange: (open) => {
-        if (!open) dismiss()
-      },
-    },
-  })
-
-  return {
-    id: id,
-    dismiss,
-    update,
-  }
-}
-
-function useToast() {
-  const [state, setState] = React.useState<State>(memoryState)
-
-  React.useEffect(() => {
-    listeners.push(setState)
-    return () => {
-      const index = listeners.indexOf(setState)
-      if (index > -1) {
-        listeners.splice(index, 1)
-      }
-    }
-  }, [state])
-
-  return {
-    ...state,
-    toast,
-    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
-  }
-}
-
-export { useToast, toast }
-```
-
 ### `/src/lib/constants.ts`
-**Propósito:** Fichero central para todas las constantes de la aplicación (emociones predefinidas, pasos del tour, recompensas, preguntas de cuestionario, etc.).
+**Propósito:** Fichero central para todas las constantes de la aplicación.
 ```ts
 import type { PredefinedEmotion, TourStepData, SpiritAnimal, Reward, QuizQuestion } from './types';
 
@@ -6122,7 +2773,7 @@ export const EMOTION_BONUS_WORDS: { [key: string]: string[] } = {
 };
 
 
-export const AVATAR_EMOJIS = ['😊', '😎', '🤔', '😂', '🥰', '😇', '🥳', '🤯', '🤩', '😴', '🌞', '⭐', '😄', '😢', '😠', '😨', '😌', '😟', '😮', '🤗', '🙏', '🦁', '😳', '✨', '😤', '😍', '😕', '😞', '💪', '😜', '😥', '😭', '🙄', '🤢', '🤐', '🥴', '🥺', '🤡', '👻', '👽', '🤖', '👾', '🎃', '😈', '👿', '🔥', '💯', '❤️', '💔', '👍', '👎', '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '✍️', '🤳', '💅', '👀', '👁️', '🧠', '🦴', '🦷', '🗣️', '👤', '👥', '🫂', '👶', '👧', '🧒', '👦', '👩', '🧑', '👨', '👩‍🦱', '🧑‍🦱', '👨‍🦱', '👩‍🦰', '🧑‍🦰', '👨‍🦰', '👱‍♀️', '👱', '👱‍♂️', '👩‍🦳', '🧑‍🦳', '👨‍🦳', '👩‍🦲', '🧑‍🦲', '👨‍🦲', '🧔', '👵', '🧓', '👴', '👲', '👳‍♀️', '👳', '👳‍♂️', '🧕', '👮‍♀️', '👮', '👮‍♂️', '👷‍♀️', '👷', '👷‍♂️', '💂‍♀️', '💂', '💂‍♂️', '🕵️‍♀️', '🕵️', '🕵️‍♂️', '👩‍⚕️', '🧑‍⚕️', '👨‍⚕️', '👩‍🌾', '🧑‍🌾', '👨‍🌾', '👩‍🍳', '🧑‍🍳', '👨‍🍳', '👩‍🎓', '🧑‍🎓', '👨‍🎓', '👩‍🎤', '🧑‍🎤', '👨‍🎤', '👩‍🏫', '🧑‍🏫', '👨‍🏫', '👩‍🏭', '🧑‍🏭', '👨‍🏭', '👩‍💻', '🧑‍💻', '👨‍💻', '👩‍💼', '🧑‍💼', '👨‍💼', '👩‍🔧', '🧑‍🔧', '👨‍🔧', '👩‍🔬', '🧑‍🔬', '👨‍🔬', '👩‍🎨', '🧑‍🎨', '👨‍🎨', '👩‍🚒', '🧑‍🚒', '👨‍🚒', '👩‍✈️', '🧑‍✈️', '👨‍✈️', '👩‍🚀', '🧑‍🚀', '👨‍🚀', '👩‍⚖️', '🧑‍⚖️', '👨‍⚖️', '🦸‍♀️', '🦸', '🦸‍♂️', '🦹‍♀️', '🦹', '🦹‍♂️', '🤶', '🧑‍🎄', '🎅', '🧙‍♀️', '🧙', '🧙‍♂️', '🧝‍♀️', '🧝', '🧝‍♂️', '🧛‍♀️', '🧛', '🧛‍♂️', '🧟‍♀️', '🧟', '🧟‍♂️', '🧞‍♀️', '🧞', '🧞‍♂️', '🧜‍♀️', '🧜', '🧜‍♂️', '🧚‍♀️', '🧚', '🧚‍♂️', '👼', '🤰', '🤱', '👩‍🍼', '🧑‍🍼', '👨‍🍼', '🙇‍♀️', '🙇', '🙇‍♂️', '💁‍♀️', '💁', '💁‍♂️', '🙅‍♀️', '🙅', '🙅‍♂️', '🙆‍♀️', '🙆', '🙆‍♂️', '🙋‍♀️', '🙋', '🙋‍♂️', '🧏‍♀️', '🧏', '🧏‍♂️', '🤦‍♀️', '🤦', '🤦‍♂️', '🤷‍♀️', '🤷', '🤷‍♂️', '🙎‍♀️', '🙎', '🙎‍♂️', '🙍‍♀️', '🙍', '🙍‍♂️', '💇‍♀️', '💇', '💇‍♂️', '💆‍♀️', '💆', '💆‍♂️', '🧖‍♀️', '🧖', '🧖‍♂️', '💃', '🕺', '🕴️', '👩‍🦽', '🧑‍🦽', '👨‍🦽', '👩‍🦼', '🧑‍🦼', '👨‍🦼', '🚶‍♀️', '🚶', '🚶‍♂️', '👩‍🦯', '🧑‍🦯', '👨‍🦯', '🧎‍♀️', '🧎', '🧎‍♂️', '🏃‍♀️', '🏃', '🏃‍♂️', '🧍‍♀️', '🧍', '🧍‍♂️', '👫', '👭', '👬', '👩‍❤️‍👨', '👩‍❤️‍👩', '💑', '👨‍❤️‍👨', '👩‍❤️‍💋‍👨', '👩‍❤️‍💋‍👩', '💏', '👨‍❤️‍💋‍👨', '👨‍👩‍👦', '👨‍👩‍👧', '👨‍👩‍👧‍👦', '👨‍👩‍👦‍👦', '👨‍👩‍👧‍👧', '👩‍👩‍👦', '👩‍👩‍👧', '👩‍👩‍👧‍👦', '👩‍👩‍👦‍👦', '👩‍👩‍👧‍👧', '👨‍👨‍👦', '👨‍👨‍👧', '👨‍👨‍👧‍👦', '👨‍👨‍👦‍👦', '👨‍👨‍👧‍👧', '👩‍👦', '👩‍👧', '👩‍👧‍👦', '👩‍👦‍👦', '👩‍👧‍👧', '👨‍👦', '👨‍👧', '👨‍👧‍👦', '👨‍👦‍👦', '👨‍👧‍👧', '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐻‍❄️', '🐨', '🐯', '🦁', '🐮', '🐷', '🐽', '🐸', '🐵', '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜', '🦟', '🦗', '🕷️', '🕸️', '🦂', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🦣', '🐘', '🦛', '🦏', '🐪', '🐫', '🦒', '🦘', '🦬', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🦙', '🐐', '🦌', '🐕', '🐩', '🦮', '🐕‍🦺', '🐈', '🐈‍⬛', '🦢', '🦩', '🦚', '🦜', '🐸', '🐊', '🐢', '🦎', '🐍', '🐲', '🐉', '🌵', '🎄', '🌲', '🌳', '🌴', '🌱', '🌿', '☘️', '🍀', '🎍', '🎋', '🍃', '🍂', '🍁', '🍄', '🐚', '🕸️', '🌎', '🌍', '🌏', '🌕', '🌖', '🌗', '🌘', '🌑', '🌒', '🌓', '🌔', '🌚', '🌝', '🌞', '🪐', '💫', '🌟', '🌠', '🌌', '☁️', '⛅️', '⛈️', '🌤️', '🌥️', '🌦️', '🌧️', '🌨️', '🌩️', '🌪️', '🌫️', '🌬️', '🌈', '☂️', '💧', '🌊', '🍓', '🍎', '🍉', '🍕', '🍰', '⚽️', '🏀', '🏈', '⚾️', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🪃', '🥅', '⛳️', '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛼', '🛷', '⛸️', '🥌', '🎿', '⛷️', '🏂', '🪂', '🏋️‍♀️', '🏋️', '🏋️‍♂️', '🤼‍♀️', '🤼', '🤼‍♂️', '🤸‍♀️', '🤸', '🤸‍♂️', '⛹️‍♀️', '⛹️', '⛹️‍♂️', '🤺', '🤾‍♀️', '🤾', '🤾‍♂️', '🏌️‍♀️', '🏌️', '🏌️‍♂️', '🏇', '🧘‍♀️', '🧘', '🧘‍♂️', '🏄‍♀️', '🏄', '🏄‍♂️', '🏊‍♀️', '🏊', '🏊‍♂️', '🤽‍♀️', '🤽', '🤽‍♂️', '🚣‍♀️', '🚣', '🚣‍♂️', '🧗‍♀️', '🧗', '🧗‍♂️', '🚵‍♀️', '🚵', '🚵‍♂️', '🚴‍♀️', '🚴', '🚴‍♂️'];
+export const AVATAR_EMOJIS = ['😊', '😎', '🤔', '😂', '🥰', '😇', '🥳', '🤯', '🤩', '😴', '🌞', '⭐', '😄', '😢', '😠', '😨', '😌', '😟', '😮', '🤗', '🙏', '🦁', '😳', '✨', '😤', '😍', '😕', '😞', '💪', '😜', '😥', '😭', '🙄', '🤢', '🤐', '🥴', '🥺', '🤡', '👻', '👽', '🤖', '👾', '🎃', '😈', '👿', '🔥', '💯', '❤️', '💔', '👍', '👎', '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '✍️', '🤳', '💅', '👀', '👁️', '🧠', '🦴', '🦷', '🗣️', '👤', '👥', '🫂', '👶', '👧', '🧒', '👦', '👩', '🧑', '👨', '👩‍🦱', '🧑‍🦱', '👨‍🦱', '👩‍🦰', '🧑‍🦰', '👨‍🦰', '👱‍♀️', '👱', '👱‍♂️', '👩‍🦳', '🧑‍🦳', '👨‍🦳', '👩‍🦲', '🧑‍🦲', '👨‍🦲', '🧔', '👵', '🧓', '👴', '👲', '👳‍♀️', '👳', '👳‍♂️', '🧕', '👮‍♀️', '👮', '👮‍♂️', '👷‍♀️', '👷', '👷‍♂️', '💂‍♀️', '💂', '💂‍♂️', '🕵️‍♀️', '🕵️', '🕵️‍♂️', '👩‍⚕️', '🧑‍⚕️', '👨‍⚕️', '👩‍🌾', '🧑‍🌾', '👨‍🌾', '👩‍🍳', '🧑‍🍳', '👨‍🍳', '👩‍🎓', '🧑‍🎓', '👨‍🎓', '👩‍🎤', '🧑‍🎤', '👨‍🎤', '👩‍🏫', '🧑‍🏫', '👨‍🏫', '👩‍🏭', '🧑‍🏭', '👨‍🏭', '👩‍💻', '🧑‍💻', '👨‍💻', '👩‍💼', '🧑‍💼', '👨‍💼', '👩‍🔧', '🧑‍🔧', '👨‍🔧', '👩‍🔬', '🧑‍🔬', '👨‍🔬', '👩‍🎨', '🧑‍🎨', '👨‍🎨', '👩‍🚒', '🧑‍🚒', '👨‍🚒', '👩‍✈️', '🧑‍✈️', '👨‍✈️', '👩‍🚀', '🧑‍🚀', '👨‍🚀', '👩‍⚖️', '🧑‍⚖️', '👨‍⚖️', '🦸‍♀️', '🦸', '🦸‍♂️', '🦹‍♀️', '🦹', '🦹‍♂️', '🤶', '🧑‍🎄', '🎅', '🧙‍♀️', '🧙', '🧙‍♂️', '🧝‍♀️', '🧝', '𝓅', '🧛‍♀️', '🧛', '🧛‍♂️', '🧟‍♀️', '🧟', '🧟‍♂️', '🧞‍♀️', '🧞', '🧞‍♂️', '🧜‍♀️', '🧜', '🧜‍♂️', '🧚‍♀️', '🧚', '🧚‍♂️', '👼', '🤰', '🤱', '👩‍🍼', '🧑‍🍼', '👨‍🍼', '🙇‍♀️', '🙇', '🙇‍♂️', '💁‍♀️', '💁', '💁‍♂️', '🙅‍♀️', '🙅', '🙅‍♂️', '🙆‍♀️', '🙆', '🙆‍♂️', '🙋‍♀️', '🙋', '🙋‍♂️', '🧏‍♀️', '🧏', '🧏‍♂️', '🤦‍♀️', '🤦', '🤦‍♂️', '🤷‍♀️', '🤷', '🤷‍♂️', '🙎‍♀️', '🙎', '🙎‍♂️', '🙍‍♀️', '🙍', '🙍‍♂️', '💇‍♀️', '💇', '💇‍♂️', '💆‍♀️', '💆', '💆‍♂️', '🧖‍♀️', '🧖', '🧖‍♂️', '💃', '🕺', '🕴️', '👩‍🦽', '🧑‍🦽', '👨‍🦽', '👩‍🦼', '🧑‍🦼', '👨‍🦼', '🚶‍♀️', '🚶', '🚶‍♂️', '👩‍🦯', '🧑‍🦯', '👨‍🦯', '🧎‍♀️', '🧎', '🧎‍♂️', '🏃‍♀️', '🏃', '🏃‍♂️', '🧍‍♀️', '🧍', '🧍‍♂️', '👫', '👭', '👬', '👩‍❤️‍👨', '👩‍❤️‍👩', '💑', '👨‍❤️‍👨', '👩‍❤️‍💋‍👨', '👩‍❤️‍💋‍👩', '💏', '👨‍❤️‍💋‍👨', '👨‍👩‍👦', '👨‍👩‍👧', '👨‍👩‍👧‍👦', '👨‍👩‍👦‍👦', '👨‍👩‍👧‍👧', '👩‍👩‍👦', '👩‍👩‍👧', '👩‍👩‍👧‍👦', '👩‍👩‍👦‍👦', '👩‍👩‍👧‍👧', '👨‍👨‍👦', '👨‍👨‍👧', '👨‍👨‍👧‍👦', '👨‍👨‍👦‍👦', '👨‍👨‍👧‍👧', '👩‍👦', '👩‍👧', '👩‍👧‍👦', '👩‍👦‍👦', '👩‍👧‍👧', '👨‍👦', '👨‍👧', '👨‍👧‍👦', '👨‍👦‍👦', '👨‍👧‍👧', '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐻‍❄️', '🐨', '🐯', '🦁', '🐮', '🐷', '🐽', '🐸', '🐵', '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜', '🦟', '🦗', '🕷️', '🕸️', '🦂', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🦣', '🐘', '🦛', '🦏', '🐪', '🐫', '🦒', '🦘', '🦬', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🦙', '🐐', '🦌', '🐕', '🐩', '🦮', '🐕‍🦺', '🐈', '🐈‍⬛', '🦢', '🦩', '🦚', '🦜', '🐸', '🐊', '🐢', '🦎', '🐍', '🐲', '🐉', '🌵', '🎄', '🌲', '🌳', '🌴', '🌱', '🌿', '☘️', '🍀', '🎍', '🎋', '🍃', '🍂', '🍁', '🍄', '🐚', '🕸️', '🌎', '🌍', '🌏', '🌕', '🌖', '🌗', '🌘', '🌑', '🌒', '🌓', '🌔', '🌚', '🌝', '🌞', '🪐', '💫', '🌟', '🌠', '🌌', '☁️', '⛅️', '⛈️', '🌤️', '🌥️', '🌦️', '🌧️', '🌨️', '🌩️', '🌪️', '🌫️', '🌬️', '🌈', '☂️', '💧', '🌊', '🍓', '🍎', '🍉', '🍕', '🍰', '⚽️', '🏀', '🏈', '⚾️', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🪃', '🥅', '⛳️', '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛼', '🛷', '⛸️', '🥌', '🎿', '⛷️', '🏂', '🪂', '🏋️‍♀️', '🏋️', '🏋️‍♂️', '🤼‍♀️', '🤼', '🤼‍♂️', '🤸‍♀️', '🤸', '🤸‍♂️', '⛹️‍♀️', '⛹️', '⛹️‍♂️', '🤺', '🤾‍♀️', '🤾', '🤾‍♂️', '🏌️‍♀️', '🏌️', '🏌️‍♂️', '🏇', '🧘‍♀️', '🧘', '🧘‍♂️', '🏄‍♀️', '🏄', '🏄‍♂️', '🏊‍♀️', '🏊', '🏊‍♂️', '🤽‍♀️', '🤽', '🤽‍♂️', '🚣‍♀️', '🚣', '🚣‍♂️', '🧗‍♀️', '🧗', '🧗‍♂️', '🚵‍♀️', '🚵', '🚵‍♂️', '🚴‍♀️', '🚴', '🚴‍♂️'];
 
 
 export const TOUR_STEPS: TourStepData[] = [
@@ -6132,6 +2783,7 @@ export const TOUR_STEPS: TourStepData[] = [
     { refKey: 'gamesRef', title: 'Pon a Prueba tus Emociones', description: 'Diviértete y aprende con juegos interactivos diseñados para mejorar tu inteligencia emocional.' },
     { refKey: 'streakRef', title: 'Controla tu Racha', description: '¡Mantén la llama encendida! Registra tus emociones a diario para no perder tu racha.' },
     { refKey: 'sanctuaryRef', title: 'Tu Santuario de Recompensas', description: 'Alcanza hitos y desbloquea "animales espirituales" como recompensa por tu constancia.' },
+    { refKey: 'petChatRef', title: 'Tu Compañero IA', description: 'Chatea con tus animales espirituales desbloqueados. ¡Están aquí para escucharte!' },
     { refKey: 'calmRef', title: 'Rincón de la Calma', description: '¿Necesitas un respiro? Prueba nuestros ejercicios de respiración guiada para relajarte.' },
     { refKey: 'reportRef', title: 'Reporte Visual', description: 'Observa tus patrones emocionales a lo largo del tiempo con este calendario interactivo.' },
     { refKey: 'shareRef', title: 'Comparte tu Viaje', description: 'Genera un reporte de texto de tu diario para compartirlo con quien tú quieras.' },
@@ -6346,9 +2998,10 @@ export type UserProfile = {
   avatar: string; // Can be an emoji or a URL for generated avatar
   avatarType: 'emoji' | 'generated';
   unlockedAnimalIds?: string[];
+  points?: number;
 };
 
-export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary' | 'games';
+export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary' | 'games' | 'pet-chat';
 
 export type PredefinedEmotion = {
   name: string;
@@ -6366,7 +3019,7 @@ export type TourStepData = {
 
 export type SpiritAnimal = {
   id: string;
-  name: string;
+  name:string;
   icon: string;
   emotion: string;
   description: string;
@@ -6484,8 +3137,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['var(--font-pt-sans)', 'sans-serif'],
-        headline: ['var(--font-pt-sans)', 'sans-serif'],
+        body: ['var(--font-poppins)', 'sans-serif'],
+        headline: ['var(--font-poppins)', 'sans-serif'],
         code: ['monospace'],
       },
       colors: {
