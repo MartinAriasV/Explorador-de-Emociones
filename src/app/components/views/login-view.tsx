@@ -48,6 +48,7 @@ export default function LoginView() {
         } catch (error: any) {
             if (error.code === 'auth/popup-closed-by-user') {
                 // User closed the popup, this is not a real error, so we can safely ignore it.
+                setIsSubmitting(false);
                 return;
             }
             console.error("Google Sign-In Error:", error);
@@ -168,3 +169,5 @@ export default function LoginView() {
         </div>
     );
 }
+
+    
