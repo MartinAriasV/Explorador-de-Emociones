@@ -26,7 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak } from '@/lib/utils';
 import type { User } from 'firebase/auth';
 
@@ -73,19 +73,18 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const addInitialEmotions = useCallback(async (userId: string) => {
     if (!firestore) return;
     const emotionsCollectionRef = collection(firestore, 'users', userId, 'emotions');
-    const emotionsSnapshot = await getDocs(emotionsCollectionRef);
-    if (emotionsSnapshot.empty) {
-      console.log('No emotions found, adding predefined emotions.');
-      const batch = writeBatch(firestore);
-      PREDEFINED_EMOTIONS.slice(0, 5).forEach(emotion => {
-        const newEmotionRef = doc(emotionsCollectionRef);
-        batch.set(newEmotionRef, {
-          ...emotion,
-          isCustom: false,
-        });
+    // For new users, we can just write the batch. No need to check for existing emotions.
+    const batch = writeBatch(firestore);
+    PREDEFINED_EMOTIONS.slice(0, 5).forEach(emotion => {
+      const newEmotionRef = doc(emotionsCollectionRef);
+      batch.set(newEmotionRef, {
+        ...emotion,
+        userId: userId,
+        id: newEmotionRef.id,
+        isCustom: false,
       });
-      await batch.commit();
-    }
+    });
+    await batch.commit();
   }, [firestore]);
 
 
@@ -99,11 +98,14 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
       console.log("No profile found for user, creating one...");
       const newProfile: UserProfile = {
         id: user.uid,
-        name: user.displayName || "Viajero Anónimo",
+        name: user.displayName || user.email?.split('@')[0] || "Viajero Anónimo",
+        email: user.email || 'no-email-provided',
         avatar: '😊',
         avatarType: 'emoji',
         unlockedAnimalIds: [],
       };
+      // Use the non-blocking version to avoid issues, but we still need to wait for this
+      // for the initial setup to proceed correctly.
       await setDoc(userDocRef, newProfile);
       await addInitialEmotions(user.uid);
       return true; // Indicates a new user was created
@@ -214,7 +216,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
       }
     
       if (newUnlockedIds.length > (freshProfile.unlockedAnimalIds?.length || 0)) {
-        await updateDoc(userProfileRef, { unlockedAnimalIds: newUnlockedIds });
+        updateDocumentNonBlocking(userProfileRef, { unlockedAnimalIds: newUnlockedIds });
         if (justUnlockedReward) {
           setNewlyUnlockedReward(justUnlockedReward);
         }
@@ -243,9 +245,11 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   };
 
   const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
-    if (!user) return;
+    if (!user || !userProfile) return;
     const userProfileRef = doc(firestore, 'users', user.uid);
-    updateDocumentNonBlocking(userProfileRef, profile);
+    // Combine with existing profile to ensure all fields are present for rules validation
+    const updatedProfile = { ...userProfile, ...profile };
+    updateDocumentNonBlocking(userProfileRef, updatedProfile);
   };
 
     const saveEmotion = async (emotionData: Omit<Emotion, 'id' | 'userId'> & { id?: string }) => {
@@ -263,18 +267,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
       const emotionRef = doc(emotionsCollection, emotionData.id);
       updateDocumentNonBlocking(emotionRef, dataToSave);
     } else {
-      const q = query(emotionsCollection, where("name", "==", dataToSave.name), where("isCustom", "==", false));
-      const existing = await getDocs(q);
-      if (existing.empty) {
-        addDocumentNonBlocking(emotionsCollection, dataToSave);
-      } else {
-        console.log(`Predefined emotion "${dataToSave.name}" already exists. Skipping.`);
-        toast({
-          title: "Emoción Duplicada",
-          description: `La emoción "${dataToSave.name}" ya existe en tu emocionario.`,
-          variant: "default",
-        })
-      }
+      const newDocRef = doc(emotionsCollection);
+      setDocumentNonBlocking(newDocRef, {...dataToSave, id: newDocRef.id});
     }
     
     if (isNew) {
@@ -307,13 +301,13 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     const updateDiaryEntry = async (updatedEntry: DiaryEntry) => {
     if (!user) return;
     const entryDoc = doc(firestore, 'users', user.uid, 'diaryEntries', updatedEntry.id);
-    await updateDoc(entryDoc, { ...updatedEntry });
+    updateDocumentNonBlocking(entryDoc, { ...updatedEntry });
   };
   
   const deleteDiaryEntry = async (entryId: string) => {
     if (!user) return;
     const entryDoc = doc(firestore, 'users', user.uid, 'diaryEntries', entryId);
-    await deleteDoc(entryDoc);
+    deleteDocumentNonBlocking(entryDoc);
   };
 
 
@@ -436,7 +430,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     return (
         <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-lg text-primary">Cargando datos...</p>
+            <p className="text-lg text-primary">Cargando tu diario...</p>
         </div>
     );
   }

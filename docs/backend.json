@@ -8,22 +8,32 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the user profile."
+          "description": "Unique identifier for the user profile, matches the auth UID."
         },
         "name": {
           "type": "string",
-          "description": "The user's name."
+          "description": "The user's display name."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
         },
         "avatar": {
           "type": "string",
-          "description": "The user's selected avatar (e.g., an emoji)."
+          "description": "The user's selected avatar (e.g., an emoji or URL)."
+        },
+        "avatarType": {
+          "type": "string",
+          "enum": ["emoji", "generated"]
+        },
+        "unlockedAnimalIds": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "List of IDs for unlocked spirit animals."
         }
       },
-      "required": [
-        "id",
-        "name",
-        "avatar"
-      ]
+      "required": ["id", "name", "email", "avatar", "avatarType"]
     },
     "Emotion": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -31,43 +41,15 @@
       "type": "object",
       "description": "Represents an emotion that a user can track in their diary. Stored in a subcollection under each user.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the emotion."
-        },
-        "userId": {
-          "type": "string",
-          "description": "The ID of the user who owns this emotion."
-        },
-        "name": {
-          "type": "string",
-          "description": "The name of the emotion (e.g., 'Joy', 'Sadness')."
-        },
-        "icon": {
-          "type": "string",
-          "description": "An emoji or other icon representing the emotion."
-        },
-        "color": {
-          "type": "string",
-          "description": "A color associated with the emotion (e.g., for visual representation)."
-        },
-        "description": {
-          "type": "string",
-          "description": "A user-defined description or meaning of the emotion."
-        },
-        "isCustom": {
-          "type": "boolean",
-          "description": "Flag to indicate if the emotion was created by the user."
-        }
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "icon": { "type": "string" },
+        "color": { "type": "string" },
+        "description": { "type": "string" },
+        "isCustom": { "type": "boolean" }
       },
-      "required": [
-        "id",
-        "userId",
-        "name",
-        "icon",
-        "color",
-        "isCustom"
-      ]
+      "required": ["userId", "name", "icon", "color", "isCustom"]
     },
     "DiaryEntry": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -75,69 +57,39 @@
       "type": "object",
       "description": "Represents a diary entry, recording a user's emotion and experience on a specific date.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the diary entry."
-        },
-        "userId": {
-          "type": "string",
-          "description": "The ID of the user who owns this entry."
-        },
-        "emotionId": {
-          "type": "string",
-          "description": "Reference to an Emotion document in the user's subcollection."
-        },
-        "date": {
-          "type": "string",
-          "description": "The date of the diary entry.",
-          "format": "date-time"
-        },
-        "text": {
-          "type": "string",
-          "description": "A textual description of the user's experience or feelings."
-        }
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "emotionId": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "text": { "type": "string" }
       },
-      "required": [
-        "id",
-        "userId",
-        "emotionId",
-        "date",
-        "text"
-      ]
+      "required": ["userId", "emotionId", "date", "text"]
     }
   },
   "auth": {
-    "providers": [
-      "anonymous"
-    ]
+    "providers": ["password", "google.com"]
   },
   "firestore": {
     "structure": [
       {
         "path": "/users/{userId}",
         "definition": {
-          "schema": {
-            "$ref": "#/entities/UserProfile"
-          },
+          "schema": { "$ref": "#/entities/UserProfile" },
           "description": "Stores user profiles. Path-based ownership."
         },
         "subcollections": [
           {
             "path": "/emotions/{emotionId}",
             "definition": {
-              "schema": {
-                "$ref": "#/entities/Emotion"
-              },
+              "schema": { "$ref": "#/entities/Emotion" },
               "description": "Stores user-specific emotions."
             }
           },
           {
             "path": "/diaryEntries/{diaryEntryId}",
             "definition": {
-              "schema": {
-                "$ref": "#/entities/DiaryEntry"
-              },
-              "description": "Stores diary entries for each user. Path-based ownership enforced by the collection structure."
+              "schema": { "$ref": "#/entities/DiaryEntry" },
+              "description": "Stores diary entries for each user."
             }
           }
         ]

@@ -27,25 +27,36 @@ service cloud.firestore {
     }
 
     /**
-     * @description Checks if the request is made by the owner of an existing resource.
-     * @param {string} userId The user ID to compare with the resource's user ID.
-     * @return {boolean} True if the user is the owner and the resource exists, false otherwise.
+     * @description Validates the incoming UserProfile data.
+     * @param {map} data The resource data from the request.
+     * @param {string} userId The user's ID.
+     * @return {boolean} True if the data is valid, false otherwise.
      */
-    function isExistingOwner(userId) {
-      return isOwner(userId) && exists(/databases/$(database)/documents/users/$(userId));
+    function isValidUserProfile(data, userId) {
+        return data.id == userId &&
+               data.name is string && data.name.size() > 0 &&
+               data.email is string && data.email.size() > 0 &&
+               data.avatar is string && data.avatar.size() > 0 &&
+               data.avatarType is string && (data.avatarType == 'emoji' || data.avatarType == 'generated');
     }
-    
+
     /**
-     * @description Rule for the users collection itself.
+     * @description Rule for the users collection.
      * @path /users
-     * @deny (list) Disallow listing all users.
      */
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false; // User listing is not permitted for security reasons.
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      // Disallow listing all users for security.
+      allow list: if false;
+
+      // Allow a user to read or delete their own profile.
+      allow get, delete: if isOwner(userId);
+
+      // Allow a user to create their own profile document if it doesn't exist yet
+      // and the data is valid.
+      allow create: if isOwner(userId) && isValidUserProfile(request.resource.data, userId);
+
+      // Allow a user to update their own profile if the data is valid.
+      allow update: if isOwner(userId) && isValidUserProfile(request.resource.data, userId);
 
       /**
        * @description Rule for user-specific emotions.

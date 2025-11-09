@@ -17,8 +17,9 @@ export type DiaryEntry = {
 };
 
 export type UserProfile = {
-  id?: string; // Firestore ID
+  id: string; // Firestore ID, matches auth UID
   name: string;
+  email: string;
   avatar: string; // Can be an emoji or a URL for generated avatar
   avatarType: 'emoji' | 'generated';
   unlockedAnimalIds?: string[];
