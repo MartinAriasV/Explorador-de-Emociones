@@ -212,11 +212,11 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
           <CardDescription>Las emociones que has añadido.</CardDescription>
         </CardHeader>
         <CardContent className="flex-grow overflow-hidden">
-          <ScrollArea className="w-full whitespace-nowrap">
-            {emotionsList.length > 0 ? (
-              <div className="flex w-max space-x-4 pb-4">
-                {emotionsList.map((em) => (
-                  <Card key={em.id} className="group relative w-64 md:w-72 overflow-hidden" style={{borderLeft: `4px solid ${em.color}`}}>
+          <ScrollArea className="h-full pr-4 -mr-4">
+            <div className="space-y-4">
+              {emotionsList.length > 0 ? (
+                emotionsList.map((em) => (
+                  <Card key={em.id} className="group relative w-full overflow-hidden" style={{borderLeft: `4px solid ${em.color}`}}>
                     <CardContent className="p-4">
                       <div className="flex items-start gap-4">
                         <span className="text-3xl mt-1">{em.icon}</span>
@@ -265,14 +265,13 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
                       </div>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center justify-center h-full text-center text-muted-foreground">
-                <p>Tu emocionario está esperando a que lo llenes.</p>
-              </div>
-            )}
-            <ScrollBar orientation="horizontal" />
+                ))
+              ) : (
+                <div className="flex items-center justify-center h-full text-center text-muted-foreground">
+                  <p>Tu emocionario está esperando a que lo llenes.</p>
+                </div>
+              )}
+            </div>
           </ScrollArea>
         </CardContent>
       </Card>

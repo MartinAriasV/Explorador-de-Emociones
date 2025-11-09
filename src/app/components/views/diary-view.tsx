@@ -5,13 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import type { DiaryEntry, Emotion, View } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { suggestCalmingExercise } from '@/ai/flows/suggest-calming-exercise';
 import { Edit, Trash2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 interface DiaryViewProps {
   emotionsList: Emotion[];
@@ -114,7 +114,6 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="flex flex-col gap-4 h-full">
-                  <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label htmlFor="entry-date">Fecha</Label>
                         <Input
@@ -126,24 +125,28 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
                             required
                         />
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="entry-emotion">Emoción</Label>
-                        <Select value={selectedEmotionId} onValueChange={setSelectedEmotionId} required>
-                            <SelectTrigger id="entry-emotion" className="w-full">
-                            <SelectValue placeholder="Elige una emoción" />
-                            </SelectTrigger>
-                            <SelectContent>
+                  <div className="space-y-2">
+                    <Label>Emoción</Label>
+                    <ScrollArea className="w-full whitespace-nowrap rounded-lg bg-muted/30">
+                        <div className="flex w-max space-x-2 p-2">
                             {emotionsList.map((emotion) => (
-                                <SelectItem key={emotion.id} value={emotion.id}>
-                                <div className="flex items-center gap-2">
-                                    <span>{emotion.icon}</span>
-                                    <span>{emotion.name}</span>
-                                </div>
-                                </SelectItem>
+                                <Button
+                                    key={emotion.id}
+                                    type="button"
+                                    variant="outline"
+                                    className={cn(
+                                        "h-20 w-20 flex-col gap-1",
+                                        selectedEmotionId === emotion.id && "ring-2 ring-primary border-primary"
+                                    )}
+                                    onClick={() => setSelectedEmotionId(emotion.id)}
+                                >
+                                    <span className="text-3xl">{emotion.icon}</span>
+                                    <span className="text-xs truncate">{emotion.name}</span>
+                                </Button>
                             ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+                        </div>
+                        <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
                   </div>
                   <div className="space-y-2 flex-grow flex flex-col">
                     <Label htmlFor="entry-text">¿Qué pasó hoy?</Label>
@@ -163,7 +166,7 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
                         Cancelar
                       </Button>
                     )}
-                    <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
+                    <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full" disabled={!selectedEmotionId}>
                       {editingEntry ? 'Guardar Cambios' : 'Guardar Entrada'}
                     </Button>
                   </div>
