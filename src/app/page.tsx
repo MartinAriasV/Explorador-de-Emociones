@@ -22,7 +22,6 @@ function AppGate() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-      // No need to toast on success, the view will change automatically
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -69,8 +68,6 @@ function AppGate() {
             />;
   }
   
-  // EmotionExplorer will now handle its own data loading, including profile creation check.
-  // We pass the user object to it, which is the only piece of data it needs to start.
   return <EmotionExplorer user={user} />;
 }
 
@@ -91,6 +88,3 @@ export default function Home() {
     </main>
   );
 }
-
-
-    
