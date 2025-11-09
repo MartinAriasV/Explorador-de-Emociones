@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useFirebase, useCollection, useDoc } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import type { Emotion, DiaryEntry, UserProfile, Reward } from '@/lib/types';
-import { addDocumentToCollectionNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak } from '@/lib/utils';
 import { REWARDS } from '@/lib/constants';
 import type { User } from 'firebase/auth';
@@ -161,7 +161,7 @@ export function useEmotionData(user: User | null) {
       const q = query(emotionsCollection, where("name", "==", dataToSave.name), where("isCustom", "==", false));
       const existing = await getDocs(q);
       if (existing.empty) {
-        await addDocumentToCollectionNonBlocking(emotionsCollection, dataToSave);
+        await addDocumentNonBlocking(emotionsCollection, dataToSave);
       } else {
         console.log(`Predefined emotion "${dataToSave.name}" already exists. Skipping.`);
       }
@@ -197,7 +197,7 @@ export function useEmotionData(user: User | null) {
   const addDiaryEntry = async (entryData: Omit<DiaryEntry, 'id' | 'userProfileId'>, trigger: 'addEntry' | 'recoverDay' = 'addEntry') => {
     if (!user) return;
     const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
-    await addDocumentToCollectionNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid });
+    await addDocumentNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid });
     await checkAndUnlockRewards(trigger);
   };
   
