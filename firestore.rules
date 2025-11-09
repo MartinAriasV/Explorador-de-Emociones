@@ -1,47 +1,112 @@
+/**
+ * @fileoverview Firestore Security Rules for Emotion Explorer.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model, ensuring that users can only
+ * access and manipulate data associated with their own user ID.
+ *
+ * Data Structure:
+ * - /userProfiles/{userId}: Stores user profile information, with 'userId' matching the Firebase Auth UID.
+ * - /users/{userId}/emotions/{emotionId}: Stores user-defined emotions, nested under the user's document ID.
+ * - /users/{userId}/diaryEntries/{diaryEntryId}: Stores diary entries for each user, with a denormalized 'userId' field.
+ *
+ * Key Security Decisions:
+ * - Users can only read and write their own profile data.
+ * - Users can only manage emotions and diary entries under their own user ID.
+ * - Listing of all users is disallowed; only the currently signed-in user can access their data.
+ * - Data validation is minimized to allow for rapid prototyping, focusing on authorization and relational integrity.
+ *
+ * Denormalization for Authorization:
+ * The 'diaryEntries' collection denormalizes the 'userId' field within each document. This avoids costly `get()` calls
+ * to parent documents for authorization checks, improving performance and security.
+ *
+ * Structural Segregation:
+ * User-specific data (emotions and diary entries) is stored under the user's document ID, creating a clear separation
+ * between different users' data and simplifying security rules.
+ */
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+    /**
+     * @description Controls access to user profile information.
+     * @path /userProfiles/{userId}
+     * @allow (create) - Authenticated user with matching userId can create their profile.
+     * @allow (get, update, delete) - Authenticated user with matching userId can access and modify their profile.
+     * @deny (create) - Authenticated user with non-matching userId cannot create a profile.
+     * @deny (get, update, delete) - Authenticated user with non-matching userId cannot access or modify another user's profile.
+     * @principle Enforces document ownership; users can only access their own profile.
+     */
+    match /userProfiles/{userId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
     }
 
-    // User Profile: a user can read/write to their own profile
-    match /users/{userId} {
-      allow read, delete: if isOwner(userId);
-      allow create, update: if isOwner(userId) &&
-        request.resource.data.name is string &&
-        request.resource.data.avatar is string &&
-        request.resource.data.avatarType is string &&
-        // optional fields
-        (!request.resource.data.keys().hasAny(['unlockedAnimalIds']) || request.resource.data.unlockedAnimalIds is list);
-    }
-
-    // Diary Entries: a user can CRUD their own diary entries
-    match /users/{userId}/diaryEntries/{diaryEntryId} {
-      allow read, delete: if isOwner(userId);
-      allow create, update: if isOwner(userId)
-        && request.resource.data.keys().hasAll(['userProfileId', 'emotionId', 'date', 'text'])
-        && request.resource.data.size() == 4
-        && request.resource.data.userProfileId == userId
-        && request.resource.data.emotionId is string
-        && request.resource.data.date is string
-        && request.resource.data.text is string;
-    }
-
-    // Emotions: a user can CRUD their own custom emotions
+    /**
+     * @description Controls access to user-defined emotions.
+     * @path /users/{userId}/emotions/{emotionId}
+     * @allow (create) - Authenticated user with matching userId can create emotions.
+     * @allow (get, list, update, delete) - Authenticated user with matching userId can access and modify their emotions.
+     * @deny (create) - Authenticated user with non-matching userId cannot create emotions for another user.
+     * @deny (get, list, update, delete) - Authenticated user with non-matching userId cannot access or modify another user's emotions.
+     * @principle Enforces user-based ownership for emotions data.
+     */
     match /users/{userId}/emotions/{emotionId} {
-      allow read, delete: if isOwner(userId);
-      allow create, update: if isOwner(userId)
-        && request.resource.data.keys().hasAll(['userProfileId', 'name', 'icon', 'color', 'description', 'isCustom'])
-        && (request.resource.data.size() == 6 || request.resource.data.size() == 5)
-        && request.resource.data.userProfileId == userId
-        && request.resource.data.name is string
-        && request.resource.data.icon is string
-        && request.resource.data.color is string
-        && request.resource.data.description is string
-        && request.resource.data.isCustom is bool;
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to user diary entries.
+     * @path /users/{userId}/diaryEntries/{diaryEntryId}
+     * @allow (create) - Authenticated user with matching userId can create diary entries.
+     * @allow (get, list, update, delete) - Authenticated user with matching userId can access and modify their diary entries.
+     * @deny (create) - Authenticated user with non-matching userId cannot create diary entries for another user.
+     * @deny (get, list, update, delete) - Authenticated user with non-matching userId cannot access or modify another user's diary entries.
+     * @principle Enforces user-based ownership for diary entries data.
+     */
+    match /users/{userId}/diaryEntries/{diaryEntryId} {
+      function isSignedIn() {
+        return request.auth != null;
+      }
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+       function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
     }
   }
 }

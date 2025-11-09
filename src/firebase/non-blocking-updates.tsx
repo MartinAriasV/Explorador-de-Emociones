@@ -5,8 +5,6 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
-  collection,
-  doc,
   CollectionReference,
   DocumentReference,
   SetOptions,
@@ -16,35 +14,31 @@ import {FirestorePermissionError} from '@/firebase/errors';
 
 /**
  * Initiates a setDoc operation for a document reference.
- * If merge is true, it merges data; otherwise, it overwrites.
- * This is for creating or overwriting a document with a specific ID.
  * Does NOT await the write operation internally.
  */
-export function setDocumentNonBlocking(docRef: DocumentReference, data: any, options: SetOptions = {}) {
-  // Execution continues immediately
-  return setDoc(docRef, data, options).catch(error => {
+export function setDocumentNonBlocking(docRef: DocumentReference, data: any, options: SetOptions) {
+  setDoc(docRef, data, options).catch(error => {
     errorEmitter.emit(
       'permission-error',
       new FirestorePermissionError({
         path: docRef.path,
-        operation: options.merge ? 'update' : 'create',
+        operation: 'write', // or 'create'/'update' based on options
         requestResourceData: data,
       })
     )
   })
+  // Execution continues immediately
 }
 
 
 /**
- * Initiates an addDoc operation within a collection. This is for when Firestore should generate the ID.
- * This function can ONLY operate on a CollectionReference.
+ * Initiates an addDoc operation for a collection reference.
  * Does NOT await the write operation internally.
  * Returns the Promise for the new doc ref, but typically not awaited by caller.
  */
-export function addDocumentToCollectionNonBlocking<T>(colRef: CollectionReference<T> , data: any) {
-  const promise = addDoc(colRef, data);
-
-  promise.catch(error => {
+export function addDocumentNonBlocking(colRef: CollectionReference, data: any) {
+  const promise = addDoc(colRef, data)
+    .catch(error => {
       errorEmitter.emit(
         'permission-error',
         new FirestorePermissionError({
@@ -54,20 +48,17 @@ export function addDocumentToCollectionNonBlocking<T>(colRef: CollectionReferenc
         })
       )
     });
-  // Return the promise in case the caller wants to use the new doc ID, but they should handle the .then() themselves
   return promise;
 }
 
 
 /**
  * Initiates an updateDoc operation for a document reference.
- * This is the correct, safe way to update fields in an existing document.
  * Does NOT await the write operation internally.
  */
-export function updateDocumentNonBlocking(docRef: DocumentReference, data: Partial<any>) {
-  return updateDoc(docRef, data)
+export function updateDocumentNonBlocking(docRef: DocumentReference, data: any) {
+  updateDoc(docRef, data)
     .catch(error => {
-      console.error("Update failed", error);
       errorEmitter.emit(
         'permission-error',
         new FirestorePermissionError({
@@ -85,7 +76,7 @@ export function updateDocumentNonBlocking(docRef: DocumentReference, data: Parti
  * Does NOT await the write operation internally.
  */
 export function deleteDocumentNonBlocking(docRef: DocumentReference) {
-  return deleteDoc(docRef)
+  deleteDoc(docRef)
     .catch(error => {
       errorEmitter.emit(
         'permission-error',
