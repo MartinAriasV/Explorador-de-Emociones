@@ -36,50 +36,46 @@ service cloud.firestore {
           return isOwner(userId) && resource != null;
       }
       
+      // Allows updates to user profile fields that DON'T involve points.
+      // This is for things like changing name, avatar, or equipping items.
       function isUpdatingAllowedFields() {
-        // Defines the fields a user IS allowed to change directly on their profile.
-        let allowedWriteFields = ['name', 'avatar', 'avatarType', 'equippedItems'];
+        let newPoints = request.resource.data.points;
+        let oldPoints = resource.data.points;
+        let allowedFields = ['name', 'avatar', 'avatarType', 'equippedItems'];
         
-        // System-managed fields a user should NOT be able to change directly.
-        let protectedFields = ['points', 'purchasedItemIds', 'unlockedAnimalIds'];
-
-        // Check if ANY protected field is being changed.
-        let isChangingProtectedField = protectedFields.some(field => request.resource.data[field] != resource.data[field]);
-
-        // If a protected field is being changed, the entire update is denied from this rule.
-        // It must pass through a different mechanism (like transaction rules).
-        if (isChangingProtectedField) {
-            return false;
-        }
-
-        // If we are here, it means no protected fields are being changed.
-        // Now, we ensure ONLY the allowed fields are being updated.
-        // `request.resource.data.keys()` gives all keys in the incoming data.
-        // `resource.data.keys()` gives all keys in the existing data.
-        // `diff()` shows the changes. `hasOnly()` checks if the changes are ONLY in the allowed list.
-        return request.resource.data.keys().diff(resource.data.keys()).hasOnly(allowedWriteFields);
+        // The rule is: points must NOT change, and only allowed fields can be modified.
+        return newPoints == oldPoints && request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedFields);
       }
 
+      // Allows updates that ONLY change points, and only by specific amounts.
+      // This is for transactions like diary entries, games, or shop purchases.
       function isPointsTransactionValid() {
           let newPoints = request.resource.data.points;
           let oldPoints = resource.data.points;
-
-          // If points are not changing, another rule should handle it.
+          
+          // Ensure no other fields are being changed at the same time as points.
+          let onlyPointsAreChanging = request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points']);
+          
+          // If points are not changing, this rule does not apply.
           if (newPoints == oldPoints) {
             return false;
           }
-          
-          // Allow specific point changes from transactions (diary, games, shop)
-          return (
+
+          // Allow specific point changes from transactions
+          let isPointChangeValid = (
             newPoints == oldPoints + 10 || // Diary entry
-            newPoints == oldPoints + 5  || // Game win
             newPoints == oldPoints + 15 || // Game win (story builder)
+            newPoints == oldPoints + 5  || // Game win (empathy gallery)
             newPoints == oldPoints - 100 || // Shop
             newPoints == oldPoints - 150 || // Shop
             newPoints == oldPoints - 250 || // Shop
+            newPoints == oldPoints - 300 || // Shop
+            newPoints == oldPoints - 400 || // Shop
             newPoints == oldPoints - 500 || // Shop
             newPoints == oldPoints - 750    // Shop
           );
+
+          return onlyPointsAreChanging && isPointChangeValid;
       }
       
       allow get: if isOwner(userId);
