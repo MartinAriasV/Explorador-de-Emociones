@@ -121,6 +121,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         points: 0,
         purchasedItemIds: [],
         equippedItems: {},
+        ascentHighScore: 0,
       };
       await setDoc(userDocRef, newProfile);
       await addInitialEmotions(user.uid);
@@ -295,6 +296,47 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
             emotionId: emotionsList.find(e => e.name.toLowerCase() === 'calma')?.id || emotionsList[0].id,
             text: 'Día recuperado completando el desafío de la racha. ¡Buen trabajo!',
           }, 'recoverDay');
+    }
+  };
+  
+  const handleAscentGameEnd = async (score: number) => {
+    if (!user || !firestore) return;
+    const userDocRef = doc(firestore, 'users', user.uid);
+
+    try {
+        await runTransaction(firestore, async (transaction) => {
+            const userDoc = await transaction.get(userDocRef);
+            if (!userDoc.exists()) {
+                throw new Error("User profile does not exist!");
+            }
+            
+            const profileData = userDoc.data() as UserProfile;
+            const currentHighScore = profileData.ascentHighScore || 0;
+            const newPoints = (profileData.points || 0) + score;
+
+            if (score > currentHighScore) {
+                transaction.update(userDocRef, {
+                    points: newPoints,
+                    ascentHighScore: score
+                });
+                toast({
+                    title: `¡Nuevo récord!`,
+                    description: `Has conseguido ${score} puntos.`,
+                });
+            } else {
+                transaction.update(userDocRef, { points: newPoints });
+                 toast({
+                    title: "¡Buen juego!",
+                    description: `Has ganado ${score} puntos.`,
+                });
+            }
+        });
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: "Error al guardar la puntuación",
+            description: "No se pudo guardar tu puntuación. Inténtalo de nuevo.",
+        });
     }
   };
 
@@ -515,7 +557,13 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
             case 'discover':
               return <DiscoverView onAddPredefinedEmotion={saveEmotion} />;
             case 'games':
-                return <GamesView emotionsList={emotionsList || []} addPoints={addPoints} user={user}/>;
+                return <GamesView 
+                           emotionsList={emotionsList || []}
+                           userProfile={userProfile!}
+                           addPoints={addPoints} 
+                           user={user} 
+                           onAscentGameEnd={handleAscentGameEnd}
+                       />;
             case 'calm':
               return <CalmView />;
             case 'streak':
