@@ -78,11 +78,11 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
            </Avatar>
            <div className="flex flex-col group-data-[collapsible=icon]:hidden">
                 <span className="font-bold text-lg text-primary">{userProfile.name}</span>
-                 <div className="flex items-center gap-4">
+                 <div className="flex flex-col">
                   <div className="flex items-center gap-1 text-sm text-amber-500">
                     <Flame className={cn("h-5 w-5", dailyStreak > 0 && "animate-flame")} />
                     <span className="font-bold">{dailyStreak}</span>
-                    <span>días</span>
+                    <span>días de racha</span>
                   </div>
                   <div className="flex items-center gap-1 text-sm text-yellow-500">
                     <Star className="h-5 w-5" />
