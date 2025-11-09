@@ -8,7 +8,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the user profile."
+          "description": "Unique identifier for the UserProfile entity."
         },
         "name": {
           "type": "string",
@@ -16,7 +16,7 @@
         },
         "avatar": {
           "type": "string",
-          "description": "The user's selected avatar (e.g., an emoji or URL)."
+          "description": "The user's chosen avatar (e.g., an emoji or image URL)."
         }
       },
       "required": [
@@ -33,7 +33,7 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the emotion."
+          "description": "Unique identifier for the Emotion entity."
         },
         "name": {
           "type": "string",
@@ -41,34 +41,37 @@
         },
         "icon": {
           "type": "string",
-          "description": "The icon or emoji associated with the emotion."
+          "description": "An emoji or other icon representing the emotion."
         },
         "color": {
           "type": "string",
-          "description": "The color associated with the emotion (e.g., a hex code)."
+          "description": "A color associated with the emotion (e.g., '#FF0000' for red)."
         },
-        "description": {
+        "definition": {
           "type": "string",
-          "description": "A description of what the emotion means to the user."
+          "description": "A user-defined definition of what this emotion means to them. (Optional and can be null)"
+        },
+        "example": {
+          "type": "string",
+          "description": "An example situation or feeling related to the emotion. (Optional and can be null)"
         }
       },
       "required": [
         "id",
         "name",
         "icon",
-        "color",
-        "description"
+        "color"
       ]
     },
     "DiaryEntry": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "DiaryEntry",
       "type": "object",
-      "description": "Represents a single entry in the user's diary.",
+      "description": "Represents a single diary entry recording a user's emotion and experience.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the diary entry."
+          "description": "Unique identifier for the DiaryEntry entity."
         },
         "userId": {
           "type": "string",
@@ -85,7 +88,7 @@
         },
         "text": {
           "type": "string",
-          "description": "The text content of the diary entry."
+          "description": "A textual description of the user's experience and feelings."
         }
       },
       "required": [
@@ -99,23 +102,24 @@
   },
   "auth": {
     "providers": [
-      "google.com"
+      "password",
+      "anonymous"
     ]
   },
   "firestore": {
     "structure": [
       {
-        "path": "/users/{userId}/userProfile",
+        "path": "/users/{userId}",
         "definition": {
           "entityName": "UserProfile",
           "schema": {
             "$ref": "#/backend/entities/UserProfile"
           },
-          "description": "Stores user profile information. Path-based ownership using the 'userId' parameter ensures only the authenticated user can access their profile.",
+          "description": "Stores user profile information, owned by the user.  No denormalized authorization fields required as it is path-based ownership.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique identifier of the user, corresponding to their Firebase Auth UID."
+              "description": "The unique identifier of the user."
             }
           ]
         }
@@ -127,15 +131,15 @@
           "schema": {
             "$ref": "#/backend/entities/DiaryEntry"
           },
-          "description": "Stores diary entries for each user. Path-based ownership enforced by 'userId'.",
+          "description": "Stores diary entries for a specific user. No denormalized authorization fields required as it is path-based ownership.",
           "params": [
             {
               "name": "userId",
-              "description": "The unique identifier of the user who owns the diary entry."
+              "description": "The unique identifier of the user."
             },
             {
               "name": "diaryEntryId",
-              "description": "The unique identifier for the diary entry."
+              "description": "The unique identifier of the diary entry."
             }
           ]
         }
@@ -147,16 +151,16 @@
           "schema": {
             "$ref": "#/backend/entities/Emotion"
           },
-          "description": "Stores global emotion definitions.",
+          "description": "Stores predefined emotions that can be used in diary entries. No denormalized authorization fields required as these documents share the same security posture.",
           "params": [
             {
               "name": "emotionId",
-              "description": "The unique identifier for the emotion."
+              "description": "The unique identifier of the emotion."
             }
           ]
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to adhere to the principles of Authorization Independence, Clarity of Intent, DBAC, QAPs, and Invariants. The core idea revolves around path-based ownership for private user data. User profiles and diary entries are organized under their respective user IDs, and crucial data for access control is denormalized to avoid `get()` calls in security rules.\n\n- **/users/{userId}/userProfile:** Each user has their profile stored under their UID. This ensures direct ownership and simplifies security rules.\n- **/users/{userId}/diaryEntries/{diaryEntryId}**: Diary entries are stored as subcollections under each user. The `userId` field within each diary entry explicitly defines ownership. No denormalization is required as security rules will leverage path-based access control.\n- **/emotions/{emotionId}**: Emotions are stored in a top-level collection, representing global, pre-defined emotions. No user-specific ownership is required, so this can be a simple public collection.\n\nThis structure enables secure `list` operations for diary entries, as each user can only access entries under their path. Authorization Independence is achieved by structuring data to not require reading parent documents for authorization. DBAC (Database-Based Access Control) is fully supported since roles are determined based on the `request.auth.uid` matching the document path.\n"
+    "reasoning": "The Firestore structure is designed to address the 'auth/operation-not-allowed' error, which typically indicates that the Firebase Authentication service is not enabled for the project or that sign-in methods are not properly configured. The structure focuses on storing user-related data in a way that simplifies security rules and ensures data integrity, adhering to the core design principles.\n\n**Authorization Independence (CRITICAL):** All data is owned by individual users, eliminating the need for hierarchical authorization checks. Diary entries are stored under the user's ID, making authorization rules straightforward based on `request.auth.uid`.\n\n**Clarity of Intent (Debuggability):** The data structure clearly reflects the intent of ownership and relationships. The path `/users/{userId}/diaryEntries/{diaryEntryId}` explicitly shows that diary entries belong to a specific user.\n\n**DBAC (No Custom Claims):** User roles are not used; authentication relies solely on `request.auth.uid` to determine access based on path ownership.\n\n**QAPs (Rules are not Filters):** The structure supports secure `list` operations. Listing diary entries is limited to the entries owned by the authenticated user, preventing unauthorized data access. Emotion documents are segregated and do not require filtering.\n\n**Invariants:** The structure supports the integrity of ownership by directly linking diary entries to user IDs. Timestamps within diary entries and denormalized data (if any) maintain consistency.\n\nThe structure uses path-based ownership for private data, specifically for user profiles and diary entries. This approach simplifies security rules and enforces clear ownership. There is no collaborative data, and thus no membership maps are used.\n\nTo resolve the 'auth/operation-not-allowed' error, ensure the Firebase Authentication service is enabled and the necessary sign-in methods (e.g., email/password, Google Sign-In) are activated in the Firebase Console."
   }
 }
