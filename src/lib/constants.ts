@@ -276,4 +276,6 @@ export const SHOP_ITEMS: ShopItem[] = [
     { id: 'frame-silver', name: 'Marco Plateado', description: 'Un marco plateado elegante para tu avatar.', cost: 150, type: 'avatar_frame', value: 'border-slate-400', icon: '🖼️' },
     { id: 'hat-cowboy', name: 'Sombrero de Vaquero', description: 'Un sombrero de vaquero para tu mascota IA.', cost: 500, type: 'pet_accessory', value: 'hat-cowboy', icon: '🤠' },
     { id: 'hat-wizard', name: 'Sombrero de Mago', description: 'Un sombrero de mago místico para tu mascota.', cost: 750, type: 'pet_accessory', value: 'hat-wizard', icon: '🧙' },
+    { id: 'glasses-nerd', name: 'Gafas de Nerd', description: 'Un par de gafas de nerd para tu mascota.', cost: 300, type: 'pet_accessory', value: 'glasses-nerd', icon: '🤓' },
+    { id: 'scarf-gryffindor', name: 'Bufanda Mágica', description: 'Una bufanda de lana para los días de frío.', cost: 400, type: 'pet_accessory', value: 'scarf-gryffindor', icon: '🧣' },
 ];

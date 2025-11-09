@@ -24,8 +24,8 @@ export type UserProfile = {
   avatarType: 'emoji' | 'generated';
   unlockedAnimalIds: string[];
   points: number;
-  purchasedItemIds?: string[];
-  equippedItems?: { [key in ShopItemType]?: string }; // e.g. { 'theme': 'theme-ocean', 'avatar_frame': 'frame-gold' }
+  purchasedItemIds: string[];
+  equippedItems: { [key in ShopItemType]?: string }; // e.g. { 'theme': 'theme-ocean', 'avatar_frame': 'frame-gold' }
 };
 
 export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary' | 'games' | 'pet-chat' | 'shop';
@@ -80,7 +80,7 @@ export type ShopItem = {
   description: string;
   cost: number;
   type: ShopItemType;
-  value: string; // e.g. 'theme-ocean', 'frame-gold', 'hat-cowboy'
+  value: string; // e.g. 'theme-ocean', 'border-amber-400', 'hat-cowboy'
   icon: string; // Emoji or identifier for the item
 };
 

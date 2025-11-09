@@ -67,7 +67,8 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
       setLocalEquippedItems(newItems);
   }
 
-  const purchasedFrames = SHOP_ITEMS.filter(item => item.type === 'avatar_frame' && userProfile?.purchasedItemIds?.includes(item.id));
+  const purchasedItems = SHOP_ITEMS.filter(item => userProfile?.purchasedItemIds?.includes(item.id));
+  const purchasedFrames = purchasedItems.filter(item => item.type === 'avatar_frame');
 
   if (!userProfile) {
     return (
@@ -82,6 +83,7 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
     <Card className="w-full max-w-2xl mx-auto h-full shadow-lg flex flex-col">
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-primary">Mi Perfil</CardTitle>
+        <CardDescription>Personaliza tu apariencia y equipa los artículos que has comprado en la tienda.</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow flex flex-col gap-6 overflow-hidden">
         <div className="space-y-2">
@@ -121,14 +123,15 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
         
         {purchasedFrames.length > 0 && (
             <div className="space-y-2">
-                <label className="text-sm font-medium">Marcos de Avatar</label>
-                <div className="flex gap-4 items-center">
+                <label className="text-sm font-medium">Marcos de Avatar Comprados</label>
+                <div className="flex flex-wrap gap-4 items-center">
                     <Button 
                         variant="outline"
                         onClick={() => handleUnequipItem('avatar_frame')}
-                        className={cn("h-16 w-16 text-muted-foreground", !localEquippedItems['avatar_frame'] && 'ring-2 ring-primary')}
+                        className={cn("h-16 w-16 text-muted-foreground flex flex-col gap-1 items-center justify-center", !localEquippedItems['avatar_frame'] && 'ring-2 ring-primary')}
                     >
                         <X/>
+                        <span className="text-xs">Ninguno</span>
                     </Button>
                     {purchasedFrames.map(item => (
                         <Button
