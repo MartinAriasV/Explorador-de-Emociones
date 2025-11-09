@@ -9,9 +9,10 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import type { DiaryEntry, Emotion, View } from '@/lib/types';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { suggestCalmingExercise } from '@/ai/flows/suggest-calming-exercise';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, Mic } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface DiaryViewProps {
   emotionsList: Emotion[];
@@ -32,25 +33,73 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
   
   const [aiSuggestion, setAiSuggestion] = useState('');
   const [isSuggestionLoading, setIsSuggestionLoading] = useState(false);
+  
+  const [isListening, setIsListening] = useState(false);
+  const { toast } = useToast();
+  const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     if (editingEntry) {
-        // When editing, parse the ISO string and format it to YYYY-MM-DD for the input
         const entryDate = new Date(editingEntry.date);
         const formattedDate = entryDate.toISOString().split('T')[0];
         setDate(formattedDate);
         setSelectedEmotionId(editingEntry.emotionId);
         setText(editingEntry.text);
-        
-        // Scroll the form into view
         formCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
     } else {
-        // When not editing, reset to default values
         resetForm();
     }
   }, [editingEntry]);
+  
+  const handleVoiceInput = () => {
+    if (typeof window === 'undefined') return;
+    
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast({
+        title: "Navegador no compatible",
+        description: "Tu navegador no soporta el dictado por voz.",
+        variant: "destructive",
+      });
+      return;
+    }
 
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'es-ES';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognitionRef.current = recognition;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setText(prev => prev ? prev + ' ' + transcript : transcript);
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      toast({
+        title: "Error de dictado",
+        description: "No se pudo entender. Por favor, inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+    
+    recognition.start();
+  };
 
   const resetForm = () => {
     setDate(new Date().toISOString().split('T')[0]);
@@ -68,9 +117,7 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
     e.preventDefault();
     if (!date || !selectedEmotionId || !text) return;
     
-    // Ensure the date is treated as UTC to avoid timezone shifts
     const utcDate = new Date(date).toISOString();
-
     const entryData = { date: utcDate, emotionId: selectedEmotionId, text };
 
     if (editingEntry) {
@@ -96,7 +143,6 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
   return (
     <>
       <div className="grid lg:grid-cols-2 gap-6 h-full">
-        {/* Columna del formulario */}
         <Card ref={formCardRef} className="w-full shadow-lg flex flex-col">
            <CardHeader>
             <CardTitle className="text-2xl font-bold text-primary">
@@ -149,7 +195,19 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
                     </ScrollArea>
                   </div>
                   <div className="space-y-2 flex-grow flex flex-col">
-                    <Label htmlFor="entry-text">¿Qué pasó hoy?</Label>
+                    <div className="flex justify-between items-center">
+                      <Label htmlFor="entry-text">¿Qué pasó hoy?</Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={handleVoiceInput}
+                        className={cn(isListening && 'text-destructive animate-pulse')}
+                      >
+                        <Mic className="h-5 w-5" />
+                        <span className="sr-only">Dictado por voz</span>
+                      </Button>
+                    </div>
                     <Textarea
                         id="entry-text"
                         placeholder="Describe tu día, tus pensamientos, tus sentimientos..."
@@ -175,7 +233,6 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
           </CardContent>
         </Card>
 
-        {/* Columna de las entradas */}
         <Card className="w-full shadow-lg flex flex-col">
           <CardHeader>
             <CardTitle className="text-2xl font-bold text-primary">Mis Entradas</CardTitle>
