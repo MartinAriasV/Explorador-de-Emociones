@@ -16,6 +16,21 @@ import { SHOP_ITEMS } from '@/lib/constants';
 
 function AppGate() {
   const { user, isUserLoading } = useUser();
+  const { firestore } = useFirebase();
+
+  const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
+  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
+
+  useEffect(() => {
+    const equippedTheme = userProfile?.equippedItems?.['theme'];
+    const themeItem = SHOP_ITEMS.find(item => item.id === equippedTheme);
+    
+    document.documentElement.classList.remove('theme-ocean', 'theme-forest');
+
+    if (themeItem) {
+      document.documentElement.classList.add(themeItem.value);
+    }
+  }, [userProfile]);
   
   if (isUserLoading) {
     return (

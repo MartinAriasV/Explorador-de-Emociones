@@ -72,6 +72,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const isLoading = isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading;
   const [selectedPet, setSelectedPet] = useState<SpiritAnimal | null>(null);
 
+
   const purchasedItems = useMemo(() => {
     if (!userProfile?.purchasedItemIds) return [];
     return SHOP_ITEMS.filter(item => userProfile.purchasedItemIds.includes(item.id));
