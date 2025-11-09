@@ -39,12 +39,11 @@ service cloud.firestore {
       // Allows updates to user profile fields that DON'T involve points.
       // This is for things like changing name, avatar, or equipping items.
       function isUpdatingAllowedFields() {
-        let newPoints = request.resource.data.points;
-        let oldPoints = resource.data.points;
         let allowedFields = ['name', 'avatar', 'avatarType', 'equippedItems'];
         
-        // The rule is: points must NOT change, and only allowed fields can be modified.
-        return newPoints == oldPoints && request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedFields);
+        // This rule is: points must NOT change, and only allowed fields can be modified.
+        return request.resource.data.points == resource.data.points
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedFields);
       }
 
       // Allows updates that ONLY change points, and only by specific amounts.
