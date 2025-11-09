@@ -70,7 +70,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const [newlyUnlockedReward, setNewlyUnlockedReward] = useState<Reward | null>(null);
   
   const isLoading = isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading;
-  const [selectedPet, setSelectedPet] = useState<SpiritAnimal | null>(selectedPet);
+  const [selectedPet, setSelectedPet] = useState<SpiritAnimal | null>(null);
 
   const purchasedItems = useMemo(() => {
     if (!userProfile?.purchasedItemIds) return [];
