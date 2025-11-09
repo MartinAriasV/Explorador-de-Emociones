@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,9 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { useFirebase } from '@/firebase';
+import { GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+
 
 function GoogleIcon() {
     return (
@@ -22,15 +25,9 @@ g" />
     )
 }
 
-interface LoginViewProps {
-  onGoogleSignIn: () => Promise<void>;
-  onEmailSignIn: (email: string, pass: string) => Promise<void>;
-  onEmailSignUp: (email: string, pass: string) => Promise<void>;
-}
-
-
-export default function LoginView({ onGoogleSignIn, onEmailSignIn, onEmailSignUp }: LoginViewProps) {
+export default function LoginView() {
     const { toast } = useToast();
+    const { auth } = useFirebase();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,37 +38,58 @@ export default function LoginView({ onGoogleSignIn, onEmailSignIn, onEmailSignUp
         return re.test(String(email).toLowerCase());
     }
 
-    const handleGoogleSignIn = async () => {
+    const handleGoogleSignIn = useCallback(async () => {
         setIsSubmitting(true);
-        await onGoogleSignIn();
-        // isSubmitting will be set to false by the parent component's error/success handling
-    };
+        const provider = new GoogleAuthProvider();
+        try {
+            await signInWithPopup(auth, provider);
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Error de inicio de sesión con Google',
+                description: error.message || 'No se pudo iniciar sesión con Google.',
+            });
+            setIsSubmitting(false);
+        }
+    }, [auth, toast]);
 
-    const handleEmailSignIn = async (e: React.FormEvent) => {
+    const handleEmailSignIn = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         if (!validateEmail(email)) {
-            toast({ variant: "destructive", title: "Correo no válido", description: "Introduce un correo válido." });
+            toast({ variant: 'destructive', title: 'Correo no válido', description: 'Introduce un correo válido.' });
             return;
         }
         setIsSubmitting(true);
-        await onEmailSignIn(email, password);
-        setIsSubmitting(false);
-    };
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+        } catch (error: any) {
+            toast({ variant: 'destructive', title: 'Error al iniciar sesión', description: 'Credenciales incorrectas. Inténtalo de nuevo.' });
+            setIsSubmitting(false);
+        }
+    }, [auth, email, password, toast]);
 
-    const handleEmailSignUp = async (e: React.FormEvent) => {
+    const handleEmailSignUp = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
         if (!validateEmail(email)) {
-            toast({ variant: "destructive", title: "Correo no válido", description: "Introduce un correo válido." });
+            toast({ variant: 'destructive', title: 'Correo no válido', description: 'Introduce un correo válido.' });
             return;
         }
         if (password.length < 6) {
-            toast({ variant: "destructive", title: "Contraseña débil", description: "La contraseña debe tener al menos 6 caracteres." });
+            toast({ variant: 'destructive', title: 'Contraseña débil', description: 'La contraseña debe tener al menos 6 caracteres.' });
             return;
         }
         setIsSubmitting(true);
-        await onEmailSignUp(email, password);
-        setIsSubmitting(false);
-    };
+        try {
+            await createUserWithEmailAndPassword(auth, email, password);
+        } catch (error: any) {
+            if (error.code === 'auth/email-already-in-use') {
+                toast({ variant: 'destructive', title: 'Correo ya en uso', description: 'Este correo ya está registrado. Por favor, inicia sesión.' });
+            } else {
+                toast({ variant: 'destructive', title: 'Error al crear cuenta', description: error.message || 'No se pudo crear la cuenta.' });
+            }
+            setIsSubmitting(false);
+        }
+    }, [auth, email, password, toast]);
 
     const renderLogin = () => (
         <>
@@ -165,9 +183,3 @@ export default function LoginView({ onGoogleSignIn, onEmailSignIn, onEmailSignUp
         </div>
     );
 }
-
-    
-
-    
-
-    
