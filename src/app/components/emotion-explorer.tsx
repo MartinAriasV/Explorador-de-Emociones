@@ -586,23 +586,22 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 
   const equippedThemeId = userProfile.equippedItems?.['theme'];
   const isForestTheme = SHOP_ITEMS.find(item => item.id === equippedThemeId)?.value === 'theme-forest';
+
+  const containerClasses = cn(
+    "flex h-screen w-screen",
+    isForestTheme ? 'bg-forest-gradient' : 'bg-background'
+  );
   
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-screen">
+      <div className={containerClasses}>
         <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
-        <main className={cn(
-          "flex-1 flex flex-col overflow-hidden bg-background",
-          isForestTheme && 'bg-forest-gradient'
-        )}>
-          <header className="p-2 md:hidden flex items-center border-b bg-background">
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <header className="p-2 md:hidden flex items-center border-b bg-background/80 backdrop-blur-sm">
               <MobileMenuButton />
               <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
           </header>
-          <div className={cn(
-            "flex-1 p-4 md:p-6 overflow-y-auto",
-            isForestTheme && 'bg-background/80' // Add semi-transparent overlay to content area if needed for readability
-          )}>
+          <div className="flex-1 p-4 md:p-6 overflow-y-auto">
             {renderView()}
           </div>
         </main>
