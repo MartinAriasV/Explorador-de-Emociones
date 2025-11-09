@@ -1,129 +1,111 @@
 /**
- * @file Firestore Security Rules
- * @description This ruleset enforces a strict user-ownership model for user profiles and diary entries.
+ * @fileoverview Firestore Security Rules for Emotion Explorer.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model for user profiles and diary entries.
+ * Only authenticated users can create or modify their own data.
+ * Emotions are publicly readable but cannot be created, updated, or deleted via the client.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile information, accessible only to the owning user.
- * - /users/{userId}/diaryEntries/{diaryEntryId}: Stores diary entries, accessible only to the owning user.
- * - /emotions/{emotionId}: Stores publicly accessible emotion definitions.
+ * - /users/{userId}: Stores user profile information, with ownership determined by the {userId} path segment.
+ * - /emotions/{emotionId}: Stores a predefined list of emotions, publicly readable.
+ * - /users/{userId}/diaryEntries/{diaryEntryId}: Stores diary entries for a specific user, with ownership determined by the {userId} path segment.
  *
  * Key Security Decisions:
- * - Users can only access their own profile data and diary entries.
- * - Emotions are publicly readable, but writes are not allowed.
- * - Listing all users is disallowed.
+ * - User profiles can only be created by the user themselves.
+ * - User profiles can only be modified or deleted by the user themselves.
+ * - Diary entries can only be created, modified, or deleted by the user who owns the parent user profile.
+ * - Emotions are publicly readable to provide a consistent set of options in the app.
+ * - Listing of emotions is allowed.
+ * - Listing of diary entries is restricted to the owner of the user profile.
+ * - The rules do not enforce the specific schema of the data being written (data types, required fields), focusing on authorization.
+ * - Uses path-based ownership checks to avoid costly `get()` calls in rules.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Defines a global function to check if the user is signed in.
-     * @returns {boolean} True if the user is signed in, false otherwise.
+     * @description Checks if the request is made by an authenticated user.
+     * @return {boolean} True if the user is signed in, false otherwise.
      */
     function isSignedIn() {
       return request.auth != null;
     }
 
     /**
-     * @description Defines a global function to check if the request is made by the owner of the resource.
-     * @param {string} userId The user ID to compare against the request's authentication UID.
-     * @returns {boolean} True if the user is the owner, false otherwise.
+     * @description Checks if the request is made by the owner of the resource.
+     * @param {string} userId The user ID to compare with the request's authentication UID.
+     * @return {boolean} True if the user is the owner, false otherwise.
      */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
     /**
-     * @description Defines a global function to check if the request is made by the owner of the resource and the resource exists.
-     * @param {string} userId The user ID to compare against the request's authentication UID.
-     * @returns {boolean} True if the user is the owner and the resource exists, false otherwise.
+     * @description Checks if the request is made by the owner of an existing resource.
+     *              It combines the ownership check with the resource existence check.
+     * @param {string} userId The user ID to compare with the resource's user ID.
+     * @return {boolean} True if the user is the owner and the resource exists, false otherwise.
      */
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
 
     /**
-     * @description Rules for user profiles.
+     * @description Rule for user profiles.
      * @path /users/{userId}
-     * @allow (create) User with ID 'user123' creates their profile.
-     *   - request.auth.uid: 'user123'
-     *   - request.resource.data.id: 'user123'
-     * @allow (get) User with ID 'user123' reads their profile.
-     *   - request.auth.uid: 'user123'
-     * @allow (update) User with ID 'user123' updates their profile.
-     *   - request.auth.uid: 'user123'
-     * @allow (delete) User with ID 'user123' deletes their profile.
-     *   - request.auth.uid: 'user123'
-     * @deny (create) User with ID 'user456' attempts to create a profile for 'user123'.
-     *   - request.auth.uid: 'user456'
-     *   - request.resource.data.id: 'user123'
-     * @deny (get) User with ID 'user456' attempts to read the profile of 'user123'.
-     *   - request.auth.uid: 'user456'
-     * @deny (update) User with ID 'user456' attempts to update the profile of 'user123'.
-     *   - request.auth.uid: 'user456'
-     * @deny (delete) User with ID 'user456' attempts to delete the profile of 'user123'.
-     *   - request.auth.uid: 'user456'
-     * @principle Enforces document ownership for reads and writes.
+     * @allow (create) User 'user_abc' can create their own profile with matching user ID.
+     * @deny (create) User 'user_xyz' cannot create a profile with user ID 'user_abc'.
+     * @allow (get) User 'user_abc' can read their own profile.
+     * @allow (update) User 'user_abc' can update their own profile.
+     * @deny (update) User 'user_xyz' cannot update user profile 'user_abc'.
+     * @allow (delete) User 'user_abc' can delete their own profile.
+     * @deny (delete) User 'user_xyz' cannot delete user profile 'user_abc'.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
       allow get: if isOwner(userId);
-      allow list: if false;
+      allow list: if false; // User listing is not permitted.
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Rules for diary entries under a user profile.
+     * @description Rule for emotions.
+     * @path /emotions/{emotionId}
+     * @allow (get) Any user can read emotions.
+     * @allow (list) Any user can list emotions.
+     * @deny (create) No user can create emotions.
+     * @deny (update) No user can update emotions.
+     * @deny (delete) No user can delete emotions.
+     * @principle Publicly readable data, but not writable via client.
+     */
+    match /emotions/{emotionId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
+    }
+
+    /**
+     * @description Rule for diary entries.
      * @path /users/{userId}/diaryEntries/{diaryEntryId}
-     * @allow (create) User with ID 'user123' creates a diary entry.
-     *   - request.auth.uid: 'user123'
-     *   - request.resource.data.userId: 'user123'
-     * @allow (get) User with ID 'user123' reads their diary entry.
-     *   - request.auth.uid: 'user123'
-     * @allow (list) User with ID 'user123' lists their diary entries.
-     *   - request.auth.uid: 'user123'
-     * @allow (update) User with ID 'user123' updates their diary entry.
-     *   - request.auth.uid: 'user123'
-     * @allow (delete) User with ID 'user123' deletes their diary entry.
-     *   - request.auth.uid: 'user123'
-     * @deny (create) User with ID 'user456' attempts to create a diary entry for 'user123'.
-     *   - request.auth.uid: 'user456'
-     *   - request.resource.data.userId: 'user123'
-     * @deny (get) User with ID 'user456' attempts to read a diary entry of 'user123'.
-     *   - request.auth.uid: 'user456'
-     * @deny (list) User with ID 'user456' attempts to list diary entries of 'user123'.
-     *   - request.auth.uid: 'user456'
-     * @deny (update) User with ID 'user456' attempts to update a diary entry of 'user123'.
-     *   - request.auth.uid: 'user456'
-     * @deny (delete) User with ID 'user456' attempts to delete a diary entry of 'user123'.
-     *   - request.auth.uid: 'user456'
-     * @principle Enforces document ownership for diary entries.
+     * @allow (create) User 'user_abc' can create diary entry in their own profile.
+     * @deny (create) User 'user_xyz' cannot create diary entry in user 'user_abc' profile.
+     * @allow (get) User 'user_abc' can read their own diary entry.
+     * @allow (list) User 'user_abc' can list their own diary entries.
+     * @allow (update) User 'user_abc' can update their own diary entry.
+     * @deny (update) User 'user_xyz' cannot update diary entry in user 'user_abc' profile.
+     * @allow (delete) User 'user_abc' can delete their own diary entry.
+     * @deny (delete) User 'user_xyz' cannot delete diary entry in user 'user_abc' profile.
+     * @principle Enforces document ownership for writes, restricts access to a user's own data tree, validates relational integrity between documents.
      */
     match /users/{userId}/diaryEntries/{diaryEntryId} {
       allow get: if isOwner(userId);
       allow list: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isExistingOwner(userId) && resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
       allow delete: if isExistingOwner(userId);
-    }
-
-    /**
-     * @description Rules for emotions. Emotions are publicly readable.
-     * @path /emotions/{emotionId}
-     * @allow (get) Any user can read an emotion.
-     * @allow (list) Any user can list emotions.
-     * @deny (create) No one can create emotions through the client.
-     * @deny (update) No one can update emotions through the client.
-     * @deny (delete) No one can delete emotions through the client.
-     * @principle Public read access for emotions, but no write access.
-     */
-    match /emotions/{emotionId} {
-      allow get: if true;
-      allow list: if true;
-      allow create: if false;
-      allow update: if false;
-      allow delete: if false;
     }
   }
 }
