@@ -9,6 +9,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import type { Emotion } from '@/lib/types';
 import { Sparkles, Loader, Trash2, Edit, Wand2 } from 'lucide-react';
 import { defineEmotionMeaning } from '@/ai/flows/define-emotion-meaning';
+import { validateEmotion } from '@/ai/flows/validate-emotion';
 import { useToast } from '@/hooks/use-toast';
 import { AVATAR_EMOJIS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -30,6 +31,7 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
   const [color, setColor] = useState('#8B5CF6');
   const [description, setDescription] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
   const resetForm = () => {
@@ -71,33 +73,52 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !icon || !color) {
       toast({ title: "Faltan campos", description: "Asegúrate de que la emoción tenga un nombre y un icono.", variant: "destructive" });
       return;
     };
 
-    const emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string } = {
-      name,
-      icon,
-      color,
-      description,
-      isCustom: true, // Mark as custom when created from this form
-    };
-    
-    if (editingEmotion) {
-      emotionData.id = editingEmotion.id;
-      // Preserve the original isCustom flag when editing
-      emotionData.isCustom = editingEmotion.isCustom; 
-    }
-    
-    addEmotion(emotionData);
+    setIsSaving(true);
+    try {
+      const validationResult = await validateEmotion({ emotion: name });
+      if (!validationResult.isValid) {
+        toast({
+          title: "Emoción no válida",
+          description: `"${name}" no parece ser una emoción. ${validationResult.reason}`,
+          variant: "destructive",
+        });
+        setIsSaving(false);
+        return;
+      }
 
-    if (editingEmotion) {
-      onCancelEdit();
-    } else {
-      resetForm();
+      const emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string } = {
+        name,
+        icon,
+        color,
+        description,
+        isCustom: true, // Mark as custom when created from this form
+      };
+      
+      if (editingEmotion) {
+        emotionData.id = editingEmotion.id;
+        // Preserve the original isCustom flag when editing
+        emotionData.isCustom = editingEmotion.isCustom; 
+      }
+      
+      addEmotion(emotionData);
+
+      if (editingEmotion) {
+        onCancelEdit();
+      } else {
+        resetForm();
+      }
+    } catch (error) {
+      console.error("Error saving emotion:", error);
+      toast({ title: "Error al guardar", description: "No se pudo validar o guardar la emoción.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -175,8 +196,9 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
                             Cancelar
                         </Button>
                         )}
-                        <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full">
-                        {editingEmotion ? 'Actualizar' : 'Añadir'}
+                        <Button type="submit" className="bg-accent hover:bg-accent/90 text-accent-foreground w-full" disabled={isSaving}>
+                          {isSaving && <Loader className="mr-2 h-4 w-4 animate-spin" />}
+                          {isSaving ? (editingEmotion ? 'Actualizando...' : 'Añadiendo...') : (editingEmotion ? 'Actualizar' : 'Añadir')}
                         </Button>
                     </div>
                  </div>
@@ -223,7 +245,7 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
                         </Button>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="destructive" size="icon" className="h-8 w-8">
+                              <Button variant="destructive" size="icon" className="h-8 w-8" disabled={!em.isCustom}>
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </AlertDialogTrigger>
