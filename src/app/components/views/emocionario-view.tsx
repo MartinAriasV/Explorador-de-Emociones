@@ -245,7 +245,7 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
                         </Button>
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="destructive" size="icon" className="h-8 w-8" disabled={!em.isCustom}>
+                              <Button variant="destructive" size="icon" className="h-8 w-8">
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </AlertDialogTrigger>
