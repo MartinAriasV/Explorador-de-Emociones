@@ -81,14 +81,19 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   useEffect(() => {
     const equippedTheme = userProfile?.equippedItems?.['theme'];
     const htmlElement = document.documentElement;
-
-    // Remove any existing theme classes
+    const bodyElement = document.body;
+  
+    // Remove any existing theme classes from HTML and body
     htmlElement.classList.remove('theme-ocean', 'theme-forest');
-
+    bodyElement.classList.remove('bg-forest-gradient');
+  
     if (equippedTheme) {
       const themeItem = SHOP_ITEMS.find(item => item.id === equippedTheme && item.type === 'theme');
       if (themeItem) {
         htmlElement.classList.add(themeItem.value);
+        if (themeItem.value === 'theme-forest') {
+            bodyElement.classList.add('bg-forest-gradient');
+        }
       }
     }
   }, [userProfile?.equippedItems]);
