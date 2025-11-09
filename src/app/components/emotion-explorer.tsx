@@ -79,20 +79,32 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 
   const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
 
-   useEffect(() => {
-    if (typeof window !== 'undefined') {
-        document.documentElement.classList.remove('light', 'dark');
-        document.documentElement.classList.add(theme);
+  const equippedThemeId = userProfile?.equippedItems?.['theme'];
+  const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
+  const isForestTheme = themeItem?.value === 'theme-forest';
 
-        const equippedThemeId = userProfile?.equippedItems?.['theme'];
-        const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
-        if (themeItem?.value === 'theme-ocean') {
-            document.documentElement.classList.add('theme-ocean');
-        } else {
-            document.documentElement.classList.remove('theme-ocean');
-        }
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+  
+    const body = document.body;
+  
+    // Always manage light/dark first
+    body.classList.remove('light', 'dark');
+    body.classList.add(theme);
+  
+    // Then manage custom themes
+    if (isForestTheme) {
+      body.classList.add('theme-forest');
+    } else {
+      body.classList.remove('theme-forest');
     }
-   }, [theme, userProfile]);
+  
+    // Cleanup on unmount or when dependencies change
+    return () => {
+      body.classList.remove('theme-forest');
+    };
+  }, [theme, isForestTheme]);
+
 
   const addInitialEmotions = useCallback(async (userId: string) => {
     if (!firestore) return;
@@ -575,19 +587,10 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         </main>
     );
   }
-
-  const equippedThemeId = userProfile?.equippedItems?.['theme'];
-  const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
-  const isForestTheme = themeItem?.value === 'theme-forest';
   
-  const containerClass = cn(
-    "flex h-screen w-screen",
-    isForestTheme ? 'bg-forest-gradient' : 'bg-background'
-  );
-
   return (
     <SidebarProvider>
-      <div className={containerClass}>
+      <div className="flex h-screen w-screen bg-background">
         <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
         <main className="flex-1 flex flex-col overflow-hidden bg-transparent">
           <header className="p-2 md:hidden flex items-center border-b bg-card/80 backdrop-blur-sm">
