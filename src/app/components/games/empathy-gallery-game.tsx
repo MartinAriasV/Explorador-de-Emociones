@@ -43,53 +43,49 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
 
   const empathyImages = useMemo(() => imageData.empathy_gallery, []);
   
-  const playableEmotions = useMemo(() => {
-    const imageEmotions = new Set(empathyImages.map(img => img.emotion.toLowerCase()));
-    return emotionsList.filter(emotion => imageEmotions.has(emotion.name.toLowerCase()));
-  }, [emotionsList, empathyImages]);
-
   const generateQuestion = useCallback(() => {
-    if (playableEmotions.length < 4) {
-      setError("No hay suficientes emociones en tu emocionario para jugar a este juego. Ve a 'Descubrir' para añadir más.");
+    setIsLoading(true);
+    setError(null);
+
+    // Filter images that correspond to emotions the user actually has.
+    const userEmotionNames = new Set(emotionsList.map(e => e.name.toLowerCase()));
+    const playableImages = empathyImages.filter(img => userEmotionNames.has(img.emotion.toLowerCase()));
+
+    // From the playable images, find one that hasn't been used in this session.
+    let possibleImages = playableImages.filter(img => !questionHistory.includes(img.id));
+    if (possibleImages.length === 0 && playableImages.length > 0) {
+      possibleImages = playableImages; // Reset history if all images have been shown
+      setQuestionHistory([]);
+    }
+
+    if (possibleImages.length === 0) {
+      setError("No tienes suficientes emociones en tu Emocionario que coincidan con las imágenes del juego. Añade emociones como Alegría, Tristeza, o Miedo desde la sección 'Descubrir'.");
       setIsPlaying(false);
+      setIsLoading(false);
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
-    
-    let localHistory = [...questionHistory];
-    if (localHistory.length >= empathyImages.length) {
-      localHistory = [];
-    }
-
-    let possibleImages = empathyImages.filter(img => !localHistory.includes(img.id));
-    if (possibleImages.length === 0) {
-      possibleImages = empathyImages;
-      localHistory = [];
-    }
-    
     const questionImageDef = shuffleArray(possibleImages)[0];
-    const correctEmotion = playableEmotions.find(e => e.name.toLowerCase() === questionImageDef.emotion.toLowerCase());
+    const correctEmotion = emotionsList.find(e => e.name.toLowerCase() === questionImageDef.emotion.toLowerCase());
 
     if (!correctEmotion) {
-        console.error("Emotion not found for image def:", questionImageDef.emotion);
-        setQuestionHistory(prev => [...prev, questionImageDef.id]);
-        if (empathyImages.length > questionHistory.length + 1) {
-            generateQuestion();
-        } else {
-            setError("No se pudieron generar más preguntas únicas.");
-            setIsPlaying(false);
-        }
-        return;
+      console.error("Logic error: Correct emotion not found in user's list.");
+      setError("Ocurrió un error al generar la pregunta.");
+      setIsPlaying(false);
+      setIsLoading(false);
+      return;
+    }
+    
+    // Ensure there are at least 3 other emotions to pick from for incorrect options.
+    const incorrectOptionsPool = emotionsList.filter(e => e.id !== correctEmotion.id);
+    if (incorrectOptionsPool.length < 3) {
+      setError("Necesitas al menos 4 emociones diferentes en tu Emocionario para poder generar las opciones de respuesta.");
+      setIsPlaying(false);
+      setIsLoading(false);
+      return;
     }
 
-    const incorrectOptions = shuffleArray(playableEmotions.filter(e => e.id !== correctEmotion.id)).slice(0, 3);
-    if (incorrectOptions.length < 3) {
-        setError("No hay suficientes emociones diferentes en tu emocionario para crear las opciones de respuesta.");
-        setIsPlaying(false);
-        return;
-    }
+    const incorrectOptions = shuffleArray(incorrectOptionsPool).slice(0, 3);
     const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
 
     setCurrentQuestion({
@@ -99,17 +95,17 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
         hint: questionImageDef.hint,
     });
     
-    setQuestionHistory(localHistory.concat(questionImageDef.id));
+    setQuestionHistory(prev => [...prev, questionImageDef.id]);
     setIsAnswered(false);
     setSelectedAnswer(null);
     setIsLoading(false);
-  }, [playableEmotions, empathyImages, questionHistory]);
+  }, [emotionsList, empathyImages, questionHistory]);
 
 
   useEffect(() => {
     if (isPlaying && questionsAnswered < QUESTIONS_PER_GAME) {
       generateQuestion();
-    } else if (questionsAnswered >= QUESTIONS_PER_GAME) {
+    } else if (isPlaying && questionsAnswered >= QUESTIONS_PER_GAME) {
       setIsPlaying(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,14 +144,14 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
             <h2 className="text-2xl font-bold text-primary">Galería de Empatía</h2>
             <p className="text-muted-foreground my-4 max-w-md">Observa la imagen y adivina qué emoción representa. ¡Gana 5 puntos por cada acierto!</p>
             {error && <p className="text-destructive mb-4">{error}</p>}
-            {playableEmotions.length < 4 ? (
+            {emotionsList.length < 4 ? (
                  <div className="text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
                     <p className="text-lg font-semibold">¡Faltan Emociones!</p>
-                    <p className="max-w-md">Necesitas al menos 4 emociones diferentes en tu Emocionario (como Alegría, Tristeza, etc.) que coincidan con las imágenes del juego.</p>
+                    <p className="max-w-md">Necesitas al menos 4 emociones diferentes en tu Emocionario para poder jugar.</p>
                 </div>
             ) : (
                 <>
-                {questionsAnswered >= QUESTIONS_PER_GAME && (
+                {questionsAnswered >= QUESTIONS_PER_GAME && !isLoading &&(
                     <>
                         <p className="text-lg my-2">¡Partida terminada!</p>
                         <p className="text-5xl font-bold mb-6">{score} / {QUESTIONS_PER_GAME}</p>
@@ -196,7 +192,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 className="object-cover"
                 data-ai-hint={currentQuestion.hint}
-                unoptimized={currentQuestion.imageUrl.startsWith('data:')}
+                unoptimized={true}
             />
          </div>
       </Card>
@@ -242,5 +238,3 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     </div>
   );
 }
-
-    
