@@ -38,7 +38,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [questionHistory, setQuestionHistory] = useState<string[]>([]);
-  const [isLoadingImage, setIsLoadingImage] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const empathyImages = useMemo(() => imageData.empathy_gallery, []);
@@ -48,14 +48,14 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     return emotionsList.filter(emotion => imageEmotions.has(emotion.name.toLowerCase()));
   }, [emotionsList, empathyImages]);
 
-  const generateQuestion = useCallback(async () => {
+  const generateQuestion = useCallback(() => {
     if (playableEmotions.length < 4) {
-      setError("No hay suficientes emociones en tu emocionario para jugar a este juego.");
+      setError("No hay suficientes emociones en tu emocionario para jugar a este juego. Ve a 'Descubrir' para añadir más.");
       setIsPlaying(false);
       return;
     }
 
-    setIsLoadingImage(true);
+    setIsLoading(true);
     setError(null);
     
     let localHistory = [...questionHistory];
@@ -73,50 +73,36 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     const correctEmotion = playableEmotions.find(e => e.name.toLowerCase() === questionImageDef.emotion.toLowerCase());
 
     if (!correctEmotion) {
-      console.error("No playable emotion found for image:", questionImageDef);
-      setQuestionHistory(prev => [...prev, questionImageDef.id]);
-      if (empathyImages.length > questionHistory.length + 1) {
-        await generateQuestion();
-      } else {
-        setIsPlaying(false);
-      }
-      return;
-    }
-    
-    let imageUrl = `https://images.unsplash.com/${questionImageDef.id}?w=600&h=400&fit=crop`;
-    let finalHint = questionImageDef.hint;
-
-    try {
-        if (!questionImageDef.id.startsWith('photo-')) {
-          const result = await generateEmpathyImage({ emotion: correctEmotion.name, hint: questionImageDef.hint });
-          imageUrl = result.imageUrl;
-        }
-
-        const incorrectOptions = shuffleArray(playableEmotions.filter(e => e.id !== correctEmotion.id)).slice(0, 3);
-        if (incorrectOptions.length < 3) {
-            setError("No hay suficientes emociones para formar una pregunta completa. Añade más desde 'Descubrir'.");
+        console.error("Emotion not found for image def:", questionImageDef.emotion);
+        setQuestionHistory(prev => [...prev, questionImageDef.id]);
+        if (empathyImages.length > questionHistory.length + 1) {
+            generateQuestion();
+        } else {
+            setError("No se pudieron generar más preguntas únicas.");
             setIsPlaying(false);
-            return;
         }
-        const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
-
-        setCurrentQuestion({
-            imageUrl: imageUrl,
-            correctEmotion: correctEmotion.name,
-            options: allOptions,
-            hint: finalHint,
-        });
-        
-        setQuestionHistory(localHistory.concat(questionImageDef.id));
-        setIsAnswered(false);
-        setSelectedAnswer(null);
-
-    } catch (err: any) {
-        console.error("Error generating/loading image:", err);
-        setError(err.message?.includes('429') ? "Se ha superado el límite de generación de imágenes. ¡Inténtalo más tarde!" : "No se pudo crear una imagen. Intenta de nuevo.");
-    } finally {
-        setIsLoadingImage(false);
+        return;
     }
+
+    const incorrectOptions = shuffleArray(playableEmotions.filter(e => e.id !== correctEmotion.id)).slice(0, 3);
+    if (incorrectOptions.length < 3) {
+        setError("No hay suficientes emociones diferentes en tu emocionario para crear las opciones de respuesta.");
+        setIsPlaying(false);
+        return;
+    }
+    const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
+
+    setCurrentQuestion({
+        imageUrl: `https://images.unsplash.com/${questionImageDef.id}?w=600&h=400&fit=crop`,
+        correctEmotion: correctEmotion.name,
+        options: allOptions,
+        hint: questionImageDef.hint,
+    });
+    
+    setQuestionHistory(localHistory.concat(questionImageDef.id));
+    setIsAnswered(false);
+    setSelectedAnswer(null);
+    setIsLoading(false);
   }, [playableEmotions, empathyImages, questionHistory]);
 
 
@@ -185,24 +171,13 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     );
   }
 
-  if (isLoadingImage || !currentQuestion) {
+  if (isLoading || !currentQuestion) {
     return (
         <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
             <Loader className="h-10 w-10 animate-spin text-primary mb-4" />
             <p className="text-lg font-semibold">Cargando la siguiente obra de arte...</p>
         </div>
     );
-  }
-
-  if (error) {
-     return (
-        <div className="flex flex-col items-center justify-center h-full text-center text-destructive p-4 md:p-8 rounded-lg bg-destructive/10">
-            <p className="text-lg font-semibold">{error}</p>
-            <Button onClick={startGame} size="lg" variant="destructive" className="mt-4">
-                Reiniciar Juego
-            </Button>
-        </div>
-     )
   }
 
   return (
@@ -267,3 +242,5 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     </div>
   );
 }
+
+    
