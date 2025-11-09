@@ -80,17 +80,18 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
 
    useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && userProfile) {
       document.body.classList.remove('light', 'dark');
       document.body.classList.add(theme);
 
       const equippedThemeId = userProfile?.equippedItems?.['theme'];
       const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
+      
+      // Clean up all theme classes first
+      SHOP_ITEMS.filter(item => item.type === 'theme').forEach(item => document.body.classList.remove(item.value));
+
       if (themeItem) {
         document.body.classList.add(themeItem.value);
-      } else {
-        // Clean up theme classes if none is equipped
-        SHOP_ITEMS.filter(item => item.type === 'theme').forEach(item => document.body.classList.remove(item.value));
       }
     }
    }, [theme, userProfile]);
