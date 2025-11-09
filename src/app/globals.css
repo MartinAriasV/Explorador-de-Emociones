@@ -101,7 +101,6 @@ body {
   }
 
   .theme-forest {
-    --background: transparent;
     --foreground: 120 25% 15%;
     --card: 120 15% 100%;
     --card-foreground: 120 25% 15%;
@@ -119,9 +118,8 @@ body {
     --input: 120 15% 90%;
     --ring: 130 60% 40%;
   }
-
+  
   .dark.theme-forest {
-    --background: transparent;
     --foreground: 120 10% 95%;
     --card: 120 25% 12%;
     --card-foreground: 120 10% 95%;
@@ -192,8 +190,8 @@ body {
     background-size: 400% 400%;
     animation: forest-gradient 20s ease infinite;
   }
-  main.theme-active-forest {
-    background-color: transparent !important;
+  main.bg-forest-gradient {
+    background-color: transparent;
   }
 }
 

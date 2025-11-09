@@ -82,20 +82,17 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 
   // Centralized theme management
   useEffect(() => {
-    if (typeof window === 'undefined' || !userProfile) return;
+    if (typeof window === 'undefined') return;
 
     const root = document.documentElement;
-    const equippedThemeId = userProfile.equippedItems?.['theme'];
-    const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
+    root.classList.remove('light', 'dark', 'theme-ocean', 'theme-forest');
     
-    // Base classes for light/dark mode
-    root.classList.remove('light', 'dark');
+    // 1. Apply base dark/light mode
     root.classList.add(theme);
 
-    // Remove any existing theme classes
-    root.classList.remove('theme-ocean', 'theme-forest');
-
-    // Apply new theme class if one is equipped
+    // 2. Apply equipped theme if available
+    const equippedThemeId = userProfile?.equippedItems?.['theme'];
+    const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
     if (themeItem) {
         root.classList.add(themeItem.value);
     }
@@ -580,23 +577,32 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   
   if (isLoading || !userProfile) {
     return (
-        <div className="flex h-screen w-screen items-center justify-center flex-col gap-4 bg-background">
+        <main className="flex h-screen w-screen items-center justify-center flex-col gap-4 bg-background">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             <p className="text-lg text-primary">Cargando tu diario...</p>
-        </div>
+        </main>
     );
   }
+
+  const equippedThemeId = userProfile.equippedItems?.['theme'];
+  const isForestTheme = SHOP_ITEMS.find(item => item.id === equippedThemeId)?.value === 'theme-forest';
   
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-screen bg-background">
+      <div className="flex h-screen w-screen">
         <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <header className="p-2 md:hidden flex items-center border-b">
+        <main className={cn(
+          "flex-1 flex flex-col overflow-hidden bg-background",
+          isForestTheme && 'bg-forest-gradient'
+        )}>
+          <header className="p-2 md:hidden flex items-center border-b bg-background">
               <MobileMenuButton />
               <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
           </header>
-          <div className="flex-1 p-4 md:p-6 overflow-y-auto">
+          <div className={cn(
+            "flex-1 p-4 md:p-6 overflow-y-auto",
+            isForestTheme && 'bg-background/80' // Add semi-transparent overlay to content area if needed for readability
+          )}>
             {renderView()}
           </div>
         </main>
