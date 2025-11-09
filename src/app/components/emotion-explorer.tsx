@@ -57,7 +57,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const { firestore } = useFirebase();
 
   // --- Firestore Data Hooks ---
-  const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
+  const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid, 'userProfile') : null), [firestore, user]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
   const emotionsQuery = useMemoFirebase(() => (user ? collection(firestore, 'users', user.uid, 'emotions') : null), [firestore, user]);
@@ -78,7 +78,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     if (!docSnap.exists()) {
       console.log("No profile found for user, creating one...");
       const newProfile: Omit<UserProfile, 'id'> = {
-        name: user.displayName || user.email?.split('@')[0] || 'Usuario Anónimo',
+        name: user.displayName || user.email?.split('@')[0] || 'Viajero Emocional',
         avatar: '😊',
         avatarType: 'emoji',
         unlockedAnimalIds: [],
@@ -498,3 +498,5 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     </SidebarProvider>
   );
 }
+
+    
