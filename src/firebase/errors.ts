@@ -1,4 +1,3 @@
-'use client';
 import { getAuth, type User } from 'firebase/auth';
 
 type SecurityRuleContext = {
@@ -68,24 +67,29 @@ function buildAuthObject(currentUser: User | null): FirebaseAuthObject | null {
   };
 }
 
+const isServer = typeof window === 'undefined';
+
 /**
  * Builds the complete, simulated request object for the error message.
- * It safely tries to get the current authenticated user.
+ * It safely tries to get the current authenticated user only on the client.
  * @param context The context of the failed Firestore operation.
  * @returns A structured request object.
  */
 function buildRequestObject(context: SecurityRuleContext): SecurityRuleRequest {
   let authObject: FirebaseAuthObject | null = null;
-  try {
-    // Safely attempt to get the current user.
-    const firebaseAuth = getAuth();
-    const currentUser = firebaseAuth.currentUser;
-    if (currentUser) {
-      authObject = buildAuthObject(currentUser);
+  
+  // Only attempt to get user auth information on the client side.
+  if (!isServer) {
+    try {
+      const firebaseAuth = getAuth();
+      const currentUser = firebaseAuth.currentUser;
+      if (currentUser) {
+        authObject = buildAuthObject(currentUser);
+      }
+    } catch {
+      // This will catch errors if the Firebase app is not yet initialized.
+      // We proceed without auth info.
     }
-  } catch {
-    // This will catch errors if the Firebase app is not yet initialized.
-    // In this case, we'll proceed without auth information.
   }
 
   return {
@@ -109,7 +113,7 @@ ${JSON.stringify(requestObject, null, 2)}`;
 /**
  * A custom error class designed to be consumed by an LLM for debugging.
  * It structures the error information to mimic the request object
- * available in Firestore Security Rules.
+ * available in Firestore Security Rules. Works on both client and server.
  */
 export class FirestorePermissionError extends Error {
   public readonly request: SecurityRuleRequest;
