@@ -254,6 +254,17 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 
     const saveEmotion = async (emotionData: Omit<Emotion, 'id' | 'userId'> & { id?: string }) => {
     if (!user) return;
+    
+    // Check if an emotion with the same name already exists
+    if (emotionsList && emotionsList.some(e => e.name.toLowerCase() === emotionData.name.toLowerCase() && e.id !== emotionData.id)) {
+        toast({
+            title: "Emoción Duplicada",
+            description: `Ya tienes una emoción llamada "${emotionData.name}".`,
+            variant: "destructive",
+        });
+        return;
+    }
+
     const emotionsCollection = collection(firestore, 'users', user.uid, 'emotions');
     
     const isNew = !emotionData.id;
@@ -266,9 +277,11 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     if (emotionData.id) {
       const emotionRef = doc(emotionsCollection, emotionData.id);
       updateDocumentNonBlocking(emotionRef, dataToSave);
+      toast({ title: "Emoción Actualizada", description: `"${emotionData.name}" ha sido actualizada.` });
     } else {
       const newDocRef = doc(emotionsCollection);
       setDocumentNonBlocking(newDocRef, {...dataToSave, id: newDocRef.id});
+      toast({ title: "Emoción Añadida", description: `"${emotionData.name}" ha sido añadida a tu emocionario.` });
     }
     
     if (isNew) {
@@ -396,7 +409,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
                         onCancelEdit={handleCancelEdit}
                      />;
             case 'discover':
-              return <DiscoverView onAddEmotion={handleOpenAddEmotionModal} />;
+              return <DiscoverView onAddPredefinedEmotion={saveEmotion} />;
             case 'games':
                 return <GamesView emotionsList={emotionsList || []} />;
             case 'calm':

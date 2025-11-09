@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PlusCircle } from 'lucide-react';
 import { PREDEFINED_EMOTIONS } from '@/lib/constants';
-import { Emotion } from '@/lib/types';
+import type { Emotion } from '@/lib/types';
 
 interface DiscoverViewProps {
-  onAddEmotion: (emotionData: Partial<Emotion>) => void;
+  onAddPredefinedEmotion: (emotionData: Omit<Emotion, 'id' | 'userId'>) => void;
 }
 
-export function DiscoverView({ onAddEmotion }: DiscoverViewProps) {
+export function DiscoverView({ onAddPredefinedEmotion }: DiscoverViewProps) {
   return (
     <Card className="w-full h-full shadow-lg flex flex-col">
       <CardHeader>
@@ -36,7 +36,7 @@ export function DiscoverView({ onAddEmotion }: DiscoverViewProps) {
                 </CardContent>
                 <div className="p-4 pt-0 mt-auto">
                     <Button 
-                        onClick={() => onAddEmotion({ 
+                        onClick={() => onAddPredefinedEmotion({ 
                           name: emotion.name, 
                           icon: emotion.icon, 
                           description: `${emotion.description} Ejemplo: "${emotion.example}"`,

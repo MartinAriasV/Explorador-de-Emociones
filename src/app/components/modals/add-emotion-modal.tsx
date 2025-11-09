@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Emotion } from '@/lib/types';
+import type { Emotion } from '@/lib/types';
 import { AVATAR_EMOJIS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface AddEmotionModalProps {
   initialData: (Partial<Emotion>) | null;
-  onSave: (emotionData: Omit<Emotion, 'id' | 'userId' | 'isCustom'> & { id?: string, isCustom: boolean }) => void;
+  onSave: (emotionData: Omit<Emotion, 'id' | 'userId'> & { id?: string }) => void;
   onClose: () => void;
 }
 
@@ -30,6 +30,12 @@ export function AddEmotionModal({ initialData, onSave, onClose }: AddEmotionModa
       setDescription(initialData.description || '');
       setColor(initialData.color || '#47a2a2');
       setIcon(initialData.icon || '');
+    } else {
+      // Reset form when modal is closed
+      setName('');
+      setDescription('');
+      setColor('#47a2a2');
+      setIcon('');
     }
   }, [initialData]);
 
