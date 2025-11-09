@@ -17,7 +17,7 @@ import { AddEmotionModal } from './modals/add-emotion-modal';
 import { QuizModal } from './modals/quiz-modal';
 import { WelcomeDialog } from './tour/welcome-dialog';
 import { TourPopup } from './tour/tour-popup';
-import { TOUR_STEPS, REWARDS, PREDEFINED_EMOTIONS } from '@/lib/constants';
+import { TOUR_STEPS, REWARDS, PREDEFINED_EMOTIONS, SHOP_ITEMS } from '@/lib/constants';
 import { StreakView } from './views/streak-view';
 import { SanctuaryView } from './views/sanctuary-view';
 import { GamesView } from './views/games-view';
@@ -74,6 +74,10 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const isLoading = isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading;
   const [selectedPet, setSelectedPet] = useState<SpiritAnimal | null>(null);
 
+  const purchasedItems = useMemo(() => {
+    if (!userProfile?.purchasedItemIds) return [];
+    return SHOP_ITEMS.filter(item => userProfile.purchasedItemIds.includes(item.id));
+  }, [userProfile]);
 
   const addInitialEmotions = useCallback(async (userId: string) => {
     if (!firestore) return;
@@ -381,7 +385,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
           return;
       }
       if (userProfile.purchasedItemIds?.includes(item.id)) {
-        toast({ variant: "destructive", title: "Artículo ya comprado", description: "Ya posees este artículo." });
+        toast({ variant: "default", title: "Artículo ya comprado", description: "Ya posees este artículo." });
         return;
       }
 
@@ -546,7 +550,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
             case 'share':
               return <ShareView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} userProfile={userProfile!} onShare={handleShare} />;
             case 'profile':
-              return <ProfileView userProfile={userProfile} setUserProfile={setUserProfile} />;
+              return <ProfileView userProfile={userProfile} setUserProfile={setUserProfile} purchasedItems={purchasedItems} />;
             default:
               return <DiaryView 
                         emotionsList={emotionsList || []} 
