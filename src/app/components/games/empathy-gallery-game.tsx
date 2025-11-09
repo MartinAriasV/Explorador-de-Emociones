@@ -41,7 +41,6 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
 
   const empathyImages = useMemo(() => imageData.empathy_gallery, []);
   
-  // Memoize the list of emotions that actually have corresponding images in the JSON file.
   const playableEmotions = useMemo(() => {
     const imageEmotions = new Set(empathyImages.map(img => img.emotion.toLowerCase()));
     return emotionsList.filter(emotion => imageEmotions.has(emotion.name.toLowerCase()));
@@ -49,38 +48,59 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
 
   const generateQuestion = useCallback(() => {
     if (playableEmotions.length < 4) {
-      // Not enough variety of emotions that have images to create a question with 4 options.
       setIsPlaying(false);
       return;
     }
     
     setIsLoadingImage(true);
 
-    // 1. Select a correct emotion from the ones that are actually playable
-    const correctEmotion = shuffleArray(playableEmotions)[0];
+    let localHistory = [...questionHistory];
 
-    // 2. Find all images that match this correct emotion and haven't been used yet
-    const availableImagesForEmotion = empathyImages.filter(img => 
-      img.emotion.toLowerCase() === correctEmotion.name.toLowerCase() &&
-      !questionHistory.includes(img.id)
-    );
+    // 1. Select a correct emotion that has available images not in history
+    const possibleEmotions = shuffleArray(playableEmotions);
+    let correctEmotion: Emotion | null = null;
+    let availableImagesForEmotion: typeof empathyImages = [];
 
-    // If we've run out of unique images for this emotion, try another emotion.
-    // This is a fallback - a better approach would be to ensure a wide variety of images.
-    if (availableImagesForEmotion.length === 0) {
-      setQuestionHistory([]); // Reset history and try again
-      generateQuestion();
-      return;
+    for (const emotion of possibleEmotions) {
+        const images = empathyImages.filter(img => 
+            img.emotion.toLowerCase() === emotion.name.toLowerCase() &&
+            !localHistory.includes(img.id)
+        );
+        if (images.length > 0) {
+            correctEmotion = emotion;
+            availableImagesForEmotion = images;
+            break;
+        }
+    }
+
+    // If we've run out of unique images for all emotions, reset history and try again
+    if (!correctEmotion) {
+        localHistory = []; // Reset history
+        setQuestionHistory([]);
+         for (const emotion of possibleEmotions) {
+            const images = empathyImages.filter(img => img.emotion.toLowerCase() === emotion.name.toLowerCase());
+            if (images.length > 0) {
+                correctEmotion = emotion;
+                availableImagesForEmotion = images;
+                break;
+            }
+        }
+    }
+
+    if (!correctEmotion) {
+        console.error("No playable emotions have corresponding images.");
+        setIsPlaying(false);
+        return;
     }
     
     const questionImage = shuffleArray(availableImagesForEmotion)[0];
 
     // 3. Generate incorrect options from the other playable emotions
-    const incorrectOptions = shuffleArray(playableEmotions.filter(e => e.id !== correctEmotion.id)).slice(0, 3);
+    const incorrectOptions = shuffleArray(playableEmotions.filter(e => e.id !== correctEmotion!.id)).slice(0, 3);
     
-    // Ensure we have enough options to proceed.
     if (incorrectOptions.length < 3) {
-      setIsPlaying(false); // Can't form a full question.
+      console.error("Not enough emotions to form a full question.");
+      setIsPlaying(false);
       return;
     }
 
@@ -106,7 +126,9 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     } else if (questionsAnswered >= QUESTIONS_PER_GAME) {
       setIsPlaying(false);
     }
-  }, [isPlaying, questionsAnswered, generateQuestion]);
+  // This dependency array is correct. `generateQuestion` is memoized and changes only when its own dependencies change.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlaying, questionsAnswered]);
 
   const handleAnswer = (answer: Emotion) => {
     if (isAnswered) return;
@@ -236,3 +258,6 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     </div>
   );
 }
+
+
+    
