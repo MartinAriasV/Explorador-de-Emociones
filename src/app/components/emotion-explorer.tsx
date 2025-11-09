@@ -560,12 +560,16 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         </main>
     );
   }
+
+  const equippedThemeId = userProfile?.equippedItems?.['theme'];
+  const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
+  const isForestTheme = themeItem?.value === 'theme-forest';
   
   return (
     <SidebarProvider>
-      <div className={cn("flex h-screen w-screen")}>
+      <div className={cn("flex h-screen w-screen", !isForestTheme && 'bg-background')}>
         <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
-        <main className="flex-1 flex flex-col overflow-hidden bg-background">
+        <main className={cn("flex-1 flex flex-col overflow-hidden", isForestTheme && 'bg-transparent')}>
           <header className="p-2 md:hidden flex items-center border-b bg-background/80 backdrop-blur-sm">
               <MobileMenuButton />
               <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>

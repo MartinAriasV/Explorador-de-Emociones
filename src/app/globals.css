@@ -101,6 +101,7 @@ body {
   }
 
   .theme-forest {
+    --background: transparent;
     --foreground: 120 25% 15%;
     --card: 120 15% 100%;
     --card-foreground: 120 25% 15%;
@@ -131,10 +132,6 @@ body {
     --accent: 110 60% 55%;
     --border: 120 20% 20%;
     --input: 120 20% 20%;
-  }
-
-  body.bg-forest-gradient > main .bg-background {
-    background-color: transparent;
   }
 }
 

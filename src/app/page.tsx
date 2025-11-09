@@ -28,27 +28,29 @@ function AppGate() {
 
     const body = document.body;
     const root = document.documentElement;
+
+    // Remove all theme-related classes to start fresh
+    root.classList.remove('light', 'dark', 'theme-forest', 'theme-ocean');
+    body.classList.remove('bg-background', 'bg-forest-gradient');
     
-    // Always manage light/dark mode
-    root.classList.remove('light', 'dark');
+    // Apply light/dark mode
     root.classList.add(theme);
 
     const equippedThemeId = userProfile?.equippedItems?.['theme'];
     const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
 
-    if (themeItem && themeItem.value === 'theme-forest') {
-      body.classList.add('bg-forest-gradient');
-      body.classList.remove('bg-background');
+    if (themeItem) {
+      root.classList.add(themeItem.value); // e.g., 'theme-forest'
+      if (themeItem.value === 'theme-forest') {
+        body.classList.add('bg-forest-gradient');
+      } else {
+        body.classList.add('bg-background');
+      }
     } else {
-      body.classList.remove('bg-forest-gradient');
+      // Default behavior if no theme is equipped
       body.classList.add('bg-background');
     }
-
-    // Cleanup on unmount
-    return () => {
-      body.classList.remove('bg-forest-gradient');
-      body.classList.add('bg-background');
-    };
+    
   }, [theme, userProfile]);
 
 
