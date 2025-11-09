@@ -57,14 +57,12 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     let localHistory = [...questionHistory];
     if (localHistory.length >= empathyImages.length) {
         localHistory = [];
-        setQuestionHistory([]);
     }
 
     let possibleImages = empathyImages.filter(img => !localHistory.includes(img.id));
     if(possibleImages.length === 0) {
         possibleImages = empathyImages;
         localHistory = [];
-        setQuestionHistory([]);
     }
 
     const questionImage = shuffleArray(possibleImages)[0];
@@ -72,7 +70,13 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
 
     if (!correctEmotion) {
         console.error("No playable emotion found for image:", questionImage);
-        setIsPlaying(false);
+        // Try again with a different image if possible
+        if (empathyImages.length > localHistory.length + 1) {
+            setQuestionHistory(prev => [...prev, questionImage.id]); // Add failed image to history to avoid retrying it
+            generateQuestion();
+        } else {
+            setIsPlaying(false);
+        }
         return;
     }
     
@@ -87,7 +91,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
     
     setCurrentQuestion({
-        imageUrl: `https://source.unsplash.com/600x400/?${questionImage.hint}`,
+        imageUrl: `https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=600&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D`,
         correctEmotion: correctEmotion.name,
         options: allOptions,
         hint: questionImage.hint
@@ -185,7 +189,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
                 </div>
             )}
             <Image 
-                src={currentQuestion.imageUrl} 
+                src={`https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=600&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=${encodeURIComponent(currentQuestion.hint)}`}
                 alt={currentQuestion.hint}
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"

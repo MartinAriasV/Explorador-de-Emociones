@@ -3,52 +3,52 @@
     {
       "id": "eg01",
       "emotion": "Alegría",
-      "hint": "smiling woman"
+      "hint": "smiling-woman"
     },
     {
       "id": "eg02",
       "emotion": "Tristeza",
-      "hint": "sad man portrait"
+      "hint": "sad-man-portrait"
     },
     {
       "id": "eg03",
       "emotion": "Sorpresa",
-      "hint": "surprised child face"
+      "hint": "surprised-child-face"
     },
     {
       "id": "eg04",
       "emotion": "Ira",
-      "hint": "angry person"
+      "hint": "angry-person"
     },
     {
       "id": "eg05",
       "emotion": "Miedo",
-      "hint": "scared woman"
+      "hint": "scared-woman"
     },
     {
       "id": "eg06",
       "emotion": "Confianza",
-      "hint": "confident person arms crossed"
+      "hint": "confident-person-arms-crossed"
     },
     {
       "id": "eg07",
       "emotion": "Orgullo",
-      "hint": "proud athlete winner"
+      "hint": "proud-athlete-winner"
     },
     {
       "id": "eg08",
       "emotion": "Calma",
-      "hint": "person meditating sunset"
+      "hint": "person-meditating-sunset"
     },
     {
       "id": "eg09",
       "emotion": "Confusión",
-      "hint": "confused person looking at map"
+      "hint": "confused-person-map"
     },
     {
       "id": "eg10",
       "emotion": "Euforia",
-      "hint": "crowd celebrating concert"
+      "hint": "crowd-celebrating-concert"
     }
   ]
 }
