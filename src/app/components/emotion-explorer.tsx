@@ -83,38 +83,34 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   // Centralized theme management
   useEffect(() => {
     if (typeof window === 'undefined') return;
-  
+
     const body = document.body;
     const equippedThemeId = userProfile?.equippedItems?.['theme'];
     const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
-  
-    // Start with base classes
-    let classes = ['font-body', 'antialiased', 'h-full'];
-  
-    // Add light/dark mode class
-    classes.push(theme);
-  
+    
+    // Base classes
+    const classList = [theme];
     if (themeItem) {
-      // Add the specific theme class for component colors (e.g., 'theme-forest')
-      classes.push(themeItem.value);
-  
-      // If it's the forest theme, add the gradient background class
+      classList.push(themeItem.value); // e.g., 'theme-forest'
       if (themeItem.value === 'theme-forest') {
-        classes.push('bg-forest-gradient');
-      } else {
-        // For other themes (like ocean or default), ensure a background color
-        classes.push('bg-background');
+        classList.push('bg-forest-gradient');
       }
     } else {
-      // If no special theme is equipped, use the default background
-      classes.push('bg-background');
+        classList.push('bg-background');
     }
-  
-    // Apply all classes at once
-    body.className = cn(...classes);
-  
+
+    body.className = cn('font-body', 'antialiased', 'h-full', ...classList);
+
   }, [userProfile, theme]);
 
+  const mainContentClasses = useMemo(() => {
+    const equippedThemeId = userProfile?.equippedItems?.['theme'];
+    const isForestTheme = SHOP_ITEMS.find(item => item.id === equippedThemeId)?.value === 'theme-forest';
+    return cn(
+        "flex-1 flex flex-col overflow-hidden",
+        isForestTheme ? 'theme-active-forest' : 'bg-background'
+    );
+  }, [userProfile]);
 
   const addInitialEmotions = useCallback(async (userId: string) => {
     if (!firestore) return;
@@ -600,7 +596,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   
   if (isLoading || !userProfile) {
     return (
-        <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
+        <div className="flex h-screen w-screen items-center justify-center flex-col gap-4 bg-background">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             <p className="text-lg text-primary">Cargando tu diario...</p>
         </div>
@@ -609,9 +605,9 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-screen bg-transparent">
+      <div className="flex h-screen w-screen">
         <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <main className={mainContentClasses}>
           <header className="p-2 md:hidden flex items-center border-b">
               <MobileMenuButton />
               <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>

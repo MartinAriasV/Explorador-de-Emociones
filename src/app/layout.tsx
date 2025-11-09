@@ -23,7 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${poppins.variable} h-full`}>
-      <body>
+      <body className="font-body antialiased h-full">
         {children}
         <Toaster />
       </body>
