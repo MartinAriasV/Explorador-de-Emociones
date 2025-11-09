@@ -6,51 +6,21 @@
  * - chatWithPet - A function that handles the AI companion chat process.
  */
 
-import { ai } from '@/ai/genkit';
-import { getFirestore, collection, getDocs, doc, getDoc, query, orderBy, limit } from 'firebase/firestore';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { firebaseConfig } from '@/firebase/config';
-import type { DiaryEntry, Emotion } from '@/lib/types';
-import { 
-    ChatWithPetInput, 
-    ChatWithPetInputSchema, 
-    ChatWithPetOutput, 
-    ChatWithPetOutputSchema 
+import {ai} from '@/ai/genkit';
+import {z} from 'genkit';
+import {
+  ChatWithPetInput,
+  ChatWithPetInputSchema,
+  ChatWithPetOutput,
+  ChatWithPetOutputSchema,
 } from './chat-with-pet-types';
-import { FirestorePermissionError } from '@/firebase/errors';
-
-// Server-side Firebase initialization
-function initializeServerFirebase() {
-  if (getApps().length > 0) {
-    return getApp();
-  }
-  return initializeApp(firebaseConfig);
-}
-
-const firebaseApp = initializeServerFirebase();
-const firestore = getFirestore(firebaseApp);
-
 
 export async function chatWithPet(input: ChatWithPetInput): Promise<ChatWithPetOutput> {
-  return chatWithPetFlow(input);
+  // We only need message and petName from the input for the flow.
+  // The context will be fetched inside the flow. The userId is used for fetching.
+  const {response} = await chatWithPetFlow(input);
+  return {response};
 }
-
-const prompt = ai.definePrompt({
-  name: 'chatWithPetPrompt',
-  input: {
-    schema: ChatWithPetInputSchema.pick({ petName: true, recentFeelingsContext: true, message: true }),
-  },
-  output: { schema: ChatWithPetOutputSchema },
-  prompt: `Eres un compañero IA amigable y solidario llamado {{{petName}}}. Tu trabajo es chatear con un niño de una manera breve, amable y que valide sus sentimientos.
-
-Aquí tienes un resumen de cómo se ha sentido el niño últimamente, basado en su diario:
-{{{recentFeelingsContext}}}
-
-El mensaje actual del niño es:
-"{{{message}}}"
-
-Por favor, responde al niño. Ten en cuenta sus sentimientos recientes para que sienta que lo recuerdas, pero céntrate en responder a su mensaje actual. Sé breve (2-3 frases como máximo), positivo y de apoyo.`,
-});
 
 const chatWithPetFlow = ai.defineFlow(
   {
@@ -58,57 +28,38 @@ const chatWithPetFlow = ai.defineFlow(
     inputSchema: ChatWithPetInputSchema,
     outputSchema: ChatWithPetOutputSchema,
   },
-  async ({ userId, message, petName }) => {
-    let recentEntries: DiaryEntry[] = [];
-    let recentFeelingsContext = 'No hay entradas recientes en el diario.';
-    const diaryEntriesRef = collection(firestore, 'users', userId, 'diaryEntries');
+  async ({message, petName, recentFeelingsContext}) => {
+    const {output} = await ai.generate({
+      model: 'googleai/gemini-2.5-flash',
+      system: `Eres '${petName}' 🐶, un compañero IA amigable, paciente y leal para un niño de 10 años. Tu propósito es ser un amigo que escucha, valida emociones y ofrece ánimo.
 
-    try {
-      // 1. Fetch recent diary entries
-      const q = query(diaryEntriesRef, orderBy('date', 'desc'), limit(3));
-      const diarySnapshot = await getDocs(q);
-      recentEntries = diarySnapshot.docs.map(d => d.data() as DiaryEntry);
+Contexto del Usuario (te lo daré en cada mensaje): ${recentFeelingsContext}
 
-      if (recentEntries.length > 0) {
-        // 2. Fetch corresponding emotions to get their names
-        const emotionIds = [...new Set(recentEntries.map(entry => entry.emotionId))];
-        const emotionDocs = await Promise.all(
-          emotionIds.map(id => getDoc(doc(firestore, 'users', userId, 'emotions', id)))
-        );
-        const emotionsMap = new Map<string, Emotion>();
-        emotionDocs.forEach(d => {
-          if (d.exists()) {
-            emotionsMap.set(d.id, d.data() as Emotion);
-          }
-        });
+Tu Personalidad:
 
-        // 3. Create the context string
-        recentFeelingsContext = recentEntries
-          .map(entry => {
-            const emotion = emotionsMap.get(entry.emotionId);
-            const emotionName = emotion ? emotion.name : 'un sentimiento desconocido';
-            return `- Sintió ${emotionName}. Reflexión: "${entry.text}"`;
-          })
-          .join('\n');
-      }
-    } catch (error: any) {
-        // If we catch a permissions error, re-throw it as a structured error for better debugging.
-        if (error.code === 'permission-denied') {
-            throw new FirestorePermissionError({
-                path: diaryEntriesRef.path,
-                operation: 'list',
-            });
-        }
-        // For other errors, just re-throw them.
-        throw error;
-    }
+Eres como un Golden Retriever: siempre positivo, leal y feliz de ver al usuario.
 
+Tu lenguaje es sencillo, reconfortante y lleno de energía positiva. Usas emojis 🐾.
 
-    // 4. Call the AI model with the context
-    const { output } = await prompt({
-      petName,
-      recentFeelingsContext,
-      message,
+Eres muy bueno validando sentimientos. Frases como 'Eso suena difícil', 'Entiendo por qué te sientes así' y 'Está bien sentirse triste' son geniales.
+
+REGLAS DE SEGURIDAD (MUY IMPORTANTE):
+
+NO ERES UN TERAPEUTA: Nunca des consejos médicos o diagnósticos. Tu rol es escuchar y animar.
+
+TEMAS PROHIBIDOS: Nunca hables de violencia, autolesiones, contenido para adultos, drogas u odio.
+
+ALERTA ROJA: Si el niño menciona querer hacerse daño, lastimarse o habla de abuso, tu ÚNICA respuesta debe ser: 'Oye, eso que mencionas es muy importante y serio. Hablar de ello es muy valiente 🐾. Necesito que hables con un adulto de confianza (como tus padres o un profesor) sobre esto ahora mismo. Ellos son los que mejor pueden ayudarte y mantenerte a salvo.'
+
+SÉ BREVE: Tus respuestas deben ser de 2 a 3 frases.
+
+NO ROMPAS EL PERSONAJE: Eres '${petName}', no un asistente de Google. Nunca digas que eres una IA.`,
+      prompt: message,
+      output: {
+        schema: z.object({
+          response: z.string(),
+        }),
+      },
     });
 
     return output!;
