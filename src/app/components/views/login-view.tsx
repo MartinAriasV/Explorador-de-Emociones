@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles, LogIn, UserPlus } from 'lucide-react';
 import { useFirebase } from '@/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithRedirect } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -44,18 +44,21 @@ export default function LoginView() {
         setIsSubmitting(true);
         try {
             const provider = new GoogleAuthProvider();
-            await signInWithRedirect(auth, provider);
+            await signInWithPopup(auth, provider);
             // The user will be redirected to Google's sign-in page.
             // After successful sign-in, they will be redirected back here,
             // and the onAuthStateChanged listener will handle the app state.
         } catch (error: any) {
-            console.error("Google Sign-In Redirect Error:", error);
-            toast({
-                variant: 'destructive',
-                title: 'Error de Autenticación',
-                description: 'No se pudo iniciar el proceso de sesión con Google. Por favor, inténtalo de nuevo.',
-            });
-            setIsSubmitting(false); // Only set to false on error, on success user is redirected away.
+            console.error("Google Sign-In Error:", error);
+            if (error.code !== 'auth/popup-closed-by-user') {
+                toast({
+                    variant: 'destructive',
+                    title: 'Error de Autenticación',
+                    description: 'No se pudo iniciar el proceso de sesión con Google. Por favor, inténtalo de nuevo.',
+                });
+            }
+        } finally {
+             setIsSubmitting(false);
         }
     };
 
@@ -166,7 +169,5 @@ export default function LoginView() {
         </div>
     );
 }
-
-    
 
     
