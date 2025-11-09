@@ -1,4 +1,3 @@
-
 "use client";
 
 import React from 'react';
@@ -6,17 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { GuessEmotionGame } from '../games/guess-emotion-game';
 import type { Emotion } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Brain, Puzzle, Feather, Contrast, CloudRain } from 'lucide-react';
+import { Brain, Puzzle, Feather, Contrast, CloudRain, BookMarked } from 'lucide-react';
 import { EmotionMemoryGame } from '../games/emotion-memory-game';
 import { QuickJournalGame } from '../games/quick-journal-game';
 import { AntonymGame } from '../games/antonym-game';
 import { EmotionRainGame } from '../games/emotion-rain-game';
+import { StoryBuilderGame } from '../games/story-builder-game';
+import type { User } from 'firebase/auth';
 
 interface GamesViewProps {
   emotionsList: Emotion[];
+  addPoints: (amount: number) => void;
+  user: User;
 }
 
-export function GamesView({ emotionsList }: GamesViewProps) {
+export function GamesView({ emotionsList, addPoints, user }: GamesViewProps) {
   return (
     <Card className="w-full h-full shadow-lg flex flex-col">
       <CardHeader>
@@ -25,7 +28,7 @@ export function GamesView({ emotionsList }: GamesViewProps) {
       </CardHeader>
       <CardContent className="flex-grow flex flex-col">
         <Tabs defaultValue="guess-emotion" className="w-full h-full flex flex-col">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 h-auto">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 h-auto">
             <TabsTrigger value="guess-emotion" className="py-2">
               <Puzzle className="mr-2 h-4 w-4" /> Adivina
             </TabsTrigger>
@@ -40,6 +43,9 @@ export function GamesView({ emotionsList }: GamesViewProps) {
             </TabsTrigger>
              <TabsTrigger value="rain-game" className="py-2">
               <CloudRain className="mr-2 h-4 w-4" /> Lluvia
+            </TabsTrigger>
+            <TabsTrigger value="story-builder" className="py-2">
+              <BookMarked className="mr-2 h-4 w-4" /> Historias
             </TabsTrigger>
           </TabsList>
           <TabsContent value="guess-emotion" className="flex-grow mt-4">
@@ -56,6 +62,9 @@ export function GamesView({ emotionsList }: GamesViewProps) {
           </TabsContent>
           <TabsContent value="rain-game" className="flex-grow mt-4">
             <EmotionRainGame emotionsList={emotionsList} />
+          </TabsContent>
+          <TabsContent value="story-builder" className="flex-grow mt-4">
+            <StoryBuilderGame emotionsList={emotionsList} addPoints={addPoints} user={user} />
           </TabsContent>
         </Tabs>
       </CardContent>

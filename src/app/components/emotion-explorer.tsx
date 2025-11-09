@@ -26,7 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc, runTransaction, arrayUnion } from 'firebase/firestore';
+import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc, runTransaction, arrayUnion, increment } from 'firebase/firestore';
 import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak } from '@/lib/utils';
 import type { User } from 'firebase/auth';
@@ -232,6 +232,18 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 
   const handleShare = () => {
     checkAndUnlockRewards('share');
+  };
+
+  const addPoints = async (amount: number) => {
+    if (!user || !firestore) return;
+    const userDocRef = doc(firestore, 'users', user.uid);
+    await updateDoc(userDocRef, {
+      points: increment(amount)
+    });
+    toast({
+      title: `¡Has ganado ${amount} puntos!`,
+      description: "¡Sigue así!",
+    });
   };
 
     const addDiaryEntry = async (entryData: Omit<DiaryEntry, 'id' | 'userId'>, trigger: 'addEntry' | 'recoverDay' = 'addEntry') => {
@@ -501,7 +513,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
             case 'discover':
               return <DiscoverView onAddPredefinedEmotion={saveEmotion} />;
             case 'games':
-                return <GamesView emotionsList={emotionsList || []} />;
+                return <GamesView emotionsList={emotionsList || []} addPoints={addPoints} user={user}/>;
             case 'calm':
               return <CalmView />;
             case 'streak':
