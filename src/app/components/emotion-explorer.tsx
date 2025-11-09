@@ -24,7 +24,7 @@ import { Crown, Map } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak } from '@/lib/utils';
@@ -57,9 +57,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const { firestore } = useFirebase();
 
   // --- Firestore Data Hooks ---
-  const userProfileQuery = useMemoFirebase(() => (user ? query(collection(firestore, 'users'), where("id", "==", user.uid)) : null), [firestore, user]);
-  const { data: userProfileData, isLoading: isProfileLoading } = useCollection<UserProfile>(userProfileQuery);
-  const userProfile = useMemo(() => (userProfileData && userProfileData[0] ? userProfileData[0] : null), [userProfileData]);
+  const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
   const emotionsQuery = useMemoFirebase(() => (user ? collection(firestore, 'users', user.uid, 'emotions') : null), [firestore, user]);
   const { data: emotionsList, isLoading: areEmotionsLoading } = useCollection<Emotion>(emotionsQuery);
