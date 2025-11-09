@@ -100,68 +100,30 @@
   "auth": {
     "providers": [
       "password",
-      "anonymous"
+      "anonymous",
+      "google.com"
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}/profile",
-        "definition": {
-          "entityName": "UserProfile",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
-          },
-          "description": "Stores user profile information.  Accessible only to the user with matching UID.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user, matching the Firebase auth UID."
-            }
-          ]
-        }
+    "paths": {
+      "/users/{userId}/profile": {
+        "schema": {
+          "$ref": "#/backend/entities/UserProfile"
+        },
+        "description": "Stores user profile information. Accessible only to the user with matching UID."
       },
-      {
-        "path": "/users/{userId}/emotions/{emotionId}",
-        "definition": {
-          "entityName": "Emotion",
-          "schema": {
-            "$ref": "#/backend/entities/Emotion"
-          },
-          "description": "Stores user-defined emotions. Accessible only to the user with matching UID.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user, matching the Firebase auth UID."
-            },
-            {
-              "name": "emotionId",
-              "description": "The unique identifier for the emotion."
-            }
-          ]
-        }
+      "/users/{userId}/emotions/{emotionId}": {
+        "schema": {
+          "$ref": "#/backend/entities/Emotion"
+        },
+        "description": "Stores user-defined emotions. Accessible only to the user with matching UID."
       },
-      {
-        "path": "/users/{userId}/diaryEntries/{diaryEntryId}",
-        "definition": {
-          "entityName": "DiaryEntry",
-          "schema": {
-            "$ref": "#/backend/entities/DiaryEntry"
-          },
-          "description": "Stores diary entries for each user. Accessible only to the user with matching UID.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user, matching the Firebase auth UID. This is also denormalized within the DiaryEntry document itself."
-            },
-            {
-              "name": "diaryEntryId",
-              "description": "The unique identifier for the diary entry."
-            }
-          ]
-        }
+      "/users/{userId}/diaryEntries/{diaryEntryId}": {
+        "schema": {
+          "$ref": "#/backend/entities/DiaryEntry"
+        },
+        "description": "Stores diary entries for each user. Accessible only to the user with matching UID."
       }
-    ],
-    "reasoning": "The Firestore structure is designed to securely manage user profiles, emotions, and diary entries for the 'Emotion Explorer' application. It prioritizes authorization independence and facilitates simple, robust security rules.\n\n*   **User Profiles:** User profiles are stored in a private collection, `/users/{userId}/profile`. This path-based ownership ensures that only the authenticated user can access their profile data. The `userId` from `request.auth.uid` is used to enforce this rule.\n*   **Emotions:** User-defined emotions are stored in `/users/{userId}/emotions/{emotionId}`. This structure provides path-based ownership, guaranteeing that only the user who created an emotion can modify or delete it. This achieves authorization independence. List operations are secure as they are scoped to the individual user.\n*   **Diary Entries:** Diary entries, linked to both UserProfile and Emotion entities, are stored in `/users/{userId}/diaryEntries/{diaryEntryId}`. The `userId` in the path, which needs to match the authenticated user's ID (`request.auth.uid`), ensures ownership. By nesting diary entries under the user, we maintain a clear ownership structure and prevent unauthorized access.\n\nThis structure avoids hierarchical authorization dependencies. Each collection's security rules can be independently defined without relying on `get()` calls to parent documents. This design supports atomic operations and enhances debuggability.\n\nThe design also supports the required QAPs (Rules are not Filters). List operations are naturally scoped to the user, preventing unauthorized data access. By segregating data based on ownership (using path-based ownership), we ensure that all documents within a collection share the same security requirements, further simplifying the rules."
+    }
   }
 }
