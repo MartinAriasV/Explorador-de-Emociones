@@ -31,6 +31,7 @@ import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocki
 import { calculateDailyStreak } from '@/lib/utils';
 import type { User } from 'firebase/auth';
 import { PetChatView } from './views/pet-chat-view';
+import useLocalStorage from '@/hooks/use-local-storage';
 
 interface EmotionExplorerProps {
   user: User;
@@ -77,26 +78,35 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     if (!userProfile?.purchasedItemIds) return [];
     return SHOP_ITEMS.filter(item => userProfile.purchasedItemIds.includes(item.id));
   }, [userProfile]);
-  
+
+  const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
+
   useEffect(() => {
     const equippedThemeId = userProfile?.equippedItems?.['theme'];
     const htmlElement = document.documentElement;
     const bodyElement = document.body;
 
-    // Remove any existing theme classes
+    // Base theme (light/dark)
+    htmlElement.classList.remove('light', 'dark');
+    htmlElement.classList.add(theme);
+
+    // Cosmetic themes from shop
     htmlElement.classList.remove('theme-ocean', 'theme-forest');
     bodyElement.classList.remove('bg-forest-gradient');
+    bodyElement.style.backgroundColor = '';
 
     if (equippedThemeId) {
       const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
       if (themeItem) {
         htmlElement.classList.add(themeItem.value);
         if (themeItem.value === 'theme-forest') {
-          bodyElement.classList.add('bg-forest-gradient');
+            bodyElement.classList.add('bg-forest-gradient');
+            // This makes the default background transparent to let the gradient show through
+            bodyElement.style.backgroundColor = 'transparent';
         }
       }
     }
-  }, [userProfile?.equippedItems]);
+  }, [userProfile?.equippedItems, theme]);
 
 
   const addInitialEmotions = useCallback(async (userId: string) => {
@@ -441,7 +451,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
               title: "Error en la compra",
               description: error.message === "Puntos insuficientes" 
                   ? "¡No tienes suficientes puntos!" 
-                  : error.message,
+                  : "No se pudo completar la compra. Inténtalo de nuevo.",
           });
       }
   };
@@ -595,7 +605,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   return (
     <SidebarProvider>
       <div className="flex h-screen w-screen bg-background">
-        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} />
+        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
         <main className="flex-1 flex flex-col overflow-hidden">
           <header className="p-2 md:hidden flex items-center border-b">
              <MobileMenuButton />

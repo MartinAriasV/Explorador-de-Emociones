@@ -119,6 +119,21 @@ body {
     --input: 120 15% 90%;
     --ring: 130 60% 40%;
   }
+
+  .dark.theme-forest {
+    --background: 120 25% 10%;
+    --foreground: 120 10% 95%;
+    --card: 120 25% 12%;
+    --card-foreground: 120 10% 95%;
+    --popover: 120 25% 12%;
+    --popover-foreground: 120 10% 95%;
+    --primary: 130 50% 50%;
+    --secondary: 120 20% 15%;
+    --muted: 120 20% 15%;
+    --accent: 110 60% 55%;
+    --border: 120 20% 20%;
+    --input: 120 20% 20%;
+  }
 }
 
 @layer base {
@@ -176,6 +191,9 @@ body {
     background: linear-gradient(-45deg, #d8e5d8, #afc2af, #95ab95, #6a8c6a);
     background-size: 400% 400%;
     animation: forest-gradient 20s ease infinite;
+  }
+  .bg-forest-gradient body {
+    background-color: transparent;
   }
 }
 
