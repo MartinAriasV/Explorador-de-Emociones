@@ -81,13 +81,21 @@ service cloud.firestore {
       function isOwner(userId) {
         return request.auth != null && request.auth.uid == userId;
       }
+      
+      // The server-side Genkit flow will have no auth object.
+      // This is a temporary and insecure rule for prototyping.
+      // In a production app, you would use the Admin SDK or a specific service account.
+      function isAppService() {
+        return request.auth == null;
+      }
 
       function isExistingOwner(userId) {
           return isOwner(userId) && resource != null;
       }
 
       allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
+      // Allow the app service (Genkit flow) to list entries for the RAG functionality.
+      allow list: if isOwner(userId) || isAppService();
       allow create: if isOwner(userId);
       allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
