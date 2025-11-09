@@ -50,17 +50,30 @@ export function EmotionalAscentGame({ emotionsList, userProfile, onGameEnd }: Em
 
     const resetGame = useCallback(() => {
         const gameWidth = gameAreaRef.current?.clientWidth || 500;
-        setPlayerPos({ x: gameWidth / 2 - PLAYER_WIDTH / 2, y: 350 });
+        const initialPlayerX = gameWidth / 2 - PLAYER_WIDTH / 2;
+        const initialPlayerY = 350;
+
+        setPlayerPos({ x: initialPlayerX, y: initialPlayerY });
         setPlayerVel({ x: 0, y: 0 });
         setScore(0);
-        setHighestY(350);
+        setHighestY(initialPlayerY);
         
         let initialPlatforms: Platform[] = [];
-        for (let i = 0; i < 10; i++) {
+        
+        // Solid starting platform
+        initialPlatforms.push({
+            id: 0,
+            x: initialPlayerX,
+            y: initialPlayerY + PLAYER_HEIGHT + 40,
+            type: 'normal'
+        });
+
+        // Generate the rest of the platforms
+        for (let i = 1; i < 10; i++) {
             initialPlatforms.push({
                 id: i,
                 x: Math.random() * (gameWidth - PLATFORM_WIDTH),
-                y: 400 - 80 * i,
+                y: (initialPlayerY + 100) - (80 * i),
                 type: 'normal'
             });
         }
