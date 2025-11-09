@@ -55,47 +55,27 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     setIsLoadingImage(true);
 
     let localHistory = [...questionHistory];
-
-    // 1. Select a correct emotion that has available images not in history
-    const possibleEmotions = shuffleArray(playableEmotions);
-    let correctEmotion: Emotion | null = null;
-    let availableImagesForEmotion: typeof empathyImages = [];
-
-    for (const emotion of possibleEmotions) {
-        const images = empathyImages.filter(img => 
-            img.emotion.toLowerCase() === emotion.name.toLowerCase() &&
-            !localHistory.includes(img.id)
-        );
-        if (images.length > 0) {
-            correctEmotion = emotion;
-            availableImagesForEmotion = images;
-            break;
-        }
-    }
-
-    // If we've run out of unique images for all emotions, reset history and try again
-    if (!correctEmotion) {
-        localHistory = []; // Reset history
+    if (localHistory.length >= empathyImages.length) {
+        localHistory = [];
         setQuestionHistory([]);
-         for (const emotion of possibleEmotions) {
-            const images = empathyImages.filter(img => img.emotion.toLowerCase() === emotion.name.toLowerCase());
-            if (images.length > 0) {
-                correctEmotion = emotion;
-                availableImagesForEmotion = images;
-                break;
-            }
-        }
     }
 
+    let possibleImages = empathyImages.filter(img => !localHistory.includes(img.id));
+    if(possibleImages.length === 0) {
+        possibleImages = empathyImages;
+        localHistory = [];
+        setQuestionHistory([]);
+    }
+
+    const questionImage = shuffleArray(possibleImages)[0];
+    const correctEmotion = playableEmotions.find(e => e.name.toLowerCase() === questionImage.emotion.toLowerCase());
+
     if (!correctEmotion) {
-        console.error("No playable emotions have corresponding images.");
+        console.error("No playable emotion found for image:", questionImage);
         setIsPlaying(false);
         return;
     }
     
-    const questionImage = shuffleArray(availableImagesForEmotion)[0];
-
-    // 3. Generate incorrect options from the other playable emotions
     const incorrectOptions = shuffleArray(playableEmotions.filter(e => e.id !== correctEmotion!.id)).slice(0, 3);
     
     if (incorrectOptions.length < 3) {
@@ -107,7 +87,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
     
     setCurrentQuestion({
-        imageUrl: `https://picsum.photos/seed/${questionImage.seed}/${questionImage.width}/${questionImage.height}`,
+        imageUrl: `https://source.unsplash.com/600x400/?${questionImage.hint}`,
         correctEmotion: correctEmotion.name,
         options: allOptions,
         hint: questionImage.hint
@@ -212,6 +192,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
                 className={cn("object-cover transition-opacity duration-300", isLoadingImage ? "opacity-0" : "opacity-100")}
                 onLoad={() => setIsLoadingImage(false)}
                 data-ai-hint={currentQuestion.hint}
+                unoptimized
                 priority={true} 
             />
          </div>
@@ -258,6 +239,3 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     </div>
   );
 }
-
-
-    

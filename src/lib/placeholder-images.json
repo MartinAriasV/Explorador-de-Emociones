@@ -2,83 +2,53 @@
   "empathy_gallery": [
     {
       "id": "eg01",
-      "seed": 101,
-      "width": 600,
-      "height": 400,
       "emotion": "Alegría",
-      "hint": "mujer sonriendo"
+      "hint": "smiling woman"
     },
     {
       "id": "eg02",
-      "seed": 102,
-      "width": 600,
-      "height": 400,
       "emotion": "Tristeza",
-      "hint": "hombre triste"
+      "hint": "sad man portrait"
     },
     {
       "id": "eg03",
-      "seed": 103,
-      "width": 600,
-      "height": 400,
       "emotion": "Sorpresa",
-      "hint": "niño sorprendido"
+      "hint": "surprised child face"
     },
     {
       "id": "eg04",
-      "seed": 104,
-      "width": 600,
-      "height": 400,
       "emotion": "Ira",
-      "hint": "persona enfadada"
+      "hint": "angry person"
     },
     {
       "id": "eg05",
-      "seed": 205,
-      "width": 600,
-      "height": 400,
       "emotion": "Miedo",
-      "hint": "persona asustada"
+      "hint": "scared woman"
     },
     {
       "id": "eg06",
-      "seed": 106,
-      "width": 600,
-      "height": 400,
       "emotion": "Confianza",
-      "hint": "persona segura"
+      "hint": "confident person arms crossed"
     },
     {
       "id": "eg07",
-      "seed": 107,
-      "width": 600,
-      "height": 400,
       "emotion": "Orgullo",
-      "hint": "atleta orgulloso"
+      "hint": "proud athlete winner"
     },
     {
       "id": "eg08",
-      "seed": 208,
-      "width": 600,
-      "height": 400,
       "emotion": "Calma",
-      "hint": "paisaje sereno"
+      "hint": "person meditating sunset"
     },
     {
       "id": "eg09",
-      "seed": 109,
-      "width": 600,
-      "height": 400,
       "emotion": "Confusión",
-      "hint": "camino confuso"
+      "hint": "confused person looking at map"
     },
     {
       "id": "eg10",
-      "seed": 110,
-      "width": 600,
-      "height": 400,
       "emotion": "Euforia",
-      "hint": "concierto celebrando"
+      "hint": "crowd celebrating concert"
     }
   ]
 }
