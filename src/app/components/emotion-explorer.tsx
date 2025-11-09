@@ -82,24 +82,37 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 
   // Centralized theme management
   useEffect(() => {
-    if (typeof window === 'undefined' || !userProfile) return;
-
+    if (typeof window === 'undefined') return;
+  
     const body = document.body;
     const equippedThemeId = userProfile?.equippedItems?.['theme'];
     const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
-
-    let classes: string[] = [theme];
+  
+    // Start with base classes
+    let classes = ['font-body', 'antialiased', 'h-full'];
+  
+    // Add light/dark mode class
+    classes.push(theme);
+  
     if (themeItem) {
-        classes.push(themeItem.value); // e.g. 'theme-forest'
-        if (themeItem.value === 'theme-forest') {
-            classes.push('bg-forest-gradient');
-        }
-    } else {
+      // Add the specific theme class for component colors (e.g., 'theme-forest')
+      classes.push(themeItem.value);
+  
+      // If it's the forest theme, add the gradient background class
+      if (themeItem.value === 'theme-forest') {
+        classes.push('bg-forest-gradient');
+      } else {
+        // For other themes (like ocean or default), ensure a background color
         classes.push('bg-background');
+      }
+    } else {
+      // If no special theme is equipped, use the default background
+      classes.push('bg-background');
     }
-    
-    body.className = cn("font-body antialiased h-full", ...classes);
-
+  
+    // Apply all classes at once
+    body.className = cn(...classes);
+  
   }, [userProfile, theme]);
 
 

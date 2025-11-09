@@ -141,7 +141,7 @@ body {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -188,9 +188,9 @@ body {
     animation: gradient-animation 15s ease infinite;
   }
   .bg-forest-gradient {
-    background: linear-gradient(-45deg, #d8e5d8, #afc2af, #95ab95, #6a8c6a);
-    background-size: 400% 400%;
-    animation: forest-gradient 20s ease infinite;
+    background: linear-gradient(-45deg, #d8e5d8, #afc2af, #95ab95, #6a8c6a) !important;
+    background-size: 400% 400% !important;
+    animation: forest-gradient 20s ease infinite !important;
   }
 }
 
