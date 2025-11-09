@@ -238,7 +238,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const addPoints = async (amount: number) => {
     if (!user || !firestore) return;
     const userDocRef = doc(firestore, 'users', user.uid);
-    await updateDoc(userDocRef, {
+    // Use the non-blocking update for a smoother user experience
+    updateDocumentNonBlocking(userDocRef, {
       points: increment(amount)
     });
     toast({

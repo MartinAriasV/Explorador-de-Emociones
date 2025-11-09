@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Emotion, GameProps } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -44,22 +44,18 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
       return;
     }
 
-    // 1. Get 4 unique emotions from the user's list
     const questionOptions = shuffleArray(emotionsList).slice(0, 4);
-    
-    // 2. Pick one as the correct answer
     const correctEmotion = questionOptions[0];
 
-    // 3. Construct the image URL using placehold.co
     const bgColor = correctEmotion.color.substring(1); // remove '#'
-    const textColor = 'FFFFFF'; // White text
+    const textColor = 'FFFFFF';
     const text = encodeURIComponent(correctEmotion.name);
     const imageUrl = `https://placehold.co/600x400/${bgColor}/${textColor}?text=${text}&font=poppins`;
 
     setCurrentQuestion({
         imageUrl: imageUrl,
         correctEmotion: correctEmotion,
-        options: shuffleArray(questionOptions), // Shuffle them for display
+        options: shuffleArray(questionOptions),
     });
     
     setIsAnswered(false);
@@ -88,7 +84,6 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
   };
 
   const handleNext = () => {
-    setCurrentQuestion(null);
     setQuestionsAnswered(prev => prev + 1);
   };
 
@@ -130,6 +125,11 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
         </div>
     );
   }
+  
+  if (questionsAnswered >= QUESTIONS_PER_GAME) {
+    setIsPlaying(false);
+    return null; // Will be re-rendered into the start screen
+  }
 
   if (!currentQuestion) {
     return (
@@ -155,6 +155,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 className="object-cover"
+                unoptimized
             />
          </div>
       </Card>

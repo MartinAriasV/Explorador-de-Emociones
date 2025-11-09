@@ -22,8 +22,8 @@ export type UserProfile = {
   email: string;
   avatar: string; // Can be an emoji or a URL for generated avatar
   avatarType: 'emoji' | 'generated';
-  unlockedAnimalIds?: string[];
-  points?: number;
+  unlockedAnimalIds: string[];
+  points: number;
   purchasedItemIds?: string[];
   equippedItems?: { [key in ShopItemType]?: string }; // e.g. { 'theme': 'theme-ocean', 'avatar_frame': 'frame-gold' }
 };
