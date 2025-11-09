@@ -100,10 +100,41 @@ body {
     --ring: 205 90% 45%;
   }
 
-  body.theme-forest {
-    background: linear-gradient(-45deg, #d8e5d8, #afc2af, #95ab95, #6a8c6a) !important;
-    background-size: 400% 400% !important;
-    animation: forest-gradient 20s ease infinite !important;
+  .theme-forest {
+    --foreground: 120 25% 15%;
+    --card: 120 15% 100%;
+    --card-foreground: 120 25% 15%;
+    --popover: 120 15% 100%;
+    --popover-foreground: 120 25% 15%;
+    --primary: 130 60% 40%;
+    --primary-foreground: 120 20% 98%;
+    --secondary: 120 15% 96%;
+    --secondary-foreground: 120 25% 15%;
+    --muted: 120 15% 96%;
+    --muted-foreground: 120 15% 45%;
+    --accent: 110 70% 45%;
+    --accent-foreground: 120 20% 98%;
+    --border: 120 15% 90%;
+    --input: 120 15% 90%;
+    --ring: 130 60% 40%;
+  }
+  
+  .dark.theme-forest {
+    --foreground: 120 10% 95%;
+    --card: 120 25% 12%;
+    --card-foreground: 120 10% 95%;
+    --popover: 120 25% 12%;
+    --popover-foreground: 120 10% 95%;
+    --primary: 130 50% 50%;
+    --secondary: 120 20% 15%;
+    --muted: 120 20% 15%;
+    --accent: 110 60% 55%;
+    --border: 120 20% 20%;
+    --input: 120 20% 20%;
+  }
+
+  body.bg-forest-gradient > main .bg-background {
+    background-color: transparent;
   }
 }
 

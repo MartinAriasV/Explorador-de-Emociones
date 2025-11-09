@@ -79,32 +79,6 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 
   const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || !userProfile) return;
-
-    const root = document.documentElement;
-    const body = document.body;
-
-    // Base light/dark mode
-    root.classList.remove('light', 'dark');
-    root.classList.add(theme);
-    
-    const equippedThemeId = userProfile.equippedItems?.['theme'];
-    const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
-
-    if (themeItem) {
-        body.classList.add(themeItem.value); // e.g., 'theme-forest'
-    } else {
-        body.classList.remove('theme-ocean', 'theme-forest');
-    }
-
-    // Cleanup on unmount or when dependencies change
-    return () => {
-        body.classList.remove('theme-ocean', 'theme-forest');
-    };
-  }, [theme, userProfile]);
-
-
   const addInitialEmotions = useCallback(async (userId: string) => {
     if (!firestore) return;
     const emotionsCollectionRef = collection(firestore, 'users', userId, 'emotions');
@@ -589,9 +563,9 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   
   return (
     <SidebarProvider>
-      <div className={cn("flex h-screen w-screen bg-background")}>
+      <div className={cn("flex h-screen w-screen")}>
         <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <main className="flex-1 flex flex-col overflow-hidden bg-background">
           <header className="p-2 md:hidden flex items-center border-b bg-background/80 backdrop-blur-sm">
               <MobileMenuButton />
               <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>

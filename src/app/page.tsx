@@ -4,23 +4,52 @@ import React, { Suspense, useEffect } from 'react';
 import EmotionExplorer from '@/app/components/emotion-explorer';
 import {
   FirebaseClientProvider,
+  useDoc,
+  useMemoFirebase,
   useUser,
 } from '@/firebase';
 import LoginView from './components/views/login-view';
 import useLocalStorage from '@/hooks/use-local-storage';
+import { doc } from 'firebase/firestore';
+import { useFirebase } from '@/firebase/provider';
+import type { UserProfile } from '@/lib/types';
+import { SHOP_ITEMS } from '@/lib/constants';
 
 function AppGate() {
   const { user, isUserLoading } = useUser();
   const [theme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
+  const { firestore } = useFirebase();
 
-  // This effect ensures the base dark/light mode is applied to the html element
+  const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
+  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
+
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const root = document.documentElement;
-      root.classList.remove('light', 'dark');
-      root.classList.add(theme);
+    if (typeof window === 'undefined') return;
+
+    const body = document.body;
+    const root = document.documentElement;
+    
+    // Always manage light/dark mode
+    root.classList.remove('light', 'dark');
+    root.classList.add(theme);
+
+    const equippedThemeId = userProfile?.equippedItems?.['theme'];
+    const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
+
+    if (themeItem && themeItem.value === 'theme-forest') {
+      body.classList.add('bg-forest-gradient');
+      body.classList.remove('bg-background');
+    } else {
+      body.classList.remove('bg-forest-gradient');
+      body.classList.add('bg-background');
     }
-  }, [theme]);
+
+    // Cleanup on unmount
+    return () => {
+      body.classList.remove('bg-forest-gradient');
+      body.classList.add('bg-background');
+    };
+  }, [theme, userProfile]);
 
 
   if (isUserLoading) {
