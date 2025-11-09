@@ -82,24 +82,22 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 
   // Centralized theme management
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !userProfile) return;
 
     const body = document.body;
-    const equippedThemeId = userProfile?.equippedItems?.['theme'];
+    const equippedThemeId = userProfile.equippedItems?.['theme'];
     const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
     
     // Base classes
-    const classList = [theme];
+    const classList = ['font-body', 'antialiased', 'h-full', theme];
     if (themeItem) {
       classList.push(themeItem.value); // e.g., 'theme-forest'
       if (themeItem.value === 'theme-forest') {
         classList.push('bg-forest-gradient');
       }
-    } else {
-        classList.push('bg-background');
     }
 
-    body.className = cn('font-body', 'antialiased', 'h-full', ...classList);
+    body.className = cn(...classList);
 
   }, [userProfile, theme]);
 
