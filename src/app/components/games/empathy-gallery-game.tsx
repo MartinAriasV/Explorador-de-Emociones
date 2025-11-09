@@ -10,7 +10,6 @@ import { CheckCircle, XCircle, Zap, Loader } from 'lucide-react';
 import imageData from '@/lib/placeholder-images.json';
 import Image from 'next/image';
 import type { User } from 'firebase/auth';
-import { generateEmpathyImage } from '@/ai/flows/generate-empathy-image';
 
 const shuffleArray = <T,>(array: T[]): T[] => {
   return [...array].sort(() => Math.random() - 0.5);
@@ -46,50 +45,54 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
   const generateQuestion = useCallback(() => {
     setIsLoading(true);
     setError(null);
-
+    
     // Filter images that correspond to emotions the user actually has.
     const userEmotionNames = new Set(emotionsList.map(e => e.name.toLowerCase()));
-    const playableImages = empathyImages.filter(img => userEmotionNames.has(img.emotion.toLowerCase()));
+    
+    // Find all image definitions that match the user's available emotions and haven't been used yet.
+    let playableImages = empathyImages.filter(imgDef => 
+        userEmotionNames.has(imgDef.emotion.toLowerCase()) && !questionHistory.includes(imgDef.id)
+    );
 
-    // From the playable images, find one that hasn't been used in this session.
-    let possibleImages = playableImages.filter(img => !questionHistory.includes(img.id));
-    if (possibleImages.length === 0 && playableImages.length > 0) {
-      possibleImages = playableImages; // Reset history if all images have been shown
-      setQuestionHistory([]);
+    // If we've shown all available images, reset the history and allow repeats.
+    if (playableImages.length === 0) {
+        setQuestionHistory([]);
+        playableImages = empathyImages.filter(imgDef => 
+            userEmotionNames.has(imgDef.emotion.toLowerCase())
+        );
+    }
+    
+    if (playableImages.length === 0) {
+        setError("No tienes suficientes emociones en tu Emocionario que coincidan con las imágenes del juego. Añade emociones como Alegría, Tristeza, o Miedo desde la sección 'Descubrir'.");
+        setIsLoading(false);
+        setIsPlaying(false);
+        return;
     }
 
-    if (possibleImages.length === 0) {
-      setError("No tienes suficientes emociones en tu Emocionario que coincidan con las imágenes del juego. Añade emociones como Alegría, Tristeza, o Miedo desde la sección 'Descubrir'.");
-      setIsPlaying(false);
-      setIsLoading(false);
-      return;
-    }
-
-    const questionImageDef = shuffleArray(possibleImages)[0];
+    const questionImageDef = shuffleArray(playableImages)[0];
     const correctEmotion = emotionsList.find(e => e.name.toLowerCase() === questionImageDef.emotion.toLowerCase());
 
     if (!correctEmotion) {
-      console.error("Logic error: Correct emotion not found in user's list.");
-      setError("Ocurrió un error al generar la pregunta.");
-      setIsPlaying(false);
-      setIsLoading(false);
-      return;
+        console.error("Logic error: Correct emotion not found in user's list, this should not happen.");
+        setError("Ocurrió un error al generar la pregunta.");
+        setIsLoading(false);
+        setIsPlaying(false);
+        return;
     }
     
-    // Ensure there are at least 3 other emotions to pick from for incorrect options.
     const incorrectOptionsPool = emotionsList.filter(e => e.id !== correctEmotion.id);
     if (incorrectOptionsPool.length < 3) {
-      setError("Necesitas al menos 4 emociones diferentes en tu Emocionario para poder generar las opciones de respuesta.");
-      setIsPlaying(false);
-      setIsLoading(false);
-      return;
+        setError("Necesitas al menos 4 emociones diferentes en tu Emocionario para poder generar las opciones de respuesta.");
+        setIsLoading(false);
+        setIsPlaying(false);
+        return;
     }
 
     const incorrectOptions = shuffleArray(incorrectOptionsPool).slice(0, 3);
     const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
 
     setCurrentQuestion({
-        imageUrl: `https://images.unsplash.com/${questionImageDef.id}?w=600&h=400&fit=crop`,
+        imageUrl: `https://source.unsplash.com/600x400/?${questionImageDef.hint}`,
         correctEmotion: correctEmotion.name,
         options: allOptions,
         hint: questionImageDef.hint,
