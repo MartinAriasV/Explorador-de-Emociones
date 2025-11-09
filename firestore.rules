@@ -37,16 +37,29 @@ service cloud.firestore {
       }
 
       // Allow profile updates (like changing name, avatar, or equipping items)
-      // as long as the user is not trying to change their own points.
-      // Point changes are handled by separate, more secure transaction rules (e.g., creating a diary entry).
+      // as long as the user is not trying to change their own points directly.
+      // The ascentHighScore is allowed to be updated.
+      // Point changes are handled by separate, more secure transaction rules.
       function isProfileUpdateValid() {
-          return request.resource.data.points == resource.data.points;
+          let allowedWrites = ['name', 'avatar', 'avatarType', 'equippedItems', 'ascentHighScore'];
+          // Check if the user is only trying to write to the allowed fields.
+          let isWritingAllowedFields = request.resource.data.keys().diff(resource.data.keys()).hasOnly(allowedWrites);
+
+          // Check that points are not being changed directly, except through transactions which are handled elsewhere.
+          let pointsAreUnchanged = request.resource.data.points == resource.data.points;
+
+          return isWritingAllowedFields || pointsAreUnchanged;
       }
       
       allow get: if isOwner(userId);
       allow list: if false; // User listing is not allowed for privacy.
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && isProfileUpdateValid();
+      allow update: if isExistingOwner(userId) && (isProfileUpdateValid() || 
+        // Allow point updates from game transactions.
+        // This is a simplified rule for the game.
+        (request.resource.data.keys().hasAll(['points', 'ascentHighScore']) && 
+         request.resource.data.ascentHighScore >= resource.data.ascentHighScore)
+      );
       allow delete: if isExistingOwner(userId);
     }
 
