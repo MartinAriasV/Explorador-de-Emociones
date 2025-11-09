@@ -8,7 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { chatWithPet } from '@/ai/flows/chat-with-pet';
 import type { SpiritAnimal, View, DiaryEntry, Emotion } from '@/lib/types';
 import type { User } from 'firebase/auth';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface PetChatViewProps {
@@ -24,10 +24,32 @@ interface Message {
   sender: 'user' | 'pet';
 }
 
+const getEmotionById = (id: string, emotionsList: Emotion[]) => emotionsList.find(e => e.id === id);
+
+const getRecentFeelingsContext = (diaryEntries: DiaryEntry[], emotionsList: Emotion[]) => {
+    const recentEntries = [...diaryEntries].reverse().slice(0, 3);
+    if (recentEntries.length === 0) {
+      return {
+          contextString: "El usuario aún no ha escrito en su diario.",
+          displayFeelings: []
+      };
+    }
+    
+    const contextString = "Contexto de sentimientos recientes: " + recentEntries.map((entry, index) => {
+        const emotion = getEmotionById(entry.emotionId, emotionsList);
+        return `${index + 1}. Emoción: ${emotion?.name || 'desconocida'}, Pensamiento: "${entry.text}"`;
+      }).join(' ');
+
+    const displayFeelings = recentEntries.map(entry => getEmotionById(entry.emotionId, emotionsList)).filter(Boolean) as Emotion[];
+
+    return { contextString, displayFeelings };
+};
+
 export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: PetChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [initialContext, setInitialContext] = useState<{ contextString: string; displayFeelings: Emotion[] } | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,11 +67,13 @@ export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: 
         setMessages([
             { text: `¡Hola! Soy ${pet.name}. ¿Cómo estás hoy?`, sender: 'pet' }
         ]);
+        const context = getRecentFeelingsContext(diaryEntries, emotionsList);
+        setInitialContext(context);
     }
-  }, [pet]);
+  }, [pet, diaryEntries, emotionsList]);
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim() || !pet) return;
+    if (!inputValue.trim() || !pet || !initialContext) return;
 
     const userMessage: Message = { text: inputValue, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
@@ -57,25 +81,11 @@ export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: 
     setIsLoading(true);
 
     try {
-      const getEmotionById = (id: string) => emotionsList.find(e => e.id === id);
-
-      // 1. Get the 3 most recent diary entries.
-      const recentEntries = [...diaryEntries].reverse().slice(0, 3);
-      
-      // 2. Format the context string.
-      const recentFeelingsContext = recentEntries.length > 0
-        ? "Contexto de sentimientos recientes: " + recentEntries.map((entry, index) => {
-            const emotion = getEmotionById(entry.emotionId);
-            return `${index + 1}. Emoción: ${emotion?.name || 'desconocida'}, Pensamiento: "${entry.text}"`;
-          }).join(' ')
-        : "El usuario aún no ha escrito en su diario.";
-      
-      // 3. Call the Genkit flow with the new context.
       const response = await chatWithPet({
         userId: user.uid,
         message: inputValue,
         petName: pet.name,
-        recentFeelingsContext: recentFeelingsContext,
+        recentFeelingsContext: initialContext.contextString,
       });
 
       const petMessage: Message = { text: response.response, sender: 'pet' };
@@ -126,6 +136,12 @@ export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: 
                         </div>
                     </div>
                 ))}
+                 {initialContext && initialContext.displayFeelings.length > 0 && messages.length === 1 && (
+                  <div className="flex items-start gap-3 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg animate-fade-in">
+                    <Info className="h-5 w-5 mt-0.5 shrink-0" />
+                    <p>Para esta charla, estoy recordando que últimamente te has sentido: {initialContext.displayFeelings.map(e => e.name).join(', ')}.</p>
+                  </div>
+                )}
                 {isLoading && (
                      <div className="flex items-end gap-2 justify-start">
                         <span className="text-3xl">{pet.icon}</span>
