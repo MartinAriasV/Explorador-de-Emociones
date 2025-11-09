@@ -380,7 +380,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
           toast({ variant: "destructive", title: "Puntos insuficientes", description: "¡No tienes suficientes puntos para comprar esto!" });
           return;
       }
-       if (userProfile.purchasedItemIds?.includes(item.id)) {
+      if (userProfile.purchasedItemIds?.includes(item.id)) {
         toast({ variant: "destructive", title: "Artículo ya comprado", description: "Ya posees este artículo." });
         return;
       }
@@ -391,17 +391,17 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
           await runTransaction(firestore, async (transaction) => {
               const userDoc = await transaction.get(userDocRef);
               if (!userDoc.exists()) {
-                  throw "User profile does not exist!";
+                  throw new Error("User profile does not exist!");
               }
               
               const currentProfile = userDoc.data() as UserProfile;
               const currentPoints = currentProfile.points || 0;
 
               if (currentPoints < item.cost) {
-                  throw "Puntos insuficientes";
+                  throw new Error("Puntos insuficientes");
               }
-               if (currentProfile.purchasedItemIds?.includes(item.id)) {
-                  throw "Artículo ya comprado";
+              if (currentProfile.purchasedItemIds?.includes(item.id)) {
+                  throw new Error("Artículo ya comprado");
               }
 
               const newPoints = currentPoints - item.cost;
@@ -413,11 +413,14 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 
           toast({ title: "¡Compra exitosa!", description: `Has comprado "${item.name}".` });
       } catch (error: any) {
-          console.error("Transaction failed: ", error);
           toast({
               variant: "destructive",
               title: "Error en la compra",
-              description: error === "Puntos insuficientes" ? "¡No tienes suficientes puntos!" : error === "Artículo ya comprado" ? "Ya has comprado este artículo." : "No se pudo completar la compra.",
+              description: error.message === "Puntos insuficientes" 
+                  ? "¡No tienes suficientes puntos!" 
+                  : error.message === "Artículo ya comprado" 
+                  ? "Ya has comprado este artículo." 
+                  : "No se pudo completar la compra.",
           });
       }
   };
@@ -654,3 +657,5 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     </SidebarProvider>
   );
 }
+
+    
