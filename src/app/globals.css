@@ -101,7 +101,7 @@ body {
   }
 
   .theme-forest {
-    --background: 120 15% 98%;
+    --background: transparent;
     --foreground: 120 25% 15%;
     --card: 120 15% 100%;
     --card-foreground: 120 25% 15%;
@@ -121,7 +121,7 @@ body {
   }
 
   .dark.theme-forest {
-    --background: 120 25% 10%;
+    --background: transparent;
     --foreground: 120 10% 95%;
     --card: 120 25% 12%;
     --card-foreground: 120 10% 95%;
@@ -134,10 +134,6 @@ body {
     --border: 120 20% 20%;
     --input: 120 20% 20%;
   }
-
-  body.theme-forest {
-    --background-color: transparent;
-  }
 }
 
 @layer base {
@@ -145,7 +141,7 @@ body {
     @apply border-border;
   }
   body {
-    @apply text-foreground;
+    @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
