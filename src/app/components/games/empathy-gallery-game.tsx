@@ -24,7 +24,7 @@ interface EmpathyGalleryGameProps extends GameProps {
 
 interface EmpathyQuestion {
     imageUrl: string;
-    correctEmotion: string;
+    correctEmotion: Emotion;
     options: Emotion[];
     hint: string;
 }
@@ -46,12 +46,13 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     setIsLoading(true);
     setError(null);
     
+    // 1. Find which images we can use based on the user's available emotions.
     const userEmotionNames = new Set(emotionsList.map(e => e.name.toLowerCase()));
-    
     let playableImages = empathyImages.filter(imgDef => 
         userEmotionNames.has(imgDef.emotion.toLowerCase()) && !questionHistory.includes(imgDef.id)
     );
 
+    // If we've used all unique images, reset the history to allow repeats.
     if (playableImages.length === 0 && questionHistory.length > 0) {
         setQuestionHistory([]);
         playableImages = empathyImages.filter(imgDef => 
@@ -59,6 +60,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
         );
     }
     
+    // If there are still no images to play with, it means the user lacks the necessary emotions.
     if (playableImages.length === 0) {
         setError("No tienes suficientes emociones en tu Emocionario que coincidan con las imágenes del juego. Añade emociones como Alegría, Tristeza, o Miedo desde la sección 'Descubrir'.");
         setIsLoading(false);
@@ -66,16 +68,19 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
         return;
     }
 
+    // 2. Pick a random image for the question.
     const questionImageDef = shuffleArray(playableImages)[0];
     const correctEmotion = emotionsList.find(e => e.name.toLowerCase() === questionImageDef.emotion.toLowerCase());
 
     if (!correctEmotion) {
-        setError("Ocurrió un error al generar la pregunta.");
+        // This case should be rare, but it's good to handle it.
+        setError("Ocurrió un error al generar la pregunta. Intentando de nuevo...");
         setIsLoading(false);
-        setIsPlaying(false);
+        generateQuestion(); // Retry
         return;
     }
     
+    // 3. Find incorrect options for the multiple-choice question.
     const incorrectOptionsPool = emotionsList.filter(e => e.id !== correctEmotion.id);
     if (incorrectOptionsPool.length < 3) {
         setError("Necesitas al menos 4 emociones diferentes en tu Emocionario para poder generar las opciones de respuesta.");
@@ -87,11 +92,13 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     const incorrectOptions = shuffleArray(incorrectOptionsPool).slice(0, 3);
     const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
 
+    const imageUrl = `https://placehold.co/600x400/${correctEmotion.color.substring(1)}/000000?text=${correctEmotion.name}&font=poppins`;
+
     setCurrentQuestion({
-        imageUrl: questionImageDef.hint, // The 'hint' now contains the full URL
-        correctEmotion: correctEmotion.name,
+        imageUrl: imageUrl,
+        correctEmotion: correctEmotion,
         options: allOptions,
-        hint: correctEmotion.name, // Use emotion name as a fallback hint
+        hint: questionImageDef.hint,
     });
     
     setQuestionHistory(prev => [...prev, questionImageDef.id]);
@@ -115,7 +122,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     setSelectedAnswer(answer);
     setIsAnswered(true);
 
-    if (answer.name.toLowerCase() === currentQuestion?.correctEmotion.toLowerCase()) {
+    if (answer.id === currentQuestion?.correctEmotion.id) {
       setScore(prev => prev + 1);
       addPoints(5);
     }
@@ -197,7 +204,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
       
       <div className="grid grid-cols-2 gap-4 w-full max-w-2xl">
         {currentQuestion.options.map((option) => {
-            const isCorrect = option.name.toLowerCase() === currentQuestion.correctEmotion.toLowerCase();
+            const isCorrect = option.id === currentQuestion.correctEmotion.id;
             const isSelected = selectedAnswer?.id === option.id;
 
             return (
@@ -224,9 +231,9 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
         <div className="flex flex-col items-center gap-4 animate-fade-in">
              <p className={cn(
                 "text-lg font-bold text-center",
-                selectedAnswer?.name.toLowerCase() === currentQuestion.correctEmotion.toLowerCase() ? 'text-green-600' : 'text-destructive'
+                selectedAnswer?.id === currentQuestion.correctEmotion.id ? 'text-green-600' : 'text-destructive'
              )}>
-                {selectedAnswer?.name.toLowerCase() === currentQuestion.correctEmotion.toLowerCase() ? '¡Correcto! Has ganado 5 puntos.' : `Incorrecto. La respuesta era: ${currentQuestion.correctEmotion}`}
+                {selectedAnswer?.id === currentQuestion.correctEmotion.id ? '¡Correcto! Has ganado 5 puntos.' : `Incorrecto. La respuesta era: ${currentQuestion.correctEmotion.name}`}
             </p>
             <Button onClick={handleNext}>
                 {questionsAnswered >= QUESTIONS_PER_GAME -1 ? 'Ver Resultados' : 'Siguiente Pregunta'}

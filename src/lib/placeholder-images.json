@@ -1,54 +1,54 @@
 {
   "empathy_gallery": [
     {
-      "id": "photo-1509909756405-be0199881695",
+      "id": "alegria-1",
       "emotion": "Alegría",
-      "hint": "https://images.unsplash.com/photo-1509909756405-be0199881695?w=600&h=400&fit=crop&q=80"
+      "hint": "mujer sonriendo"
     },
     {
-      "id": "photo-1518898696378-838d7528334a",
+      "id": "tristeza-1",
       "emotion": "Tristeza",
-      "hint": "https://images.unsplash.com/photo-1518898696378-838d7528334a?w=600&h=400&fit=crop&q=80"
+      "hint": "persona triste"
     },
     {
-      "id": "photo-1542384976-893457229953",
+      "id": "sorpresa-1",
       "emotion": "Sorpresa",
-      "hint": "https://images.unsplash.com/photo-1542384976-893457229953?w=600&h=400&fit=crop&q=80"
+      "hint": "cara sorprendida"
     },
     {
-      "id": "photo-1576755977234-2b735f93539b",
+      "id": "ira-1",
       "emotion": "Ira",
-      "hint": "https://images.unsplash.com/photo-1576755977234-2b735f93539b?w=600&h=400&fit=crop&q=80"
+      "hint": "persona enfadada"
     },
     {
-      "id": "photo-1533103445414-52033c4f7457",
+      "id": "miedo-1",
       "emotion": "Miedo",
-      "hint": "https://images.unsplash.com/photo-1533103445414-52033c4f7457?w=600&h=400&fit=crop&q=80"
+      "hint": "niño asustado"
     },
     {
-      "id": "photo-1622463062233-02095f4a816f",
+      "id": "confianza-1",
       "emotion": "Confianza",
-      "hint": "https://images.unsplash.com/photo-1622463062233-02095f4a816f?w=600&h=400&fit=crop&q=80"
+      "hint": "amigos abrazándose"
     },
     {
-      "id": "photo-1579487788931-68536952a460",
+      "id": "orgullo-1",
       "emotion": "Orgullo",
-      "hint": "https://images.unsplash.com/photo-1579487788931-68536952a460?w=600&h=400&fit=crop&q=80"
+      "hint": "persona orgullosa"
     },
     {
-      "id": "photo-1474418397713-7e17b2443b35",
+      "id": "calma-1",
       "emotion": "Calma",
-      "hint": "https://images.unsplash.com/photo-1474418397713-7e17b2443b35?w=600&h=400&fit=crop&q=80"
+      "hint": "paisaje sereno"
     },
     {
-      "id": "photo-1534349762230-e08878303e30",
+      "id": "confusion-1",
       "emotion": "Confusión",
-      "hint": "https://images.unsplash.com/photo-1534349762230-e08878303e30?w=600&h=400&fit=crop&q=80"
+      "hint": "laberinto abstracto"
     },
     {
-      "id": "photo-1494200483035-db7bc62a37d7",
+      "id": "euforia-1",
       "emotion": "Euforia",
-      "hint": "https://images.unsplash.com/photo-1494200483035-db7bc62a37d7?w=600&h=400&fit=crop&q=80"
+      "hint": "gente celebrando"
     }
   ]
 }
