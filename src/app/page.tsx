@@ -27,22 +27,23 @@ function AppGate() {
     const isForestTheme = themeItem?.value === 'theme-forest';
 
     if (isForestTheme) {
-      document.body.classList.add('theme-forest');
+      document.body.classList.add('bg-forest-gradient');
+      document.body.classList.remove('bg-background');
     } else {
-      document.body.classList.remove('theme-forest');
+      document.body.classList.remove('bg-forest-gradient');
+      document.body.classList.add('bg-background');
     }
 
-    // Cleanup function to remove the class when the component unmounts
-    // or the user logs out.
     return () => {
-      document.body.classList.remove('theme-forest');
+      document.body.classList.remove('bg-forest-gradient');
+      document.body.classList.add('bg-background');
     };
   }, [userProfile]);
 
 
   if (isUserLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center flex-col gap-4 bg-background">
+      <div className="flex h-screen w-screen items-center justify-center flex-col gap-4 bg-transparent">
         <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
         <p className="text-lg text-primary">Cargando...</p>
       </div>
@@ -58,11 +59,11 @@ function AppGate() {
 
 export default function Home() {
   return (
-    <main>
+    <main className="bg-transparent">
       <FirebaseClientProvider>
         <Suspense
           fallback={
-            <div className="flex h-screen w-screen items-center justify-center bg-background">
+            <div className="flex h-screen w-screen items-center justify-center bg-transparent">
               Cargando...
             </div>
           }

@@ -70,7 +70,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const [newlyUnlockedReward, setNewlyUnlockedReward] = useState<Reward | null>(null);
   
   const isLoading = isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading;
-  const [selectedPet, setSelectedPet] = useState<SpiritAnimal | null>(null);
+  const [selectedPet, setSelectedPet] = useState<SpiritAnimal | null>(selectedPet);
 
   const purchasedItems = useMemo(() => {
     if (!userProfile?.purchasedItemIds) return [];
@@ -560,7 +560,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   
   if (isLoading || !userProfile) {
     return (
-        <main className="flex h-screen w-screen items-center justify-center flex-col gap-4 bg-background">
+        <main className="flex h-screen w-screen items-center justify-center flex-col gap-4 bg-transparent">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             <p className="text-lg text-primary">Cargando tu diario...</p>
         </main>
@@ -569,7 +569,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-screen bg-background">
+      <div className="flex h-screen w-screen bg-transparent">
         <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
         <main className="flex-1 flex flex-col overflow-hidden bg-transparent">
           <header className="p-2 md:hidden flex items-center border-b bg-card/80 backdrop-blur-sm">

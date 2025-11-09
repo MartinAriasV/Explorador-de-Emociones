@@ -21,8 +21,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${poppins.variable} h-full`}>
-      <body className="font-body antialiased h-full bg-background">
+    <html lang="es" className={`${poppins.variable} h-full bg-transparent`}>
+      <body className="font-body antialiased h-full">
         {children}
         <Toaster />
       </body>
