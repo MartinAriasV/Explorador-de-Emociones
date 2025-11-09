@@ -22,21 +22,29 @@ function AppGate() {
   const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
   const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
 
-  useEffect(() => {
-    if (typeof window === 'undefined' || !userProfile) return;
+  const bodyClassName = useMemo(() => {
+    if (!userProfile) return theme; // Return base theme if no profile
 
     const equippedThemeId = userProfile.equippedItems?.['theme'];
-    const isForestTheme = SHOP_ITEMS.find(item => item.id === equippedThemeId)?.value === 'theme-forest';
+    const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
     
-    document.documentElement.classList.remove('light', 'dark', 'theme-ocean', 'theme-forest');
-    
-    document.documentElement.classList.add(theme);
-
-    if (isForestTheme) {
-        document.documentElement.classList.add('theme-forest');
+    const classes = [theme];
+    if (themeItem) {
+      classes.push(themeItem.value); // e.g., 'theme-forest'
+      if (themeItem.value === 'theme-forest') {
+        classes.push('bg-forest-gradient');
+      } else {
+        classes.push('bg-background');
+      }
+    } else {
+      classes.push('bg-background');
     }
-
+    return classes.join(' ');
   }, [userProfile, theme]);
+
+  useEffect(() => {
+    document.body.className = bodyClassName;
+  }, [bodyClassName]);
 
 
   if (isUserLoading) {
@@ -49,6 +57,7 @@ function AppGate() {
   }
 
   if (!user) {
+    document.body.className = 'bg-background'; // Ensure login view has a background
     return <LoginView />;
   }
   
