@@ -28,7 +28,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc, runTransaction, arrayUnion, increment } from 'firebase/firestore';
 import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { calculateDailyStreak } from '@/lib/utils';
+import { calculateDailyStreak, cn } from '@/lib/utils';
 import type { User } from 'firebase/auth';
 import { PetChatView } from './views/pet-chat-view';
 import useLocalStorage from '@/hooks/use-local-storage';
@@ -51,6 +51,30 @@ const rarityBorderStyles: { [key: string]: string } = {
     'Raro': 'border-blue-500',
     'Épico': 'border-purple-500',
     'Legendario': 'border-amber-400',
+}
+
+function AppBody({ className, children }: { className: string, children: React.ReactNode }) {
+    useEffect(() => {
+        const body = document.body;
+        const classes = className.split(' ');
+        
+        // Remove all potential theme classes before adding new ones
+        body.classList.remove('bg-background', 'bg-forest-gradient', 'light', 'dark', 'theme-ocean', 'theme-forest');
+        
+        // Add the new classes
+        classes.forEach(c => {
+            if (c) body.classList.add(c);
+        });
+
+        // Cleanup function to remove classes when component unmounts
+        return () => {
+            classes.forEach(c => {
+                if (c) body.classList.remove(c);
+            });
+        };
+    }, [className]);
+    
+    return <>{children}</>;
 }
 
 
@@ -81,38 +105,23 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 
   const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
 
-  useEffect(() => {
+  const bodyClassName = useMemo(() => {
     const equippedThemeId = userProfile?.equippedItems?.['theme'];
-    const htmlElement = document.documentElement;
-    const bodyElement = document.body;
+    const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
 
-    // Reset all theme classes
-    htmlElement.classList.remove('light', 'dark', 'theme-ocean', 'theme-forest');
-    bodyElement.classList.remove('bg-forest-gradient');
-
-    // Apply base theme (light/dark)
-    htmlElement.classList.add(theme);
-
-    // Apply cosmetic themes from shop
-    if (equippedThemeId) {
-        const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
-        if (themeItem) {
-            htmlElement.classList.add(themeItem.value); // e.g., 'theme-forest'
-            
-            // Special handling for backgrounds
-            if (themeItem.value === 'theme-forest') {
-                bodyElement.classList.remove('bg-background'); // Remove default background
-                bodyElement.classList.add('bg-forest-gradient');
-            } else {
-                bodyElement.classList.add('bg-background'); // Ensure default bg is there for other themes
-            }
+    let classes = [theme];
+    if (themeItem) {
+        classes.push(themeItem.value); // e.g. 'theme-forest'
+        if (themeItem.value === 'theme-forest') {
+            classes.push('bg-forest-gradient');
         } else {
-             bodyElement.classList.add('bg-background');
+            classes.push('bg-background');
         }
     } else {
-        bodyElement.classList.add('bg-background');
+        classes.push('bg-background');
     }
-}, [userProfile?.equippedItems, theme]);
+    return cn(classes);
+  }, [userProfile?.equippedItems, theme]);
 
 
   const addInitialEmotions = useCallback(async (userId: string) => {
@@ -338,9 +347,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
     if (!user || !userProfile) return;
     const userProfileRef = doc(firestore, 'users', user.uid);
-    // Combine with existing profile to ensure all fields are present for rules validation
-    const updatedProfile = { ...userProfile, ...profile };
-    updateDocumentNonBlocking(userProfileRef, updatedProfile);
+    updateDocumentNonBlocking(userProfileRef, profile);
   };
 
     const saveEmotion = async (emotionData: Omit<Emotion, 'id' | 'userId'> & { id?: string }) => {
@@ -609,88 +616,90 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   }
   
   return (
-    <SidebarProvider>
-      <div className="flex h-screen w-screen bg-background">
-        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <header className="p-2 md:hidden flex items-center border-b">
-             <MobileMenuButton />
-             <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
-          </header>
-          <div className="flex-1 p-4 md:p-6 overflow-y-auto">
-            {renderView()}
-          </div>
-        </main>
-      </div>
-      
-      <AddEmotionModal
-        initialData={addingEmotionData}
-        onSave={saveEmotion}
-        onClose={() => setAddingEmotionData(null)}
-      />
-
-      {showQuiz && (
-        <QuizModal 
-          onClose={() => setShowQuiz(false)} 
-          onComplete={onQuizComplete} 
+    <AppBody className={bodyClassName}>
+      <SidebarProvider>
+        <div className="flex h-screen w-screen bg-background">
+          <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
+          <main className="flex-1 flex flex-col overflow-hidden">
+            <header className="p-2 md:hidden flex items-center border-b">
+               <MobileMenuButton />
+               <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
+            </header>
+            <div className="flex-1 p-4 md:p-6 overflow-y-auto">
+              {renderView()}
+            </div>
+          </main>
+        </div>
+        
+        <AddEmotionModal
+          initialData={addingEmotionData}
+          onSave={saveEmotion}
+          onClose={() => setAddingEmotionData(null)}
         />
-      )}
 
-      <WelcomeDialog
-        open={showWelcome}
-        onStartTour={startTour}
-        onSkipTour={skipTour}
-      />
-      
-      <TourPopup
-        step={tourStep}
-        steps={TOUR_STEPS}
-        refs={tourRefs}
-        onNext={nextTourStep}
-        onSkip={() => setTourStep(0)}
-      />
+        {showQuiz && (
+          <QuizModal 
+            onClose={() => setShowQuiz(false)} 
+            onComplete={onQuizComplete} 
+          />
+        )}
 
-      <AlertDialog open={!!newlyUnlockedReward}>
-        <AlertDialogContent className={`p-0 overflow-hidden border-4 ${newlyUnlockedReward ? rarityBorderStyles[newlyUnlockedReward.animal.rarity] : 'border-transparent'}`}>
-          <AlertDialogHeader className="p-6 pb-0">
-            <AlertDialogTitle className="flex items-center justify-center text-center gap-2 text-2xl font-bold">
-              <Crown className="w-8 h-8 text-amber-400" />
-              ¡Recompensa Desbloqueada!
-            </AlertDialogTitle>
-          </AlertDialogHeader>
-          <div className="flex flex-col items-center gap-2 pt-4 pb-8 text-center bg-background/50">
-              <div className="relative w-32 h-32 flex items-center justify-center">
-                  <div className={`absolute inset-0 bg-gradient-to-t ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity]?.replace('text-','from-') : ''}/20 to-transparent rounded-full blur-2xl`}></div>
-                  <span className="text-8xl drop-shadow-lg">{newlyUnlockedReward?.animal.icon}</span>
-              </div>
-              <span className={`block font-bold text-3xl ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity] : ''}`}>{newlyUnlockedReward?.animal.name}</span>
-              <p className="block text-sm text-muted-foreground max-w-xs">{newlyUnlockedReward?.animal.description}</p>
-              <p className={`block text-xs font-semibold uppercase tracking-wider ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity] : ''}`}>{newlyUnlockedReward?.animal.rarity}</p>
-          </div>
-          <AlertDialogFooter className="bg-muted/40 p-4 border-t">
-              <AlertDialogAction onClick={() => { setNewlyUnlockedReward(null); setView('sanctuary'); }} className="bg-accent text-accent-foreground hover:bg-accent/90 w-full">
-                ¡Genial! Ver en mi Santuario
-              </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        <WelcomeDialog
+          open={showWelcome}
+          onStartTour={startTour}
+          onSkipTour={skipTour}
+        />
+        
+        <TourPopup
+          step={tourStep}
+          steps={TOUR_STEPS}
+          refs={tourRefs}
+          onNext={nextTourStep}
+          onSkip={() => setTourStep(0)}
+        />
 
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button 
-              onClick={() => startTour()} 
-              className="fixed bottom-6 right-6 w-16 h-16 rounded-full bg-accent shadow-lg animate-pulse hover:animate-none"
-            >
-              <Map className="w-8 h-8" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Realizar Tour Guiado</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+        <AlertDialog open={!!newlyUnlockedReward}>
+          <AlertDialogContent className={`p-0 overflow-hidden border-4 ${newlyUnlockedReward ? rarityBorderStyles[newlyUnlockedReward.animal.rarity] : 'border-transparent'}`}>
+            <AlertDialogHeader className="p-6 pb-0">
+              <AlertDialogTitle className="flex items-center justify-center text-center gap-2 text-2xl font-bold">
+                <Crown className="w-8 h-8 text-amber-400" />
+                ¡Recompensa Desbloqueada!
+              </AlertDialogTitle>
+            </AlertDialogHeader>
+            <div className="flex flex-col items-center gap-2 pt-4 pb-8 text-center bg-background/50">
+                <div className="relative w-32 h-32 flex items-center justify-center">
+                    <div className={`absolute inset-0 bg-gradient-to-t ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity]?.replace('text-','from-') : ''}/20 to-transparent rounded-full blur-2xl`}></div>
+                    <span className="text-8xl drop-shadow-lg">{newlyUnlockedReward?.animal.icon}</span>
+                </div>
+                <span className={`block font-bold text-3xl ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity] : ''}`}>{newlyUnlockedReward?.animal.name}</span>
+                <p className="block text-sm text-muted-foreground max-w-xs">{newlyUnlockedReward?.animal.description}</p>
+                <p className={`block text-xs font-semibold uppercase tracking-wider ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity] : ''}`}>{newlyUnlockedReward?.animal.rarity}</p>
+            </div>
+            <AlertDialogFooter className="bg-muted/40 p-4 border-t">
+                <AlertDialogAction onClick={() => { setNewlyUnlockedReward(null); setView('sanctuary'); }} className="bg-accent text-accent-foreground hover:bg-accent/90 w-full">
+                  ¡Genial! Ver en mi Santuario
+                </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-    </SidebarProvider>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                onClick={() => startTour()} 
+                className="fixed bottom-6 right-6 w-16 h-16 rounded-full bg-accent shadow-lg animate-pulse hover:animate-none"
+              >
+                <Map className="w-8 h-8" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Realizar Tour Guiado</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+
+      </SidebarProvider>
+    </AppBody>
   );
 }

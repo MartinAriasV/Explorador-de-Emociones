@@ -134,6 +134,10 @@ body {
     --border: 120 20% 20%;
     --input: 120 20% 20%;
   }
+
+  .theme-forest body {
+    --background-color: transparent;
+  }
 }
 
 @layer base {
