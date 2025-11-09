@@ -295,7 +295,7 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
         </Card>
       </div>
       
-      <AlertDialog open={!!aiSuggestion || isSuggestionLoading}>
+      <AlertDialog open={!!aiSuggestion || isSuggestionLoading} onOpenChange={(open) => !open && setAiSuggestion('')}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
@@ -307,9 +307,12 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
           </AlertDialogHeader>
           <AlertDialogFooter>
             {!isSuggestionLoading && (
-              <AlertDialogAction onClick={() => setAiSuggestion('')} className="bg-accent text-accent-foreground hover:bg-accent/90">
-                Entendido
-              </AlertDialogAction>
+              <>
+                <AlertDialogCancel>Entendido</AlertDialogCancel>
+                <AlertDialogAction onClick={() => { setView('calm'); setAiSuggestion(''); }} className="bg-accent text-accent-foreground hover:bg-accent/90">
+                  ¡Llévame al Rincón de la Calma!
+                </AlertDialogAction>
+              </>
             )}
           </AlertDialogFooter>
         </AlertDialogContent>
