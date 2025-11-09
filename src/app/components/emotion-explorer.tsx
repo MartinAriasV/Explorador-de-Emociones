@@ -25,7 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc, runTransaction } from 'firebase/firestore';
 import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak } from '@/lib/utils';
 import type { User } from 'firebase/auth';
@@ -106,6 +106,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         avatar: '😊',
         avatarType: 'emoji',
         unlockedAnimalIds: [],
+        points: 0,
       };
       // Use the non-blocking version to avoid issues, but we still need to wait for this
       // for the initial setup to proceed correctly.
@@ -231,10 +232,40 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   };
 
     const addDiaryEntry = async (entryData: Omit<DiaryEntry, 'id' | 'userId'>, trigger: 'addEntry' | 'recoverDay' = 'addEntry') => {
-    if (!user) return;
-    const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
-    await addDocumentNonBlocking(diaryCollection, { ...entryData, userId: user.uid });
-    await checkAndUnlockRewards(trigger);
+        if (!user || !firestore) return;
+
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                const userDocRef = doc(firestore, 'users', user.uid);
+                const newDiaryEntryRef = doc(collection(firestore, 'users', user.uid, 'diaryEntries'));
+
+                const userDoc = await transaction.get(userDocRef);
+                if (!userDoc.exists()) {
+                    throw "User profile does not exist!";
+                }
+
+                const profileData = userDoc.data() as UserProfile;
+                const newPoints = (profileData.points || 0) + 10;
+
+                transaction.set(newDiaryEntryRef, { ...entryData, userId: user.uid, id: newDiaryEntryRef.id });
+                transaction.update(userDocRef, { points: newPoints });
+            });
+            
+            toast({
+                title: "¡Entrada Guardada!",
+                description: `Has ganado 10 puntos. ¡Sigue así!`,
+            });
+            
+            await checkAndUnlockRewards(trigger);
+
+        } catch (error) {
+            console.error("Transaction failed: ", error);
+            toast({
+                variant: "destructive",
+                title: "Error al guardar",
+                description: "No se pudo guardar la entrada. Inténtalo de nuevo.",
+            });
+        }
   };
   
   const handleQuizComplete = (success: boolean, date: Date | null) => {
@@ -283,7 +314,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
       toast({ title: "Emoción Actualizada", description: `"${emotionData.name}" ha sido actualizada.` });
     } else {
       const newDocRef = doc(emotionsCollection);
-      setDocumentNonBlocking(newDocRef, {...dataToSave, id: newDocRef.id});
+      setDocumentNonBlocking(newDocRef, {...dataToSave, id: newDocRef.id}, {merge: false});
       toast({ title: "Emoción Añadida", description: `"${emotionData.name}" ha sido añadida a tu emocionario.` });
     }
     

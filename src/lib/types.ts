@@ -23,6 +23,7 @@ export type UserProfile = {
   avatar: string; // Can be an emoji or a URL for generated avatar
   avatarType: 'emoji' | 'generated';
   unlockedAnimalIds?: string[];
+  points?: number;
 };
 
 export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary' | 'games' | 'pet-chat';
@@ -43,7 +44,7 @@ export type TourStepData = {
 
 export type SpiritAnimal = {
   id: string;
-  name: string;
+  name:string;
   icon: string;
   emotion: string;
   description: string;
