@@ -194,7 +194,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     <div className="flex flex-col items-center justify-center h-full gap-6">
       <div className="text-center">
         <p className="text-sm font-semibold text-primary">Puntuación: {score} / {questionsAnswered}</p>
-        <p className="text-lg mt-2">¿Qué emoción crees que siente esta persona?</p>
+        <p className="text-lg mt-2">¿Qué emoción representa mejor esta imagen?</p>
       </div>
 
       <Card className="w-full max-w-2xl shadow-inner bg-muted/30 overflow-hidden aspect-video">

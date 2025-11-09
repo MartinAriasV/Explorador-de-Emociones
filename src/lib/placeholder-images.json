@@ -30,7 +30,7 @@
       "width": 600,
       "height": 400,
       "emotion": "Ira",
-      "hint": "persona enojada"
+      "hint": "persona enfadada"
     },
     {
       "id": "eg05",
@@ -38,7 +38,7 @@
       "width": 600,
       "height": 400,
       "emotion": "Miedo",
-      "hint": "mujer asustada"
+      "hint": "persona asustada"
     },
     {
       "id": "eg06",
@@ -62,7 +62,7 @@
       "width": 600,
       "height": 400,
       "emotion": "Calma",
-      "hint": "persona meditando"
+      "hint": "paisaje sereno"
     },
     {
       "id": "eg09",
@@ -70,7 +70,7 @@
       "width": 600,
       "height": 400,
       "emotion": "Confusión",
-      "hint": "estudiante confundido"
+      "hint": "camino confuso"
     },
     {
       "id": "eg10",
@@ -78,7 +78,7 @@
       "width": 600,
       "height": 400,
       "emotion": "Euforia",
-      "hint": "fan celebrando"
+      "hint": "concierto celebrando"
     }
   ]
 }
