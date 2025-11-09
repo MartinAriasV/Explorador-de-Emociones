@@ -1,0 +1,84 @@
+{
+  "empathy_gallery": [
+    {
+      "id": "eg01",
+      "seed": 101,
+      "width": 600,
+      "height": 400,
+      "emotion": "Alegría",
+      "hint": "mujer sonriendo"
+    },
+    {
+      "id": "eg02",
+      "seed": 102,
+      "width": 600,
+      "height": 400,
+      "emotion": "Tristeza",
+      "hint": "hombre triste"
+    },
+    {
+      "id": "eg03",
+      "seed": 103,
+      "width": 600,
+      "height": 400,
+      "emotion": "Sorpresa",
+      "hint": "niño sorprendido"
+    },
+    {
+      "id": "eg04",
+      "seed": 104,
+      "width": 600,
+      "height": 400,
+      "emotion": "Ira",
+      "hint": "persona enojada"
+    },
+    {
+      "id": "eg05",
+      "seed": 105,
+      "width": 600,
+      "height": 400,
+      "emotion": "Miedo",
+      "hint": "mujer asustada"
+    },
+    {
+      "id": "eg06",
+      "seed": 106,
+      "width": 600,
+      "height": 400,
+      "emotion": "Confianza",
+      "hint": "persona segura"
+    },
+    {
+      "id": "eg07",
+      "seed": 107,
+      "width": 600,
+      "height": 400,
+      "emotion": "Orgullo",
+      "hint": "atleta orgulloso"
+    },
+    {
+      "id": "eg08",
+      "seed": 108,
+      "width": 600,
+      "height": 400,
+      "emotion": "Calma",
+      "hint": "persona meditando"
+    },
+    {
+      "id": "eg09",
+      "seed": 109,
+      "width": 600,
+      "height": 400,
+      "emotion": "Confusión",
+      "hint": "estudiante confundido"
+    },
+    {
+      "id": "eg10",
+      "seed": 110,
+      "width": 600,
+      "height": 400,
+      "emotion": "Euforia",
+      "hint": "fan celebrando"
+    }
+  ]
+}

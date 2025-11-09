@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -5,13 +6,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { GuessEmotionGame } from '../games/guess-emotion-game';
 import type { Emotion } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Brain, Puzzle, Feather, Contrast, CloudRain, BookMarked } from 'lucide-react';
+import { Brain, Puzzle, Feather, Contrast, CloudRain, BookMarked, Users } from 'lucide-react';
 import { EmotionMemoryGame } from '../games/emotion-memory-game';
 import { QuickJournalGame } from '../games/quick-journal-game';
 import { AntonymGame } from '../games/antonym-game';
 import { EmotionRainGame } from '../games/emotion-rain-game';
 import { StoryBuilderGame } from '../games/story-builder-game';
 import type { User } from 'firebase/auth';
+import { EmpathyGalleryGame } from '../games/empathy-gallery-game';
 
 interface GamesViewProps {
   emotionsList: Emotion[];
@@ -28,12 +30,15 @@ export function GamesView({ emotionsList, addPoints, user }: GamesViewProps) {
       </CardHeader>
       <CardContent className="flex-grow flex flex-col">
         <Tabs defaultValue="guess-emotion" className="w-full h-full flex flex-col">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 h-auto">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 h-auto">
             <TabsTrigger value="guess-emotion" className="py-2">
               <Puzzle className="mr-2 h-4 w-4" /> Adivina
             </TabsTrigger>
             <TabsTrigger value="memory" className="py-2">
               <Brain className="mr-2 h-4 w-4" /> Memoria
+            </TabsTrigger>
+             <TabsTrigger value="empathy-gallery" className="py-2">
+              <Users className="mr-2 h-4 w-4" /> Empatía
             </TabsTrigger>
             <TabsTrigger value="quick-journal" className="py-2">
               <Feather className="mr-2 h-4 w-4" /> Diario Rápido
@@ -53,6 +58,9 @@ export function GamesView({ emotionsList, addPoints, user }: GamesViewProps) {
           </TabsContent>
           <TabsContent value="memory" className="flex-grow mt-4">
             <EmotionMemoryGame emotionsList={emotionsList} />
+          </TabsContent>
+          <TabsContent value="empathy-gallery" className="flex-grow mt-4">
+            <EmpathyGalleryGame emotionsList={emotionsList} addPoints={addPoints} user={user} />
           </TabsContent>
           <TabsContent value="quick-journal" className="flex-grow mt-4">
             <QuickJournalGame emotionsList={emotionsList} />
