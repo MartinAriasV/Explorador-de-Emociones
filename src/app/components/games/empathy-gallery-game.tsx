@@ -49,7 +49,6 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     );
 
     if (availableImages.length === 0) {
-      // If we run out of unique questions, end the game or reset history
       setIsPlaying(false);
       return;
     }
@@ -57,9 +56,11 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     const questionImage = shuffleArray(availableImages)[0];
     const correctEmotion = emotionsList.find(e => e.name.toLowerCase() === questionImage.emotion.toLowerCase());
 
+    // This should ideally not happen if availableImages is filtered correctly, but it's a good safeguard.
     if (!correctEmotion) {
-        // This case should be rare if availableImages is filtered correctly
-        generateQuestion();
+        // If we can't find a matching emotion for some reason, we just end the game to avoid a loop.
+        setIsPlaying(false);
+        console.error("Could not find a matching emotion for the selected image. Ending game.");
         return;
     }
 
