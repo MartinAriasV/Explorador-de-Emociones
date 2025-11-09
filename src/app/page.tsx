@@ -1,48 +1,26 @@
 'use client';
 
-import React, { Suspense, useEffect, useMemo } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import EmotionExplorer from '@/app/components/emotion-explorer';
 import {
   FirebaseClientProvider,
   useUser,
-  useDoc,
-  useMemoFirebase,
 } from '@/firebase';
 import LoginView from './components/views/login-view';
-import type { UserProfile } from '@/lib/types';
-import { doc } from 'firebase/firestore';
-import { useFirebase } from '@/firebase';
-import { SHOP_ITEMS } from '@/lib/constants';
 import useLocalStorage from '@/hooks/use-local-storage';
 
 function AppGate() {
   const { user, isUserLoading } = useUser();
-  const { firestore } = useFirebase();
-  const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
-  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
   const [theme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
 
+  // This effect ensures the base dark/light mode is applied to the html element
   useEffect(() => {
-    if (typeof window === 'undefined' || !userProfile) return;
-
-    const equippedThemeId = userProfile.equippedItems?.['theme'];
-    const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
-    
-    const bodyClasses = [theme];
-    if (themeItem) {
-      bodyClasses.push(themeItem.value); // e.g., 'theme-forest'
-      if (themeItem.value === 'theme-forest') {
-        bodyClasses.push('bg-forest-gradient');
-      } else {
-        bodyClasses.push('bg-background');
-      }
-    } else {
-      bodyClasses.push('bg-background');
+    if (typeof window !== 'undefined') {
+      const root = document.documentElement;
+      root.classList.remove('light', 'dark');
+      root.classList.add(theme);
     }
-
-    document.body.className = bodyClasses.join(' ');
-    
-  }, [userProfile, theme]);
+  }, [theme]);
 
 
   if (isUserLoading) {
@@ -55,7 +33,6 @@ function AppGate() {
   }
 
   if (!user) {
-    document.body.className = 'bg-background'; // Ensure login view has a background
     return <LoginView />;
   }
   
