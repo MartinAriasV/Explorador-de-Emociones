@@ -35,52 +35,18 @@ service cloud.firestore {
       function isExistingOwner(userId) {
           return isOwner(userId) && resource != null;
       }
-      
-      // Allows updates to user profile fields that DON'T involve points.
-      // This is for things like changing name, avatar, or equipping items.
-      function isUpdatingAllowedFields() {
-        let allowedFields = ['name', 'avatar', 'avatarType', 'equippedItems'];
-        
-        // This rule is: points must NOT change, and only allowed fields can be modified.
-        return request.resource.data.points == resource.data.points
-            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowedFields);
-      }
 
-      // Allows updates that ONLY change points, and only by specific amounts.
-      // This is for transactions like diary entries, games, or shop purchases.
-      function isPointsTransactionValid() {
-          let newPoints = request.resource.data.points;
-          let oldPoints = resource.data.points;
-          
-          // Ensure no other fields are being changed at the same time as points.
-          let onlyPointsAreChanging = request.resource.data.diff(resource.data).affectedKeys().hasOnly(['points']);
-          
-          // If points are not changing, this rule does not apply.
-          if (newPoints == oldPoints) {
-            return false;
-          }
-
-          // Allow specific point changes from transactions
-          let isPointChangeValid = (
-            newPoints == oldPoints + 10 || // Diary entry
-            newPoints == oldPoints + 15 || // Game win (story builder)
-            newPoints == oldPoints + 5  || // Game win (empathy gallery)
-            newPoints == oldPoints - 100 || // Shop
-            newPoints == oldPoints - 150 || // Shop
-            newPoints == oldPoints - 250 || // Shop
-            newPoints == oldPoints - 300 || // Shop
-            newPoints == oldPoints - 400 || // Shop
-            newPoints == oldPoints - 500 || // Shop
-            newPoints == oldPoints - 750    // Shop
-          );
-
-          return onlyPointsAreChanging && isPointChangeValid;
+      // Allow profile updates (like changing name, avatar, or equipping items)
+      // as long as the user is not trying to change their own points.
+      // Point changes are handled by separate, more secure transaction rules (e.g., creating a diary entry).
+      function isProfileUpdateValid() {
+          return request.resource.data.points == resource.data.points;
       }
       
       allow get: if isOwner(userId);
       allow list: if false; // User listing is not allowed for privacy.
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && (isUpdatingAllowedFields() || isPointsTransactionValid());
+      allow update: if isExistingOwner(userId) && isProfileUpdateValid();
       allow delete: if isExistingOwner(userId);
     }
 
