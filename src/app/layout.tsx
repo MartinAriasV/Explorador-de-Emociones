@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
-import { PT_Sans } from 'next/font/google';
+import { Poppins } from 'next/font/google';
 
-const ptSans = PT_Sans({
+const poppins = Poppins({
   subsets: ['latin'],
   weight: ['400', '700'],
-  variable: '--font-pt-sans',
+  variable: '--font-poppins',
 });
 
 
@@ -21,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${ptSans.variable} h-full`}>
+    <html lang="es" className={`${poppins.variable} h-full`}>
       <body className="font-body antialiased h-full bg-background">
         {children}
         <Toaster />
