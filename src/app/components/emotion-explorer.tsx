@@ -25,7 +25,7 @@ import { Crown, Map } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { useFirebase, useCollection, useMemoFirebase, useDoc, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc, runTransaction, arrayUnion, increment } from 'firebase/firestore';
 import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak, cn } from '@/lib/utils';
@@ -299,54 +299,51 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     }
   };
   
-    const handleAscentGameEnd = async (score: number) => {
-        if (!user || !firestore) return;
-        const userDocRef = doc(firestore, "users", user.uid);
-        let isNewHighScore = false;
+  const handleAscentGameEnd = (score: number) => {
+    if (!user || !firestore) return;
+    const userDocRef = doc(firestore, 'users', user.uid);
 
-        try {
-            await runTransaction(firestore, async (transaction) => {
-                const userDoc = await transaction.get(userDocRef);
-                if (!userDoc.exists()) {
-                    throw new Error("User profile does not exist!");
-                }
+    runTransaction(firestore, async (transaction) => {
+      const userDoc = await transaction.get(userDocRef);
+      if (!userDoc.exists()) {
+        throw new Error('User profile does not exist!');
+      }
 
-                const profileData = userDoc.data() as UserProfile;
-                const currentHighScore = profileData.ascentHighScore || 0;
-                const newPoints = (profileData.points || 0) + score;
+      const profileData = userDoc.data() as UserProfile;
+      const currentHighScore = profileData.ascentHighScore || 0;
+      const newPoints = (profileData.points || 0) + score;
 
-                if (score > currentHighScore) {
-                    isNewHighScore = true;
-                    transaction.update(userDocRef, {
-                        points: newPoints,
-                        ascentHighScore: score,
-                    });
-                } else {
-                    transaction.update(userDocRef, { points: newPoints });
-                }
-            });
+      const updates: Partial<UserProfile> = {
+        points: newPoints,
+      };
 
-            // Show toast AFTER the transaction is successful
-            if (isNewHighScore) {
-                toast({
-                    title: `¡Nuevo récord!`,
-                    description: `Has conseguido ${score} puntos.`,
-                });
-            } else {
-                toast({
-                    title: "¡Buen juego!",
-                    description: `Has ganado ${score} puntos.`,
-                });
-            }
-        } catch (error: any) {
-            console.error("Error saving score:", error);
-            toast({
-                variant: "destructive",
-                title: "Error al guardar la puntuación",
-                description: "No se pudo guardar tu puntuación. Inténtalo de nuevo.",
-            });
+      if (score > currentHighScore) {
+        updates.ascentHighScore = score;
+      }
+      
+      transaction.update(userDocRef, updates);
+      
+      return { isNewHighScore: score > currentHighScore, newPoints: updates.points };
+    }).then(({ isNewHighScore }) => {
+        if (isNewHighScore) {
+            toast({ title: `¡Nuevo récord!`, description: `Has conseguido ${score} puntos.` });
+        } else {
+            toast({ title: '¡Buen juego!', description: `Has ganado ${score} puntos.` });
         }
-    };
+    }).catch((error) => {
+        errorEmitter.emit(
+            'permission-error',
+            new FirestorePermissionError({
+                path: userDocRef.path,
+                operation: 'update',
+                requestResourceData: {
+                    points: `increment(${score})`,
+                    ascentHighScore: score,
+                },
+            })
+        );
+    });
+  };
 
   const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
     if (!user || !userProfile) return;
@@ -710,3 +707,5 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     </SidebarProvider>
   );
 }
+
+    
