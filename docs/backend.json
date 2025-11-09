@@ -102,8 +102,7 @@
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
+      "google.com"
     ]
   },
   "firestore": {
@@ -164,3 +163,4 @@
     "reasoning": "The Firestore structure is designed to address the 'auth/operation-not-allowed' error, which typically indicates that the Firebase Authentication service is not enabled for the project or that sign-in methods are not properly configured. The structure focuses on storing user-related data in a way that simplifies security rules and ensures data integrity, adhering to the core design principles.\n\n**Authorization Independence (CRITICAL):** All data is owned by individual users, eliminating the need for hierarchical authorization checks. Diary entries are stored under the user's ID, making authorization rules straightforward based on `request.auth.uid`.\n\n**Clarity of Intent (Debuggability):** The data structure clearly reflects the intent of ownership and relationships. The path `/users/{userId}/diaryEntries/{diaryEntryId}` explicitly shows that diary entries belong to a specific user.\n\n**DBAC (No Custom Claims):** User roles are not used; authentication relies solely on `request.auth.uid` to determine access based on path ownership.\n\n**QAPs (Rules are not Filters):** The structure supports secure `list` operations. Listing diary entries is limited to the entries owned by the authenticated user, preventing unauthorized data access. Emotion documents are segregated and do not require filtering.\n\n**Invariants:** The structure supports the integrity of ownership by directly linking diary entries to user IDs. Timestamps within diary entries and denormalized data (if any) maintain consistency.\n\nThe structure uses path-based ownership for private data, specifically for user profiles and diary entries. This approach simplifies security rules and enforces clear ownership. There is no collaborative data, and thus no membership maps are used.\n\nTo resolve the 'auth/operation-not-allowed' error, ensure the Firebase Authentication service is enabled and the necessary sign-in methods (e.g., email/password, Google Sign-In) are activated in the Firebase Console."
   }
 }
+    
