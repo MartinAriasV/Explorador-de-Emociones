@@ -366,6 +366,10 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
           toast({ variant: "destructive", title: "Puntos insuficientes", description: "¡No tienes suficientes puntos para comprar esto!" });
           return;
       }
+       if (userProfile.purchasedItemIds?.includes(item.id)) {
+        toast({ variant: "destructive", title: "Artículo ya comprado", description: "Ya posees este artículo." });
+        return;
+      }
 
       const userDocRef = doc(firestore, 'users', user.uid);
 
@@ -375,10 +379,15 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
               if (!userDoc.exists()) {
                   throw "User profile does not exist!";
               }
+              
+              const currentProfile = userDoc.data() as UserProfile;
+              const currentPoints = currentProfile.points || 0;
 
-              const currentPoints = userDoc.data().points || 0;
               if (currentPoints < item.cost) {
                   throw "Puntos insuficientes";
+              }
+               if (currentProfile.purchasedItemIds?.includes(item.id)) {
+                  throw "Artículo ya comprado";
               }
 
               const newPoints = currentPoints - item.cost;
@@ -394,7 +403,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
           toast({
               variant: "destructive",
               title: "Error en la compra",
-              description: error === "Puntos insuficientes" ? "¡No tienes suficientes puntos!" : "No se pudo completar la compra.",
+              description: error === "Puntos insuficientes" ? "¡No tienes suficientes puntos!" : error === "Artículo ya comprado" ? "Ya has comprado este artículo." : "No se pudo completar la compra.",
           });
       }
   };
