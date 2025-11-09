@@ -16,31 +16,7 @@ import { SHOP_ITEMS } from '@/lib/constants';
 
 function AppGate() {
   const { user, isUserLoading } = useUser();
-  const { firestore } = useFirebase();
-
-  const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
-  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
-
-  useEffect(() => {
-    const equippedThemeId = userProfile?.equippedItems?.['theme'];
-    const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
-    const isForestTheme = themeItem?.value === 'theme-forest';
-
-    if (isForestTheme) {
-      document.body.classList.add('bg-forest-gradient');
-      document.body.classList.remove('bg-background');
-    } else {
-      document.body.classList.remove('bg-forest-gradient');
-      document.body.classList.add('bg-background');
-    }
-
-    return () => {
-      document.body.classList.remove('bg-forest-gradient');
-      document.body.classList.add('bg-background');
-    };
-  }, [userProfile]);
-
-
+  
   if (isUserLoading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center flex-col gap-4 bg-transparent">
@@ -59,7 +35,7 @@ function AppGate() {
 
 export default function Home() {
   return (
-    <main className="bg-transparent">
+    <main className="h-screen w-screen overflow-hidden bg-background">
       <FirebaseClientProvider>
         <Suspense
           fallback={

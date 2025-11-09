@@ -560,21 +560,21 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   
   if (isLoading || !userProfile) {
     return (
-        <main className="flex h-screen w-screen items-center justify-center flex-col gap-4 bg-transparent">
+        <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
             <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             <p className="text-lg text-primary">Cargando tu diario...</p>
-        </main>
+        </div>
     );
   }
   
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-screen bg-transparent">
+      <div className="flex h-screen w-screen bg-background">
         <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
-        <main className="flex-1 flex flex-col overflow-hidden bg-transparent">
-          <header className="p-2 md:hidden flex items-center border-b bg-card/80 backdrop-blur-sm">
-              <MobileMenuButton />
-              <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <header className="p-2 md:hidden flex items-center border-b">
+             <MobileMenuButton />
+             <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
           </header>
           <div className="flex-1 p-4 md:p-6 overflow-y-auto">
             {renderView()}

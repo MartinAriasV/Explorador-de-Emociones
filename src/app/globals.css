@@ -87,7 +87,7 @@ body {
     @apply border-border;
   }
   body {
-    @apply text-foreground;
+    @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -132,11 +132,6 @@ body {
   .animate-gradient-slow {
     background-size: 200% 200%;
     animation: gradient-animation 15s ease infinite;
-  }
-  .bg-forest-gradient {
-    background: linear-gradient(-45deg, hsl(var(--chart-2)), hsl(var(--chart-3)), hsl(var(--chart-2)));
-    background-size: 400% 400%;
-    animation: forest-gradient 20s ease infinite;
   }
 }
 
@@ -203,16 +198,4 @@ body {
   100% {
     background-position: 0% 50%;
   }
-}
-
-@keyframes forest-gradient {
-	0% {
-		background-position: 0% 50%;
-	}
-	50% {
-		background-position: 100% 50%;
-	}
-	100% {
-		background-position: 0% 50%;
-	}
 }
