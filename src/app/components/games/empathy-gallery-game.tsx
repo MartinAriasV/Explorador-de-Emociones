@@ -41,30 +41,49 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
 
   const empathyImages = useMemo(() => imageData.empathy_gallery, []);
   
-  const generateQuestion = useCallback(() => {
-    setIsLoadingImage(true);
-    const availableImages = empathyImages.filter(img => 
-      !questionHistory.includes(img.id) &&
-      emotionsList.some(e => e.name.toLowerCase() === img.emotion.toLowerCase())
-    );
+  // Memoize the list of emotions that actually have corresponding images in the JSON file.
+  const playableEmotions = useMemo(() => {
+    const imageEmotions = new Set(empathyImages.map(img => img.emotion.toLowerCase()));
+    return emotionsList.filter(emotion => imageEmotions.has(emotion.name.toLowerCase()));
+  }, [emotionsList, empathyImages]);
 
-    if (availableImages.length === 0) {
+  const generateQuestion = useCallback(() => {
+    if (playableEmotions.length < 4) {
+      // Not enough variety of emotions that have images to create a question with 4 options.
       setIsPlaying(false);
       return;
     }
+    
+    setIsLoadingImage(true);
 
-    const questionImage = shuffleArray(availableImages)[0];
-    const correctEmotion = emotionsList.find(e => e.name.toLowerCase() === questionImage.emotion.toLowerCase());
+    // 1. Select a correct emotion from the ones that are actually playable
+    const correctEmotion = shuffleArray(playableEmotions)[0];
 
-    // This should ideally not happen if availableImages is filtered correctly, but it's a good safeguard.
-    if (!correctEmotion) {
-        // If we can't find a matching emotion for some reason, we just end the game to avoid a loop.
-        setIsPlaying(false);
-        console.error("Could not find a matching emotion for the selected image. Ending game.");
-        return;
+    // 2. Find all images that match this correct emotion and haven't been used yet
+    const availableImagesForEmotion = empathyImages.filter(img => 
+      img.emotion.toLowerCase() === correctEmotion.name.toLowerCase() &&
+      !questionHistory.includes(img.id)
+    );
+
+    // If we've run out of unique images for this emotion, try another emotion.
+    // This is a fallback - a better approach would be to ensure a wide variety of images.
+    if (availableImagesForEmotion.length === 0) {
+      setQuestionHistory([]); // Reset history and try again
+      generateQuestion();
+      return;
+    }
+    
+    const questionImage = shuffleArray(availableImagesForEmotion)[0];
+
+    // 3. Generate incorrect options from the other playable emotions
+    const incorrectOptions = shuffleArray(playableEmotions.filter(e => e.id !== correctEmotion.id)).slice(0, 3);
+    
+    // Ensure we have enough options to proceed.
+    if (incorrectOptions.length < 3) {
+      setIsPlaying(false); // Can't form a full question.
+      return;
     }
 
-    const incorrectOptions = shuffleArray(emotionsList.filter(e => e.id !== correctEmotion.id)).slice(0, 3);
     const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
     
     setCurrentQuestion({
@@ -77,7 +96,9 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     setQuestionHistory(prev => [...prev, questionImage.id]);
     setIsAnswered(false);
     setSelectedAnswer(null);
-  }, [emotionsList, empathyImages, questionHistory]);
+
+  }, [playableEmotions, empathyImages, questionHistory]);
+
 
   useEffect(() => {
     if (isPlaying && questionsAnswered < QUESTIONS_PER_GAME) {
@@ -111,11 +132,11 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     setIsPlaying(true);
   };
 
-  if (emotionsList.length < 4) {
+  if (playableEmotions.length < 4) {
     return (
         <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
             <p className="text-lg font-semibold">¡Faltan Emociones!</p>
-            <p className="max-w-md">Necesitas al menos 4 emociones diferentes en tu Emocionario para jugar.</p>
+            <p className="max-w-md">Necesitas al menos 4 emociones diferentes en tu Emocionario (como Alegría, Tristeza, etc.) que coincidan con las imágenes del juego.</p>
         </div>
     );
   }
@@ -169,6 +190,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
                 className={cn("object-cover transition-opacity duration-300", isLoadingImage ? "opacity-0" : "opacity-100")}
                 onLoad={() => setIsLoadingImage(false)}
                 data-ai-hint={currentQuestion.hint}
+                priority={true} 
             />
          </div>
       </Card>
