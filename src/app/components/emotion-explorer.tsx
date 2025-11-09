@@ -81,10 +81,18 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 
    useEffect(() => {
     if (typeof window !== 'undefined') {
-      document.body.classList.remove('light', 'dark');
-      document.body.classList.add(theme);
+        document.documentElement.classList.remove('light', 'dark');
+        document.documentElement.classList.add(theme);
+
+        const equippedThemeId = userProfile?.equippedItems?.['theme'];
+        const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
+        if (themeItem?.value === 'theme-ocean') {
+            document.documentElement.classList.add('theme-ocean');
+        } else {
+            document.documentElement.classList.remove('theme-ocean');
+        }
     }
-   }, [theme]);
+   }, [theme, userProfile]);
 
   const addInitialEmotions = useCallback(async (userId: string) => {
     if (!firestore) return;
@@ -572,11 +580,14 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
   const isForestTheme = themeItem?.value === 'theme-forest';
   
-  const backgroundClass = isForestTheme ? 'bg-forest-gradient' : 'bg-background';
+  const containerClass = cn(
+    "flex h-screen w-screen",
+    isForestTheme ? 'bg-forest-gradient' : 'bg-background'
+  );
 
   return (
     <SidebarProvider>
-      <div className={cn("flex h-screen w-screen", backgroundClass)}>
+      <div className={containerClass}>
         <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
         <main className="flex-1 flex flex-col overflow-hidden bg-transparent">
           <header className="p-2 md:hidden flex items-center border-b bg-card/80 backdrop-blur-sm">
