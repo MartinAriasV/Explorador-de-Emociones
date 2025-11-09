@@ -23,6 +23,10 @@ export type UserProfile = {
   avatar: string; // Can be an emoji or a URL for generated avatar
   avatarType: 'emoji' | 'generated';
   unlockedAnimalIds?: string[];
+  entryCount?: number;
+  emotionCount?: number;
+  lastEntryDate?: string;
+  currentStreak?: number;
 };
 
 export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary' | 'games';
