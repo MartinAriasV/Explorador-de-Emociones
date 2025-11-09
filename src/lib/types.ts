@@ -25,7 +25,7 @@ export type UserProfile = {
   unlockedAnimalIds?: string[];
 };
 
-export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary' | 'games';
+export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary' | 'games' | 'pet-chat';
 
 export type PredefinedEmotion = {
   name: string;

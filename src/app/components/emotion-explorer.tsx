@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, createRef, useCallback, useMemo } from 'react';
-import type { Emotion, View, TourStepData, UserProfile, DiaryEntry, Reward } from '@/lib/types';
+import type { Emotion, View, TourStepData, UserProfile, DiaryEntry, Reward, SpiritAnimal } from '@/lib/types';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar, MobileMenuButton } from './app-sidebar';
 import { DiaryView } from './views/diary-view';
@@ -29,6 +29,7 @@ import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, upd
 import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak } from '@/lib/utils';
 import type { User } from 'firebase/auth';
+import { PetChatView } from './views/pet-chat-view';
 
 interface EmotionExplorerProps {
   user: User;
@@ -69,6 +70,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const [newlyUnlockedReward, setNewlyUnlockedReward] = useState<Reward | null>(null);
   
   const isLoading = isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading;
+  const [selectedPet, setSelectedPet] = useState<SpiritAnimal | null>(null);
+
 
   const addInitialEmotions = useCallback(async (userId: string) => {
     if (!firestore) return;
@@ -385,6 +388,11 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     }
   };
   
+  const handleSelectPet = (pet: SpiritAnimal) => {
+    setSelectedPet(pet);
+    setView('pet-chat');
+  };
+
   const renderView = () => {
     return (
       <div className="animate-fade-in-up">
@@ -417,7 +425,12 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
             case 'streak':
               return <StreakView diaryEntries={diaryEntries || []} onRecoverDay={startQuiz} />;
             case 'sanctuary':
-              return <SanctuaryView unlockedAnimalIds={userProfile?.unlockedAnimalIds || []} />;
+              return <SanctuaryView 
+                        unlockedAnimalIds={userProfile?.unlockedAnimalIds || []} 
+                        onSelectPet={handleSelectPet}
+                      />;
+            case 'pet-chat':
+              return <PetChatView pet={selectedPet} user={user} setView={setView} />;
             case 'report':
               return <ReportView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} />;
             case 'share':

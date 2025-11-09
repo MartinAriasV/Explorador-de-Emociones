@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from '@/components/ui/sidebar';
 import type { UserProfile, View, DiaryEntry } from '@/lib/types';
-import { BookOpen, Smile, Sparkles, Heart, BarChart, Share2, UserCircle, Menu, Flame, LogOut, Moon, Sun, PawPrint, Gamepad2 } from 'lucide-react';
+import { BookOpen, Smile, Sparkles, Heart, BarChart, Share2, UserCircle, Menu, Flame, LogOut, Moon, Sun, PawPrint, Gamepad2, MessageCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useFirebase } from '@/firebase';
 import { calculateDailyStreak } from '@/lib/utils';
@@ -26,6 +26,7 @@ const navItems = [
   { id: 'games', icon: Gamepad2, text: 'Juegos', refKey: 'gamesRef' },
   { id: 'streak', icon: Flame, text: 'Racha', refKey: 'streakRef' },
   { id: 'sanctuary', icon: PawPrint, text: 'Mi Santuario', refKey: 'sanctuaryRef' },
+  { id: 'pet-chat', icon: MessageCircle, text: 'Compañero IA', refKey: 'petChatRef' },
   { id: 'calm', icon: Heart, text: 'Rincón de la Calma', refKey: 'calmRef' },
   { id: 'report', icon: BarChart, text: 'Reporte Visual', refKey: 'reportRef' },
   { id: 'share', icon: Share2, text: 'Compartir Diario', refKey: 'shareRef' },

@@ -7,10 +7,13 @@ import { SPIRIT_ANIMALS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import type { SpiritAnimal } from '@/lib/types';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { MessageCircle } from 'lucide-react';
 
 
 interface SanctuaryViewProps {
   unlockedAnimalIds: string[];
+  onSelectPet: (pet: SpiritAnimal) => void;
 }
 
 const rarityStyles = {
@@ -29,7 +32,7 @@ const rarityTextStyles = {
     'Legendario': 'text-amber-500 dark:text-amber-400',
 }
 
-function AnimalCard({ animal, isUnlocked }: { animal: SpiritAnimal; isUnlocked: boolean }) {
+function AnimalCard({ animal, isUnlocked, onSelectPet }: { animal: SpiritAnimal; isUnlocked: boolean, onSelectPet: (pet: SpiritAnimal) => void; }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -62,18 +65,25 @@ function AnimalCard({ animal, isUnlocked }: { animal: SpiritAnimal; isUnlocked: 
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="text-2xl text-primary">{isUnlocked ? animal.name : 'Animal Bloqueado'}</DialogTitle>
+          <DialogTitle className="text-2xl text-primary flex items-center gap-3">
+             <span className="text-4xl">{isUnlocked ? animal.icon : '❓'}</span>
+             {isUnlocked ? animal.name : 'Animal Bloqueado'}
+          </DialogTitle>
           <DialogDescription className="pt-2">
             {isUnlocked ? (
-                <span className="space-y-1">
-                    <span className="block font-bold text-lg" style={{ color: `hsl(var(--primary))` }}>{animal.emotion}</span>
-                    <span className="block text-sm text-muted-foreground mt-1">{animal.description}</span>
-                </span>
+                <div className="space-y-4">
+                    <p className="font-bold text-lg" style={{ color: `hsl(var(--primary))` }}>{animal.emotion}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{animal.description}</p>
+                     <Button onClick={() => onSelectPet(animal)} className="w-full">
+                        <MessageCircle className="mr-2 h-4 w-4"/>
+                        Chatear con {animal.name}
+                    </Button>
+                </div>
             ) : (
-                <span className="space-y-1">
-                    <span className="block font-bold text-lg" style={{ color: `hsl(var(--primary))` }}>¿Cómo desbloquear?</span>
-                    <span className="block text-sm text-muted-foreground mt-1">{animal.unlockHint}</span>
-                </span>
+                <div className="space-y-1">
+                    <p className="font-bold text-lg" style={{ color: `hsl(var(--primary))` }}>¿Cómo desbloquear?</p>
+                    <p className="text-sm text-muted-foreground mt-1">{animal.unlockHint}</p>
+                </div>
             )}
           </DialogDescription>
         </DialogHeader>
@@ -83,12 +93,12 @@ function AnimalCard({ animal, isUnlocked }: { animal: SpiritAnimal; isUnlocked: 
 }
 
 
-export function SanctuaryView({ unlockedAnimalIds }: SanctuaryViewProps) {
+export function SanctuaryView({ unlockedAnimalIds, onSelectPet }: SanctuaryViewProps) {
   return (
     <Card className="w-full h-full shadow-lg flex flex-col">
       <CardHeader>
         <CardTitle className="text-3xl font-bold text-primary">Mi Santuario</CardTitle>
-        <CardDescription>Tu colección de animales espirituales desbloqueados. Cada uno representa un hito en tu viaje emocional.</CardDescription>
+        <CardDescription>Tu colección de animales espirituales desbloqueados. Cada uno representa un hito en tu viaje emocional. ¡Haz clic en uno para saber más o chatear con él!</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow overflow-hidden">
         <ScrollArea className="h-full pr-4 -mr-4">
@@ -96,7 +106,7 @@ export function SanctuaryView({ unlockedAnimalIds }: SanctuaryViewProps) {
                 {SPIRIT_ANIMALS.map((animal) => {
                   const isUnlocked = unlockedAnimalIds.includes(animal.id);
                   return (
-                    <AnimalCard key={animal.id} animal={animal} isUnlocked={isUnlocked} />
+                    <AnimalCard key={animal.id} animal={animal} isUnlocked={isUnlocked} onSelectPet={onSelectPet} />
                   );
                 })}
               </div>

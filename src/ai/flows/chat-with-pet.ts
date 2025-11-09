@@ -4,30 +4,31 @@
  * @fileOverview An AI companion that chats with the user, using recent diary entries as context.
  *
  * - chatWithPet - A function that handles the AI companion chat process.
- * - ChatWithPetInput - The input type for the chatWithPet function.
- * - ChatWithPetOutput - The return type for the chatWithPet function.
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
-import { initializeFirebase } from '@/firebase';
-import { collection, getDocs, doc, getDoc, query, orderBy, limit } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, getDoc, query, orderBy, limit } from 'firebase/firestore';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { firebaseConfig } from '@/firebase/config';
 import type { DiaryEntry, Emotion } from '@/lib/types';
+import { 
+    ChatWithPetInput, 
+    ChatWithPetInputSchema, 
+    ChatWithPetOutput, 
+    ChatWithPetOutputSchema 
+} from './chat-with-pet-types';
 
-// Initialize Firestore through the existing Firebase setup
-const { firestore } = initializeFirebase();
+// Server-side Firebase initialization
+function initializeServerFirebase() {
+  if (getApps().length > 0) {
+    return getApp();
+  }
+  return initializeApp(firebaseConfig);
+}
 
-export const ChatWithPetInputSchema = z.object({
-  userId: z.string().describe('The ID of the user who is chatting.'),
-  message: z.string().describe('The message from the user.'),
-  petName: z.string().describe('The name of the pet persona to use, e.g., "Zorro Astuto".'),
-});
-export type ChatWithPetInput = z.infer<typeof ChatWithPetInputSchema>;
+const firebaseApp = initializeServerFirebase();
+const firestore = getFirestore(firebaseApp);
 
-export const ChatWithPetOutputSchema = z.object({
-  response: z.string().describe("The pet's friendly and supportive response."),
-});
-export type ChatWithPetOutput = z.infer<typeof ChatWithPetOutputSchema>;
 
 export async function chatWithPet(input: ChatWithPetInput): Promise<ChatWithPetOutput> {
   return chatWithPetFlow(input);
@@ -36,11 +37,7 @@ export async function chatWithPet(input: ChatWithPetInput): Promise<ChatWithPetO
 const prompt = ai.definePrompt({
   name: 'chatWithPetPrompt',
   input: {
-    schema: z.object({
-      petName: z.string(),
-      recentFeelingsContext: z.string(),
-      message: z.string(),
-    }),
+    schema: ChatWithPetInputSchema.pick({ petName: true, recentFeelingsContext: true, message: true }),
   },
   output: { schema: ChatWithPetOutputSchema },
   prompt: `Eres un compañero IA amigable y solidario llamado {{{petName}}}. Tu trabajo es chatear con un niño de una manera breve, amable y que valide sus sentimientos.
