@@ -69,22 +69,24 @@ function AnimalCard({ animal, isUnlocked, onSelectPet }: { animal: SpiritAnimal;
              <span className="text-4xl">{isUnlocked ? animal.icon : '❓'}</span>
              {isUnlocked ? animal.name : 'Animal Bloqueado'}
           </DialogTitle>
-          <DialogDescription className="pt-2">
-            {isUnlocked ? (
-                <div className="space-y-4">
-                    <p className="font-bold text-lg" style={{ color: `hsl(var(--primary))` }}>{animal.emotion}</p>
-                    <p className="text-sm text-muted-foreground mt-1">{animal.description}</p>
-                     <Button onClick={() => onSelectPet(animal)} className="w-full">
-                        <MessageCircle className="mr-2 h-4 w-4"/>
-                        Chatear con {animal.name}
-                    </Button>
-                </div>
-            ) : (
-                <div className="space-y-1">
-                    <p className="font-bold text-lg" style={{ color: `hsl(var(--primary))` }}>¿Cómo desbloquear?</p>
-                    <p className="text-sm text-muted-foreground mt-1">{animal.unlockHint}</p>
-                </div>
-            )}
+          <DialogDescription asChild>
+            <div className="pt-2">
+              {isUnlocked ? (
+                  <div className="space-y-4">
+                      <div className="font-bold text-lg" style={{ color: `hsl(var(--primary))` }}>{animal.emotion}</div>
+                      <div className="text-sm text-muted-foreground mt-1">{animal.description}</div>
+                      <Button onClick={() => onSelectPet(animal)} className="w-full">
+                          <MessageCircle className="mr-2 h-4 w-4"/>
+                          Chatear con {animal.name}
+                      </Button>
+                  </div>
+              ) : (
+                  <div className="space-y-1">
+                      <div className="font-bold text-lg" style={{ color: `hsl(var(--primary))` }}>¿Cómo desbloquear?</div>
+                      <div className="text-sm text-muted-foreground mt-1">{animal.unlockHint}</div>
+                  </div>
+              )}
+            </div>
           </DialogDescription>
         </DialogHeader>
       </DialogContent>
