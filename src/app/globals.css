@@ -79,6 +79,18 @@ body {
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 255 78% 60%;
   }
+
+  body.theme-forest {
+    background: linear-gradient(-45deg, #d8e5d8, #afc2af, #95ab95, #6a8c6a);
+    background-size: 400% 400%;
+    animation: forest-gradient 20s ease infinite;
+  }
+  
+  .dark body.theme-forest {
+    background: linear-gradient(-45deg, #2a3d2a, #3b503b, #4c644c, #2a3d2a);
+    background-size: 400% 400%;
+    animation: forest-gradient 20s ease infinite;
+  }
 }
 
 @layer base {
@@ -89,6 +101,9 @@ body {
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+  body.theme-forest .bg-background {
+    background-color: transparent;
   }
 }
 
@@ -131,16 +146,6 @@ body {
   .animate-gradient-slow {
     background-size: 200% 200%;
     animation: gradient-animation 15s ease infinite;
-  }
-  .bg-forest-gradient {
-    background: linear-gradient(-45deg, #d8e5d8, #afc2af, #95ab95, #6a8c6a);
-    background-size: 400% 400%;
-    animation: forest-gradient 20s ease infinite;
-  }
-  .dark .bg-forest-gradient {
-    background: linear-gradient(-45deg, #2a3d2a, #3b503b, #4c644c, #2a3d2a);
-    background-size: 400% 400%;
-    animation: forest-gradient 20s ease infinite;
   }
 }
 
