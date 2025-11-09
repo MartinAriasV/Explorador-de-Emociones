@@ -299,46 +299,54 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     }
   };
   
-  const handleAscentGameEnd = async (score: number) => {
-    if (!user || !firestore) return;
-    const userDocRef = doc(firestore, 'users', user.uid);
+    const handleAscentGameEnd = async (score: number) => {
+        if (!user || !firestore) return;
+        const userDocRef = doc(firestore, "users", user.uid);
+        let isNewHighScore = false;
 
-    try {
-        await runTransaction(firestore, async (transaction) => {
-            const userDoc = await transaction.get(userDocRef);
-            if (!userDoc.exists()) {
-                throw new Error("User profile does not exist!");
-            }
-            
-            const profileData = userDoc.data() as UserProfile;
-            const currentHighScore = profileData.ascentHighScore || 0;
-            const newPoints = (profileData.points || 0) + score;
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                const userDoc = await transaction.get(userDocRef);
+                if (!userDoc.exists()) {
+                    throw new Error("User profile does not exist!");
+                }
 
-            if (score > currentHighScore) {
-                transaction.update(userDocRef, {
-                    points: newPoints,
-                    ascentHighScore: score
-                });
+                const profileData = userDoc.data() as UserProfile;
+                const currentHighScore = profileData.ascentHighScore || 0;
+                const newPoints = (profileData.points || 0) + score;
+
+                if (score > currentHighScore) {
+                    isNewHighScore = true;
+                    transaction.update(userDocRef, {
+                        points: newPoints,
+                        ascentHighScore: score,
+                    });
+                } else {
+                    transaction.update(userDocRef, { points: newPoints });
+                }
+            });
+
+            // Show toast AFTER the transaction is successful
+            if (isNewHighScore) {
                 toast({
                     title: `¡Nuevo récord!`,
                     description: `Has conseguido ${score} puntos.`,
                 });
             } else {
-                transaction.update(userDocRef, { points: newPoints });
-                 toast({
+                toast({
                     title: "¡Buen juego!",
                     description: `Has ganado ${score} puntos.`,
                 });
             }
-        });
-    } catch (error: any) {
-        toast({
-            variant: "destructive",
-            title: "Error al guardar la puntuación",
-            description: "No se pudo guardar tu puntuación. Inténtalo de nuevo.",
-        });
-    }
-  };
+        } catch (error: any) {
+            console.error("Error saving score:", error);
+            toast({
+                variant: "destructive",
+                title: "Error al guardar la puntuación",
+                description: "No se pudo guardar tu puntuación. Inténtalo de nuevo.",
+            });
+        }
+    };
 
   const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
     if (!user || !userProfile) return;

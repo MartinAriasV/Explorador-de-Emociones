@@ -48,34 +48,34 @@ export function EmotionalAscentGame({ emotionsList, userProfile, onGameEnd }: Em
 
     const keysRef = useRef<{ [key: string]: boolean }>({});
     const scoreSubmittedRef = useRef(false);
+    const animationFrameIdRef = useRef<number>();
 
     const resetGame = useCallback(() => {
-        const gameWidth = gameAreaRef.current?.clientWidth || 500;
-        const initialPlayerX = gameWidth / 2 - PLAYER_WIDTH / 2;
-        const initialPlayerY = 350;
         scoreSubmittedRef.current = false;
+        const gameWidth = gameAreaRef.current?.clientWidth || 500;
+        const gameHeight = gameAreaRef.current?.clientHeight || 400;
+
+        const initialPlayerX = gameWidth / 2 - PLAYER_WIDTH / 2;
+        const initialPlayerY = gameHeight - PLAYER_HEIGHT * 3;
 
         setPlayerPos({ x: initialPlayerX, y: initialPlayerY });
         setPlayerVel({ x: 0, y: 0 });
         setScore(0);
         setHighestY(initialPlayerY);
-        
+
         let initialPlatforms: Platform[] = [];
-        
-        // Solid starting platform directly under the player
         initialPlatforms.push({
-            id: 0,
-            x: initialPlayerX,
+            id: Date.now(),
+            x: initialPlayerX - (PLATFORM_WIDTH - PLAYER_WIDTH) / 2,
             y: initialPlayerY + PLAYER_HEIGHT,
             type: 'normal'
         });
 
-        // Generate the rest of the platforms
         for (let i = 1; i < 10; i++) {
             initialPlatforms.push({
-                id: i,
+                id: Date.now() + i,
                 x: Math.random() * (gameWidth - PLATFORM_WIDTH),
-                y: (initialPlayerY + 100) - (80 * i),
+                y: initialPlatforms[i-1].y - (60 + Math.random() * 20),
                 type: 'normal'
             });
         }
@@ -83,158 +83,121 @@ export function EmotionalAscentGame({ emotionsList, userProfile, onGameEnd }: Em
         setGameState('playing');
     }, []);
 
-    // Effect to call onGameEnd when the game is over
     useEffect(() => {
         if (gameState === 'gameOver' && !scoreSubmittedRef.current) {
             onGameEnd(score);
-            scoreSubmittedRef.current = true; // Mark as submitted
+            scoreSubmittedRef.current = true;
         }
     }, [gameState, onGameEnd, score]);
-
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => { keysRef.current[e.key] = true; };
         const handleKeyUp = (e: KeyboardEvent) => { keysRef.current[e.key] = false; };
-
-        let orientation = { gamma: 0 };
-        const handleDeviceOrientation = (e: DeviceOrientationEvent) => {
-            orientation.gamma = e.gamma || 0;
-        };
-
         window.addEventListener('keydown', handleKeyDown);
         window.addEventListener('keyup', handleKeyUp);
-        if (window.DeviceOrientationEvent) {
-            window.addEventListener('deviceorientation', handleDeviceOrientation, true);
-        }
-
-        let animationFrameId: number;
-
+        
         const gameLoop = () => {
             if (gameState !== 'playing') {
-                cancelAnimationFrame(animationFrameId);
+                if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
                 return;
             }
 
-            const gameWidth = gameAreaRef.current?.clientWidth || 500;
-            const gameHeight = gameAreaRef.current?.clientHeight || 400;
+            setPlayerPos(prevPos => {
+                let newVelY = playerVel.y + GRAVITY;
+                newVelY = Math.min(newVelY, MAX_FALL_SPEED);
 
-            // ---- Player Horizontal Movement ----
-            let newPlayerX = playerPos.x;
-            const tilt = orientation.gamma / 90; // Normalize gamma
-            if (Math.abs(tilt) > 0.1) {
-                newPlayerX += HORIZONTAL_SPEED * tilt * 2;
-            } else {
-                 if (keysRef.current['ArrowLeft']) newPlayerX -= HORIZONTAL_SPEED;
-                 if (keysRef.current['ArrowRight']) newPlayerX += HORIZONTAL_SPEED;
-            }
+                let newX = prevPos.x;
+                if (keysRef.current['ArrowLeft']) newX -= HORIZONTAL_SPEED;
+                if (keysRef.current['ArrowRight']) newX += HORIZONTAL_SPEED;
 
-            // Boundary checks for player X
-            if (newPlayerX < 0) newPlayerX = 0;
-            if (newPlayerX > gameWidth - PLAYER_WIDTH) newPlayerX = gameWidth - PLAYER_WIDTH;
+                const gameWidth = gameAreaRef.current?.clientWidth || 500;
+                newX = Math.max(0, Math.min(newX, gameWidth - PLAYER_WIDTH));
+                
+                let newY = prevPos.y + newVelY;
+                let scrollOffset = 0;
+                const gameHeight = gameAreaRef.current?.clientHeight || 400;
 
-            // ---- Player Vertical Movement & Gravity ----
-            let newPlayerY = playerPos.y;
-            let newPlayerVelY = playerVel.y + GRAVITY;
-            newPlayerVelY = Math.min(newPlayerVelY, MAX_FALL_SPEED);
-            newPlayerY += newPlayerVelY;
-
-            // ---- Camera scroll ----
-            let screenShift = 0;
-            if (newPlayerY < gameHeight / 2 && newPlayerVelY < 0) {
-                screenShift = -newPlayerVelY;
-                newPlayerY = gameHeight / 2;
-            }
-            
-            setPlayerPos({ x: newPlayerX, y: newPlayerY });
-            setPlayerVel(prev => ({ ...prev, y: newPlayerVelY }));
-
-            // ---- Platform logic ----
-            let newPlatforms = platforms.map(p => ({ ...p, y: p.y + screenShift }));
-
-            if (newPlayerVelY > 0) { // Only check for collision when falling
-                newPlatforms.forEach((platform) => {
-                    if (
-                        newPlayerX < platform.x + PLATFORM_WIDTH &&
-                        newPlayerX + PLAYER_WIDTH > platform.x &&
-                        newPlayerY + PLAYER_HEIGHT > platform.y &&
-                        newPlayerY + PLAYER_HEIGHT < platform.y + PLATFORM_HEIGHT + playerVel.y
-                    ) {
-                        if (platform.type === 'boost') {
-                            setPlayerVel({ x: 0, y: BOOST_JUMP_FORCE });
-                        } else {
-                            setPlayerVel({ x: 0, y: JUMP_FORCE });
-                        }
-
-                        if (platform.type === 'brittle' && !platform.isBreaking) {
-                            platform.isBreaking = true;
-                            setTimeout(() => {
-                                setPlatforms(prev => prev.filter(p => p.id !== platform.id));
-                            }, 300);
-                        }
-                    }
-                });
-            }
-
-            // ---- Remove old platforms and add new ones ----
-            newPlatforms = newPlatforms.filter(p => p.y < gameHeight);
-            
-            const lowestPlatform = newPlatforms.reduce((prev, curr) => (prev.y < curr.y ? prev : curr), {y: 0});
-            if (lowestPlatform.y > -PLATFORM_HEIGHT) {
-                const newPlatformY = lowestPlatform.y - (50 + Math.random() * 50);
-                const rand = Math.random();
-                let type: Platform['type'] = 'normal';
-                let emotion: Emotion | undefined = undefined;
-
-                if (rand < 0.1 && emotionsList.length > 0) {
-                    type = 'boost';
-                    emotion = shuffleArray(emotionsList.filter(e => ['Alegría', 'Motivación'].includes(e.name)))[0];
-                } else if (rand < 0.3 && emotionsList.length > 0) {
-                    type = 'brittle';
-                    emotion = shuffleArray(emotionsList.filter(e => ['Frustración', 'Ansiedad'].includes(e.name)))[0];
+                if (newY < gameHeight / 2) {
+                    scrollOffset = gameHeight / 2 - newY;
+                    newY = gameHeight / 2;
                 }
 
-                newPlatforms.push({
-                    id: Date.now(),
-                    x: Math.random() * (gameWidth - PLATFORM_WIDTH),
-                    y: newPlatformY,
-                    type: type,
-                    emotion: emotion
+                setPlatforms(prevPlats => {
+                    let newPlatforms = prevPlats.map(p => ({ ...p, y: p.y + scrollOffset }));
+                    
+                    if (newVelY > 0) { // Check collision only when falling
+                        newPlatforms.forEach(p => {
+                            if (
+                                newX < p.x + PLATFORM_WIDTH &&
+                                newX + PLAYER_WIDTH > p.x &&
+                                prevPos.y + PLAYER_HEIGHT <= p.y &&
+                                newY + PLAYER_HEIGHT >= p.y
+                            ) {
+                                newVelY = p.type === 'boost' ? BOOST_JUMP_FORCE : JUMP_FORCE;
+                                if (p.type === 'brittle' && !p.isBreaking) {
+                                    p.isBreaking = true;
+                                    setTimeout(() => {
+                                        setPlatforms(currentPlatforms => currentPlatforms.filter(plat => plat.id !== p.id));
+                                    }, 300);
+                                }
+                            }
+                        });
+                    }
+
+                    // Remove old platforms, add new ones
+                    const highestPlat = newPlatforms.reduce((prev, curr) => (curr.y < prev.y ? curr : prev), { y: Infinity });
+                    
+                    if (highestPlat.y > -PLATFORM_HEIGHT) {
+                        const newPlatY = highestPlat.y - (60 + Math.random() * 40);
+                        const rand = Math.random();
+                        let type: Platform['type'] = 'normal';
+                        if (rand < 0.1) type = 'boost';
+                        else if (rand < 0.3) type = 'brittle';
+                        
+                        newPlatforms.push({
+                            id: Date.now(),
+                            x: Math.random() * (gameWidth - PLATFORM_WIDTH),
+                            y: newPlatY,
+                            type: type
+                        });
+                    }
+
+                    return newPlatforms.filter(p => p.y < gameHeight);
                 });
-            }
 
-            setPlatforms(newPlatforms);
+                setPlayerVel({ x: 0, y: newVelY });
+                
+                if (scrollOffset > 0) {
+                    setScore(s => s + Math.round(scrollOffset));
+                }
+                
+                if (newY > gameHeight) {
+                    setGameState('gameOver');
+                }
 
-            // ---- Score update ----
-            if (playerPos.y < highestY) {
-                setScore(s => s + Math.floor(highestY - playerPos.y));
-                setHighestY(playerPos.y);
-            }
+                return { x: newX, y: newY };
+            });
 
-            // ---- Game Over Check ----
-            if (playerPos.y > gameHeight) {
-                setGameState('gameOver');
-            }
-
-            animationFrameId = requestAnimationFrame(gameLoop);
+            animationFrameIdRef.current = requestAnimationFrame(gameLoop);
         };
 
         if (gameState === 'playing') {
-            animationFrameId = requestAnimationFrame(gameLoop);
+            animationFrameIdRef.current = requestAnimationFrame(gameLoop);
         }
 
         return () => {
-            cancelAnimationFrame(animationFrameId);
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
-            window.removeEventListener('deviceorientation', handleDeviceOrientation);
+            if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
         };
-    }, [gameState, playerPos, playerVel, platforms, highestY, score, emotionsList]);
+    }, [gameState]);
+
 
     if (gameState === 'start') {
         return (
             <div className="flex flex-col items-center justify-center h-full text-center p-8">
                 <h2 className="text-2xl font-bold text-primary">Ascenso Emocional</h2>
-                <p className="text-muted-foreground my-4 max-w-md">¡Salta tan alto como puedas! Usa las flechas del teclado o inclina tu dispositivo para moverte. ¡Gana puntos por cada metro ascendido!</p>
+                <p className="text-muted-foreground my-4 max-w-md">¡Salta tan alto como puedas! Usa las flechas del teclado para moverte. ¡Gana puntos por cada metro ascendido!</p>
                 <Button onClick={resetGame} size="lg">
                     <Rocket className="mr-2" /> Empezar a Ascender
                 </Button>
@@ -270,7 +233,7 @@ export function EmotionalAscentGame({ emotionsList, userProfile, onGameEnd }: Em
              <div className="w-full max-w-[500px] flex justify-center items-center text-2xl font-bold text-primary px-2">
                  <p>{score}</p>
              </div>
-            <div ref={gameAreaRef} className="relative w-full max-w-[500px] h-[400px] bg-muted/20 rounded-lg overflow-hidden border-2">
+            <div ref={gameAreaRef} className="relative w-full max-w-[500px] h-[400px] bg-sky-100 dark:bg-sky-900/30 rounded-lg overflow-hidden border-2">
                 {/* Player */}
                 <div style={{ left: playerPos.x, top: playerPos.y, width: PLAYER_WIDTH, height: PLAYER_HEIGHT }} className="absolute text-4xl flex items-center justify-center">
                     {userProfile.avatar}
@@ -279,10 +242,12 @@ export function EmotionalAscentGame({ emotionsList, userProfile, onGameEnd }: Em
                 {/* Platforms */}
                 {platforms.map(p => (
                     <div key={p.id} style={{ left: p.x, top: p.y, width: PLATFORM_WIDTH, height: PLATFORM_HEIGHT }} className={cn(
-                        "absolute flex items-center justify-center text-2xl transition-all duration-300",
+                        "absolute flex items-center justify-center text-2xl rounded-md transition-all duration-300",
+                        p.type === 'normal' && 'bg-white/80 dark:bg-slate-500/80',
+                        p.type === 'boost' && 'bg-green-300/80 dark:bg-green-700/80',
+                        p.type === 'brittle' && 'bg-orange-300/80 dark:bg-orange-700/80',
                         p.isBreaking ? 'opacity-0 scale-50' : 'opacity-100'
                     )}>
-                        ☁️
                         {p.emotion && <span className="absolute text-3xl opacity-80">{p.emotion.icon}</span>}
                     </div>
                 ))}
