@@ -24,9 +24,9 @@ import { Crown, Map } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useFirebase, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { useFirebase, useCollection, useMemoFirebase } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak } from '@/lib/utils';
 import type { User } from 'firebase/auth';
 
@@ -57,8 +57,9 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const { firestore } = useFirebase();
 
   // --- Firestore Data Hooks ---
-  const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid, 'userProfile') : null), [firestore, user]);
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+  const userProfileQuery = useMemoFirebase(() => (user ? query(collection(firestore, 'users'), where("id", "==", user.uid)) : null), [firestore, user]);
+  const { data: userProfileData, isLoading: isProfileLoading } = useCollection<UserProfile>(userProfileQuery);
+  const userProfile = useMemo(() => (userProfileData && userProfileData[0] ? userProfileData[0] : null), [userProfileData]);
 
   const emotionsQuery = useMemoFirebase(() => (user ? collection(firestore, 'users', user.uid, 'emotions') : null), [firestore, user]);
   const { data: emotionsList, isLoading: areEmotionsLoading } = useCollection<Emotion>(emotionsQuery);
@@ -67,27 +68,29 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const { data: diaryEntries, isLoading: areDiaryEntriesLoading } = useCollection<DiaryEntry>(diaryEntriesQuery);
 
   const [newlyUnlockedReward, setNewlyUnlockedReward] = useState<Reward | null>(null);
-
+  
   const isLoading = isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading;
 
-    // --- Profile Creation Logic ---
   const addProfileIfNotExists = useCallback(async (): Promise<boolean> => {
-    if (!user || !userProfileRef) return false;
-  
-    const docSnap = await getDoc(userProfileRef);
+    if (!user || !firestore) return false;
+    
+    const userDocRef = doc(firestore, 'users', user.uid);
+    const docSnap = await getDoc(userDocRef);
+
     if (!docSnap.exists()) {
       console.log("No profile found for user, creating one...");
-      const newProfile: Omit<UserProfile, 'id'> = {
-        name: user.displayName || user.email?.split('@')[0] || 'Viajero Emocional',
+      const newProfile: UserProfile = {
+        id: user.uid,
+        name: user.displayName || "Viajero Anónimo",
         avatar: '😊',
         avatarType: 'emoji',
         unlockedAnimalIds: [],
       };
-      await setDoc(userProfileRef, newProfile);
+      await setDoc(userDocRef, newProfile);
       return true; // Indicates a new user was created
     }
     return false; // Indicates user already existed
-  }, [user, userProfileRef]);
+  }, [user, firestore]);
 
 
   const [addingEmotionData, setAddingEmotionData] = useState<Partial<Emotion> | null>(null);
@@ -127,7 +130,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const checkAndUnlockRewards = useCallback(async (
     trigger: 'addEntry' | 'addEmotion' | 'share' | 'recoverDay'
   ) => {
-      if (!userProfileRef || !user) return;
+      if (!user || !userProfile) return;
+      const userProfileRef = doc(firestore, 'users', user.uid);
 
       const freshProfileSnap = await getDoc(userProfileRef);
       const freshProfile = freshProfileSnap.data() as UserProfile;
@@ -196,7 +200,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
           setNewlyUnlockedReward(justUnlockedReward);
         }
       }
-  }, [user, firestore, userProfileRef]);
+  }, [user, firestore, userProfile]);
 
   const handleShare = () => {
     checkAndUnlockRewards('share');
@@ -220,7 +224,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   };
 
   const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
-    if (!userProfileRef) return;
+    if (!user) return;
+    const userProfileRef = doc(firestore, 'users', user.uid);
     updateDocumentNonBlocking(userProfileRef, profile);
   };
 
@@ -498,5 +503,3 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     </SidebarProvider>
   );
 }
-
-    
