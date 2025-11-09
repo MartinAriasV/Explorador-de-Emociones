@@ -82,14 +82,14 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const equippedThemeId = userProfile?.equippedItems?.['theme'];
   const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
   const isForestTheme = themeItem?.value === 'theme-forest';
-
-  useEffect(() => {
-    const body = document.body;
-    body.classList.remove('light', 'dark');
-    body.classList.add(theme);
-  }, [theme]);
   
   const backgroundClass = isForestTheme ? 'bg-forest-gradient' : 'bg-background';
+
+  useEffect(() => {
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(theme);
+  }, [theme]);
+  
 
   const addInitialEmotions = useCallback(async (userId: string) => {
     if (!firestore) return;
