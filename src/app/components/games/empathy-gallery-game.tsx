@@ -48,8 +48,8 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
 
   const generateQuestion = useCallback(() => {
     if (playableEmotions.length < 4) {
-      setIsPlaying(false);
-      return;
+        setIsPlaying(false);
+        return;
     }
     
     setIsLoadingImage(true);
@@ -64,15 +64,16 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
         possibleImages = empathyImages;
         localHistory = [];
     }
-
+    
     const questionImage = shuffleArray(possibleImages)[0];
     const correctEmotion = playableEmotions.find(e => e.name.toLowerCase() === questionImage.emotion.toLowerCase());
 
     if (!correctEmotion) {
         console.error("No playable emotion found for image:", questionImage);
-        // Try again with a different image if possible
-        if (empathyImages.length > localHistory.length + 1) {
-            setQuestionHistory(prev => [...prev, questionImage.id]); // Add failed image to history to avoid retrying it
+        let nextHistory = [...localHistory, questionImage.id];
+        setQuestionHistory(nextHistory);
+        
+        if (empathyImages.length > nextHistory.length) {
             generateQuestion();
         } else {
             setIsPlaying(false);
@@ -91,7 +92,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
     
     setCurrentQuestion({
-        imageUrl: `https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=600&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D`,
+        imageUrl: `https://source.unsplash.com/600x400/?${questionImage.hint}`,
         correctEmotion: correctEmotion.name,
         options: allOptions,
         hint: questionImage.hint
@@ -189,7 +190,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
                 </div>
             )}
             <Image 
-                src={`https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=600&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=${encodeURIComponent(currentQuestion.hint)}`}
+                src={currentQuestion.imageUrl}
                 alt={currentQuestion.hint}
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
