@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { CheckCircle, XCircle, Zap, Loader } from 'lucide-react';
-import imageData from '@/lib/placeholder-images.json';
 import Image from 'next/image';
 import type { User } from 'firebase/auth';
 
@@ -26,7 +25,6 @@ interface EmpathyQuestion {
     imageUrl: string;
     correctEmotion: Emotion;
     options: Emotion[];
-    hint: string;
 }
 
 export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGameProps) {
@@ -36,76 +34,37 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
   const [score, setScore] = useState(0);
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [questionHistory, setQuestionHistory] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const empathyImages = useMemo(() => imageData.empathy_gallery, []);
   
   const generateQuestion = useCallback(() => {
-    setIsLoading(true);
     setError(null);
+    if (emotionsList.length < 4) {
+      setError("Necesitas al menos 4 emociones diferentes en tu Emocionario para poder jugar.");
+      setIsPlaying(false);
+      return;
+    }
+
+    // 1. Get 4 unique emotions from the user's list
+    const questionOptions = shuffleArray(emotionsList).slice(0, 4);
     
-    // 1. Find which images we can use based on the user's available emotions.
-    const userEmotionNames = new Set(emotionsList.map(e => e.name.toLowerCase()));
-    let playableImages = empathyImages.filter(imgDef => 
-        userEmotionNames.has(imgDef.emotion.toLowerCase()) && !questionHistory.includes(imgDef.id)
-    );
+    // 2. Pick one as the correct answer
+    const correctEmotion = questionOptions[0];
 
-    // If we've used all unique images, reset the history to allow repeats.
-    if (playableImages.length === 0 && questionHistory.length > 0) {
-        setQuestionHistory([]);
-        playableImages = empathyImages.filter(imgDef => 
-            userEmotionNames.has(imgDef.emotion.toLowerCase())
-        );
-    }
-    
-    // If there are still no images to play with, it means the user lacks the necessary emotions.
-    if (playableImages.length === 0) {
-        setError("No tienes suficientes emociones en tu Emocionario que coincidan con las imágenes del juego. Añade emociones como Alegría, Tristeza, o Miedo desde la sección 'Descubrir'.");
-        setIsLoading(false);
-        setIsPlaying(false);
-        return;
-    }
-
-    // 2. Pick a random image for the question.
-    const questionImageDef = shuffleArray(playableImages)[0];
-    const correctEmotion = emotionsList.find(e => e.name.toLowerCase() === questionImageDef.emotion.toLowerCase());
-
-    if (!correctEmotion) {
-        // This case should be rare, but it's good to handle it.
-        setError("Ocurrió un error al generar la pregunta. Intentando de nuevo...");
-        setIsLoading(false);
-        generateQuestion(); // Retry
-        return;
-    }
-    
-    // 3. Find incorrect options for the multiple-choice question.
-    const incorrectOptionsPool = emotionsList.filter(e => e.id !== correctEmotion.id);
-    if (incorrectOptionsPool.length < 3) {
-        setError("Necesitas al menos 4 emociones diferentes en tu Emocionario para poder generar las opciones de respuesta.");
-        setIsLoading(false);
-        setIsPlaying(false);
-        return;
-    }
-
-    const incorrectOptions = shuffleArray(incorrectOptionsPool).slice(0, 3);
-    const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
-
-    const imageUrl = `https://placehold.co/600x400/${correctEmotion.color.substring(1)}/000000?text=${correctEmotion.name}&font=poppins`;
+    // 3. Construct the image URL using placehold.co
+    const bgColor = correctEmotion.color.substring(1); // remove '#'
+    const textColor = 'FFFFFF'; // White text
+    const text = encodeURIComponent(correctEmotion.name);
+    const imageUrl = `https://placehold.co/600x400/${bgColor}/${textColor}?text=${text}&font=poppins`;
 
     setCurrentQuestion({
         imageUrl: imageUrl,
         correctEmotion: correctEmotion,
-        options: allOptions,
-        hint: questionImageDef.hint,
+        options: shuffleArray(questionOptions), // Shuffle them for display
     });
     
-    setQuestionHistory(prev => [...prev, questionImageDef.id]);
     setIsAnswered(false);
     setSelectedAnswer(null);
-    setIsLoading(false);
-  }, [emotionsList, empathyImages, questionHistory]);
+  }, [emotionsList]);
 
 
   useEffect(() => {
@@ -136,7 +95,6 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
   const startGame = () => {
     setScore(0);
     setQuestionsAnswered(0);
-    setQuestionHistory([]);
     setIsAnswered(false);
     setSelectedAnswer(null);
     setCurrentQuestion(null);
@@ -157,7 +115,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
                 </div>
             ) : (
                 <>
-                {questionsAnswered >= QUESTIONS_PER_GAME && !isLoading &&(
+                {questionsAnswered >= QUESTIONS_PER_GAME && (
                     <>
                         <p className="text-lg my-2">¡Partida terminada!</p>
                         <p className="text-5xl font-bold mb-6">{score} / {QUESTIONS_PER_GAME}</p>
@@ -173,11 +131,11 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     );
   }
 
-  if (isLoading || !currentQuestion) {
+  if (!currentQuestion) {
     return (
         <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
             <Loader className="h-10 w-10 animate-spin text-primary mb-4" />
-            <p className="text-lg font-semibold">Cargando la siguiente obra de arte...</p>
+            <p className="text-lg font-semibold">Cargando...</p>
         </div>
     );
   }
@@ -193,11 +151,10 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
          <div className="relative w-full h-full">
             <Image 
                 src={currentQuestion.imageUrl}
-                alt={currentQuestion.hint}
+                alt={`Imagen representando ${currentQuestion.correctEmotion.name}`}
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 className="object-cover"
-                data-ai-hint={currentQuestion.hint}
             />
          </div>
       </Card>
