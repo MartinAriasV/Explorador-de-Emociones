@@ -4,9 +4,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Emotion, GameProps } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { CheckCircle, XCircle, Zap, Image as ImageIcon, Loader } from 'lucide-react';
+import { CheckCircle, XCircle, Zap, Loader } from 'lucide-react';
 import imageData from '@/lib/placeholder-images.json';
 import Image from 'next/image';
 import type { User } from 'firebase/auth';
@@ -38,7 +38,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [questionHistory, setQuestionHistory] = useState<string[]>([]);
-  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [isLoadingImage, setIsLoadingImage] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const empathyImages = useMemo(() => imageData.empathy_gallery, []);
@@ -50,45 +50,51 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
 
   const generateQuestion = useCallback(async () => {
     if (playableEmotions.length < 4) {
-        setIsPlaying(false);
-        return;
+      setError("No hay suficientes emociones en tu emocionario para jugar a este juego.");
+      setIsPlaying(false);
+      return;
     }
 
-    setIsGeneratingImage(true);
+    setIsLoadingImage(true);
     setError(null);
-
+    
     let localHistory = [...questionHistory];
     if (localHistory.length >= empathyImages.length) {
-        localHistory = [];
+      localHistory = [];
     }
 
     let possibleImages = empathyImages.filter(img => !localHistory.includes(img.id));
     if (possibleImages.length === 0) {
-        possibleImages = empathyImages;
-        localHistory = [];
+      possibleImages = empathyImages;
+      localHistory = [];
     }
     
     const questionImageDef = shuffleArray(possibleImages)[0];
     const correctEmotion = playableEmotions.find(e => e.name.toLowerCase() === questionImageDef.emotion.toLowerCase());
 
     if (!correctEmotion) {
-        console.error("No playable emotion found for image:", questionImageDef);
-        setQuestionHistory(prev => [...prev, questionImageDef.id]);
-        // Try to generate another question if there are more images left
-        if (empathyImages.length > questionHistory.length + 1) {
-            await generateQuestion();
-        } else {
-            setIsPlaying(false);
-        }
-        return;
+      console.error("No playable emotion found for image:", questionImageDef);
+      setQuestionHistory(prev => [...prev, questionImageDef.id]);
+      if (empathyImages.length > questionHistory.length + 1) {
+        await generateQuestion();
+      } else {
+        setIsPlaying(false);
+      }
+      return;
     }
     
-    try {
-        const { imageUrl } = await generateEmpathyImage({ emotion: correctEmotion.name, hint: questionImageDef.hint });
+    let imageUrl = `https://images.unsplash.com/${questionImageDef.id}?w=600&h=400&fit=crop`;
+    let finalHint = questionImageDef.hint;
 
-        const incorrectOptions = shuffleArray(playableEmotions.filter(e => e.id !== correctEmotion!.id)).slice(0, 3);
+    try {
+        if (!questionImageDef.id.startsWith('photo-')) {
+          const result = await generateEmpathyImage({ emotion: correctEmotion.name, hint: questionImageDef.hint });
+          imageUrl = result.imageUrl;
+        }
+
+        const incorrectOptions = shuffleArray(playableEmotions.filter(e => e.id !== correctEmotion.id)).slice(0, 3);
         if (incorrectOptions.length < 3) {
-            console.error("Not enough emotions to form a full question.");
+            setError("No hay suficientes emociones para formar una pregunta completa. Añade más desde 'Descubrir'.");
             setIsPlaying(false);
             return;
         }
@@ -98,18 +104,18 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
             imageUrl: imageUrl,
             correctEmotion: correctEmotion.name,
             options: allOptions,
-            hint: questionImageDef.hint
+            hint: finalHint,
         });
         
-        setQuestionHistory(prev => [...prev, questionImageDef.id]);
+        setQuestionHistory(localHistory.concat(questionImageDef.id));
         setIsAnswered(false);
         setSelectedAnswer(null);
 
-    } catch (err) {
-        console.error("Error generating image:", err);
-        setError("No se pudo crear una imagen. Intenta de nuevo.");
+    } catch (err: any) {
+        console.error("Error generating/loading image:", err);
+        setError(err.message?.includes('429') ? "Se ha superado el límite de generación de imágenes. ¡Inténtalo más tarde!" : "No se pudo crear una imagen. Intenta de nuevo.");
     } finally {
-        setIsGeneratingImage(false);
+        setIsLoadingImage(false);
     }
   }, [playableEmotions, empathyImages, questionHistory]);
 
@@ -146,42 +152,44 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     setIsAnswered(false);
     setSelectedAnswer(null);
     setCurrentQuestion(null);
+    setError(null);
     setIsPlaying(true);
   };
-
-  if (playableEmotions.length < 4) {
-    return (
-        <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
-            <p className="text-lg font-semibold">¡Faltan Emociones!</p>
-            <p className="max-w-md">Necesitas al menos 4 emociones diferentes en tu Emocionario (como Alegría, Tristeza, etc.) que coincidan con las imágenes del juego.</p>
-        </div>
-    );
-  }
 
   if (!isPlaying) {
     return (
         <div className="flex flex-col items-center justify-center h-full text-center p-4 md:p-8">
             <h2 className="text-2xl font-bold text-primary">Galería de Empatía</h2>
             <p className="text-muted-foreground my-4 max-w-md">Observa la imagen y adivina qué emoción representa. ¡Gana 5 puntos por cada acierto!</p>
-            {questionsAnswered >= QUESTIONS_PER_GAME && (
+            {error && <p className="text-destructive mb-4">{error}</p>}
+            {playableEmotions.length < 4 ? (
+                 <div className="text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
+                    <p className="text-lg font-semibold">¡Faltan Emociones!</p>
+                    <p className="max-w-md">Necesitas al menos 4 emociones diferentes en tu Emocionario (como Alegría, Tristeza, etc.) que coincidan con las imágenes del juego.</p>
+                </div>
+            ) : (
                 <>
-                    <p className="text-lg my-2">¡Partida terminada!</p>
-                    <p className="text-5xl font-bold mb-6">{score} / {QUESTIONS_PER_GAME}</p>
+                {questionsAnswered >= QUESTIONS_PER_GAME && (
+                    <>
+                        <p className="text-lg my-2">¡Partida terminada!</p>
+                        <p className="text-5xl font-bold mb-6">{score} / {QUESTIONS_PER_GAME}</p>
+                    </>
+                )}
+                <Button onClick={startGame} size="lg">
+                    <Zap className="mr-2" />
+                    {questionsAnswered >= QUESTIONS_PER_GAME ? 'Jugar de Nuevo' : 'Empezar'}
+                </Button>
                 </>
             )}
-            <Button onClick={startGame} size="lg">
-                <Zap className="mr-2" />
-                {questionsAnswered >= QUESTIONS_PER_GAME ? 'Jugar de Nuevo' : 'Empezar'}
-            </Button>
         </div>
     );
   }
 
-  if (isGeneratingImage || !currentQuestion) {
+  if (isLoadingImage || !currentQuestion) {
     return (
         <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
             <Loader className="h-10 w-10 animate-spin text-primary mb-4" />
-            <p className="text-lg font-semibold">Generando una imagen para ti...</p>
+            <p className="text-lg font-semibold">Cargando la siguiente obra de arte...</p>
         </div>
     );
   }
@@ -213,6 +221,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 className="object-cover"
                 data-ai-hint={currentQuestion.hint}
+                unoptimized={currentQuestion.imageUrl.startsWith('data:')}
             />
          </div>
       </Card>
