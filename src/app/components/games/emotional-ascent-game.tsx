@@ -47,11 +47,13 @@ export function EmotionalAscentGame({ emotionsList, userProfile, onGameEnd }: Em
     const [highestY, setHighestY] = useState(playerPos.y);
 
     const keysRef = useRef<{ [key: string]: boolean }>({});
+    const scoreSubmittedRef = useRef(false);
 
     const resetGame = useCallback(() => {
         const gameWidth = gameAreaRef.current?.clientWidth || 500;
         const initialPlayerX = gameWidth / 2 - PLAYER_WIDTH / 2;
         const initialPlayerY = 350;
+        scoreSubmittedRef.current = false;
 
         setPlayerPos({ x: initialPlayerX, y: initialPlayerY });
         setPlayerVel({ x: 0, y: 0 });
@@ -60,11 +62,11 @@ export function EmotionalAscentGame({ emotionsList, userProfile, onGameEnd }: Em
         
         let initialPlatforms: Platform[] = [];
         
-        // Solid starting platform
+        // Solid starting platform directly under the player
         initialPlatforms.push({
             id: 0,
             x: initialPlayerX,
-            y: initialPlayerY + PLAYER_HEIGHT + 40,
+            y: initialPlayerY + PLAYER_HEIGHT,
             type: 'normal'
         });
 
@@ -80,6 +82,15 @@ export function EmotionalAscentGame({ emotionsList, userProfile, onGameEnd }: Em
         setPlatforms(initialPlatforms);
         setGameState('playing');
     }, []);
+
+    // Effect to call onGameEnd when the game is over
+    useEffect(() => {
+        if (gameState === 'gameOver' && !scoreSubmittedRef.current) {
+            onGameEnd(score);
+            scoreSubmittedRef.current = true; // Mark as submitted
+        }
+    }, [gameState, onGameEnd, score]);
+
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => { keysRef.current[e.key] = true; };
@@ -202,7 +213,6 @@ export function EmotionalAscentGame({ emotionsList, userProfile, onGameEnd }: Em
             // ---- Game Over Check ----
             if (playerPos.y > gameHeight) {
                 setGameState('gameOver');
-                onGameEnd(score);
             }
 
             animationFrameId = requestAnimationFrame(gameLoop);
@@ -218,7 +228,7 @@ export function EmotionalAscentGame({ emotionsList, userProfile, onGameEnd }: Em
             window.removeEventListener('keyup', handleKeyUp);
             window.removeEventListener('deviceorientation', handleDeviceOrientation);
         };
-    }, [gameState, playerPos, playerVel, platforms, highestY, score, onGameEnd, emotionsList]);
+    }, [gameState, playerPos, playerVel, platforms, highestY, score, emotionsList]);
 
     if (gameState === 'start') {
         return (
