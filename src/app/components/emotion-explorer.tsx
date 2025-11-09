@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, createRef, useCallback, useMemo } from 'react';
-import type { Emotion, View, TourStepData, UserProfile, DiaryEntry, Reward, SpiritAnimal } from '@/lib/types';
+import type { Emotion, View, TourStepData, UserProfile, DiaryEntry, Reward, SpiritAnimal, ShopItem } from '@/lib/types';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar, MobileMenuButton } from './app-sidebar';
 import { DiaryView } from './views/diary-view';
@@ -11,6 +11,7 @@ import { CalmView } from './views/calm-view';
 import { ReportView } from './views/report-view';
 import { ShareView } from './views/share-view';
 import { ProfileView } from './views/profile-view';
+import { ShopView } from './views/shop-view';
 import { AddEmotionModal } from './modals/add-emotion-modal';
 import { QuizModal } from './modals/quiz-modal';
 import { WelcomeDialog } from './tour/welcome-dialog';
@@ -25,7 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc, runTransaction } from 'firebase/firestore';
+import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc, runTransaction, arrayUnion } from 'firebase/firestore';
 import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak } from '@/lib/utils';
 import type { User } from 'firebase/auth';
@@ -107,6 +108,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         avatarType: 'emoji',
         unlockedAnimalIds: [],
         points: 0,
+        purchasedItemIds: [],
+        equippedItems: {},
       };
       // Use the non-blocking version to avoid issues, but we still need to wait for this
       // for the initial setup to proceed correctly.
@@ -356,6 +359,45 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     const entryDoc = doc(firestore, 'users', user.uid, 'diaryEntries', entryId);
     deleteDocumentNonBlocking(entryDoc);
   };
+  
+  const handlePurchaseItem = async (item: ShopItem) => {
+      if (!user || !userProfile || !firestore) return;
+      if ((userProfile.points || 0) < item.cost) {
+          toast({ variant: "destructive", title: "Puntos insuficientes", description: "¡No tienes suficientes puntos para comprar esto!" });
+          return;
+      }
+
+      const userDocRef = doc(firestore, 'users', user.uid);
+
+      try {
+          await runTransaction(firestore, async (transaction) => {
+              const userDoc = await transaction.get(userDocRef);
+              if (!userDoc.exists()) {
+                  throw "User profile does not exist!";
+              }
+
+              const currentPoints = userDoc.data().points || 0;
+              if (currentPoints < item.cost) {
+                  throw "Puntos insuficientes";
+              }
+
+              const newPoints = currentPoints - item.cost;
+              transaction.update(userDocRef, {
+                  points: newPoints,
+                  purchasedItemIds: arrayUnion(item.id)
+              });
+          });
+
+          toast({ title: "¡Compra exitosa!", description: `Has comprado "${item.name}".` });
+      } catch (error: any) {
+          console.error("Transaction failed: ", error);
+          toast({
+              variant: "destructive",
+              title: "Error en la compra",
+              description: error === "Puntos insuficientes" ? "¡No tienes suficientes puntos!" : "No se pudo completar la compra.",
+          });
+      }
+  };
 
 
   const handleOpenAddEmotionModal = (emotionData: Partial<Emotion>) => {
@@ -468,6 +510,11 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
                         diaryEntries={diaryEntries || []}
                         emotionsList={emotionsList || []}
                      />;
+            case 'shop':
+                return <ShopView 
+                          userProfile={userProfile!}
+                          onPurchaseItem={handlePurchaseItem}
+                        />;
             case 'report':
               return <ReportView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} />;
             case 'share':

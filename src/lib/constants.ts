@@ -83,6 +83,7 @@ export const TOUR_STEPS: TourStepData[] = [
     { refKey: 'streakRef', title: 'Controla tu Racha', description: '¡Mantén la llama encendida! Registra tus emociones a diario para no perder tu racha.' },
     { refKey: 'sanctuaryRef', title: 'Tu Santuario de Recompensas', description: 'Alcanza hitos y desbloquea "animales espirituales" como recompensa por tu constancia.' },
     { refKey: 'petChatRef', title: 'Tu Compañero IA', description: 'Chatea con tus animales espirituales desbloqueados. ¡Están aquí para escucharte!' },
+    { refKey: 'shopRef', title: 'Tienda de Recompensas', description: 'Usa tus puntos para desbloquear temas, marcos y otros artículos cosméticos.' },
     { refKey: 'calmRef', title: 'Rincón de la Calma', description: '¿Necesitas un respiro? Prueba nuestros ejercicios de respiración guiada para relajarte.' },
     { refKey: 'reportRef', title: 'Reporte Visual', description: 'Observa tus patrones emocionales a lo largo del tiempo con este calendario interactivo.' },
     { refKey: 'shareRef', title: 'Comparte tu Viaje', description: 'Genera un reporte de texto de tu diario para compartirlo con quien tú quieras.' },

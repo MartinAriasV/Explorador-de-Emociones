@@ -24,9 +24,11 @@ export type UserProfile = {
   avatarType: 'emoji' | 'generated';
   unlockedAnimalIds?: string[];
   points?: number;
+  purchasedItemIds?: string[];
+  equippedItems?: { [key in ShopItemType]?: string }; // e.g. { 'theme': 'theme-ocean', 'avatar_frame': 'frame-gold' }
 };
 
-export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary' | 'games' | 'pet-chat';
+export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary' | 'games' | 'pet-chat' | 'shop';
 
 export type PredefinedEmotion = {
   name: string;
@@ -69,3 +71,22 @@ export interface QuizQuestion {
 export interface GameProps {
   emotionsList: Emotion[];
 }
+
+export type ShopItemType = 'theme' | 'avatar_frame' | 'pet_accessory';
+
+export type ShopItem = {
+  id: string;
+  name: string;
+  description: string;
+  cost: number;
+  type: ShopItemType;
+  value: string; // e.g. 'theme-ocean', 'frame-gold', 'hat-cowboy'
+  icon: string; // Emoji or identifier for the item
+};
+
+export type PetAccessory = {
+    id: string;
+    name: string;
+    icon: string;
+    category: 'head' | 'neck' | 'body';
+};
