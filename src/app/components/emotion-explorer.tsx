@@ -87,19 +87,12 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     if (typeof window === 'undefined') return;
   
     const body = document.body;
-  
-    // Always manage light/dark first
-    body.classList.remove('light', 'dark');
-    body.classList.add(theme);
-  
-    // Then manage custom themes
+    body.classList.remove('light', 'dark', 'theme-forest');
+    body.classList.add(theme); // Add 'light' or 'dark'
     if (isForestTheme) {
       body.classList.add('theme-forest');
-    } else {
-      body.classList.remove('theme-forest');
     }
   
-    // Cleanup on unmount or when dependencies change
     return () => {
       body.classList.remove('theme-forest');
     };

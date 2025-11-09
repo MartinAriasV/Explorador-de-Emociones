@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useEffect, useMemo } from 'react';
+import React, { Suspense } from 'react';
 import EmotionExplorer from '@/app/components/emotion-explorer';
 import {
   FirebaseClientProvider,
