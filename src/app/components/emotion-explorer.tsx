@@ -583,18 +583,10 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         </main>
     );
   }
-
-  const equippedThemeId = userProfile.equippedItems?.['theme'];
-  const isForestTheme = SHOP_ITEMS.find(item => item.id === equippedThemeId)?.value === 'theme-forest';
-
-  const containerClasses = cn(
-    "flex h-screen w-screen",
-    isForestTheme ? 'bg-forest-gradient' : 'bg-background'
-  );
   
   return (
     <SidebarProvider>
-      <div className={containerClasses}>
+      <div className={cn("flex h-screen w-screen bg-transparent")}>
         <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
         <main className="flex-1 flex flex-col overflow-hidden">
           <header className="p-2 md:hidden flex items-center border-b bg-background/80 backdrop-blur-sm">

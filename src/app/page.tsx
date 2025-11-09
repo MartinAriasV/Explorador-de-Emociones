@@ -20,31 +20,29 @@ function AppGate() {
   const { firestore } = useFirebase();
   const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
   const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
-  const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
+  const [theme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
 
-  const bodyClassName = useMemo(() => {
-    if (!userProfile) return theme; // Return base theme if no profile
+  useEffect(() => {
+    if (typeof window === 'undefined' || !userProfile) return;
 
     const equippedThemeId = userProfile.equippedItems?.['theme'];
     const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
     
-    const classes = [theme];
+    const bodyClasses = [theme];
     if (themeItem) {
-      classes.push(themeItem.value); // e.g., 'theme-forest'
+      bodyClasses.push(themeItem.value); // e.g., 'theme-forest'
       if (themeItem.value === 'theme-forest') {
-        classes.push('bg-forest-gradient');
+        bodyClasses.push('bg-forest-gradient');
       } else {
-        classes.push('bg-background');
+        bodyClasses.push('bg-background');
       }
     } else {
-      classes.push('bg-background');
+      bodyClasses.push('bg-background');
     }
-    return classes.join(' ');
-  }, [userProfile, theme]);
 
-  useEffect(() => {
-    document.body.className = bodyClassName;
-  }, [bodyClassName]);
+    document.body.className = bodyClasses.join(' ');
+    
+  }, [userProfile, theme]);
 
 
   if (isUserLoading) {
