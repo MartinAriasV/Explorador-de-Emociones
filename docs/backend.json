@@ -17,23 +17,6 @@
         "avatar": {
           "type": "string",
           "description": "User's selected avatar (e.g., an emoji)."
-        },
-        "entryCount": {
-          "type": "number",
-          "description": "Total number of diary entries."
-        },
-        "emotionCount": {
-          "type": "number",
-          "description": "Total number of custom emotions."
-        },
-        "lastEntryDate": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The date of the last diary entry."
-        },
-        "currentStreak": {
-          "type": "number",
-          "description": "The user's current daily entry streak."
         }
       },
       "required": [
@@ -116,8 +99,7 @@
   },
   "auth": {
     "providers": [
-      "password",
-      "google.com"
+      "password"
     ]
   },
   "firestore": {

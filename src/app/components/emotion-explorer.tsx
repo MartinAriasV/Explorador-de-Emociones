@@ -25,9 +25,9 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc, runTransaction } from 'firebase/firestore';
+import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { calculateDailyStreak, normalizeDate } from '@/lib/utils';
+import { calculateDailyStreak } from '@/lib/utils';
 import type { User } from 'firebase/auth';
 
 interface EmotionExplorerProps {
@@ -103,10 +103,6 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         avatar: '😊',
         avatarType: 'emoji',
         unlockedAnimalIds: [],
-        entryCount: 0,
-        emotionCount: 5,
-        currentStreak: 0,
-        lastEntryDate: new Date(0).toISOString(), // Epoch time
       };
       // Use the non-blocking version to avoid issues, but we still need to wait for this
       // for the initial setup to proceed correctly.
@@ -231,64 +227,11 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     checkAndUnlockRewards('share');
   };
 
-  const addDiaryEntry = async (entryData: Omit<DiaryEntry, 'id' | 'userId'>, trigger: 'addEntry' | 'recoverDay' = 'addEntry') => {
-    if (!user || !firestore) return;
-
-    const userProfileRef = doc(firestore, 'users', user.uid);
-    const newDiaryEntryRef = doc(collection(firestore, 'users', user.uid, 'diaryEntries'));
-
-    try {
-        await runTransaction(firestore, async (transaction) => {
-            const userProfileDoc = await transaction.get(userProfileRef);
-            if (!userProfileDoc.exists()) {
-                throw "User profile does not exist!";
-            }
-
-            const profileData = userProfileDoc.data() as UserProfile;
-            let newStreak = profileData.currentStreak || 0;
-            const lastEntryDate = normalizeDate(profileData.lastEntryDate);
-            const newEntryDate = normalizeDate(entryData.date);
-            
-            const oneDay = 24 * 60 * 60 * 1000;
-            const daysDifference = (newEntryDate - lastEntryDate) / oneDay;
-
-            if (daysDifference > 0) { // Only update streak if it's a new day
-                if (daysDifference === 1) {
-                    newStreak += 1; // It's a consecutive day
-                } else {
-                    newStreak = 1; // Streak is broken, reset to 1
-                }
-            }
-            // If daysDifference is 0 or less, do nothing to the streak.
-
-            const newEntryCount = (profileData.entryCount || 0) + 1;
-
-            // Update profile
-            transaction.update(userProfileRef, {
-                entryCount: newEntryCount,
-                currentStreak: newStreak,
-                lastEntryDate: new Date(newEntryDate).toISOString(),
-            });
-
-            // Create new diary entry
-            transaction.set(newDiaryEntryRef, {
-                ...entryData,
-                userId: user.uid,
-                id: newDiaryEntryRef.id,
-            });
-        });
-
-        // After transaction is successful, check for rewards
-        await checkAndUnlockRewards(trigger);
-
-    } catch (e) {
-        console.error("Transaction failed: ", e);
-        toast({
-            title: "Error al guardar",
-            description: "No se pudo guardar la entrada del diario. Inténtalo de nuevo.",
-            variant: "destructive",
-        });
-    }
+    const addDiaryEntry = async (entryData: Omit<DiaryEntry, 'id' | 'userId'>, trigger: 'addEntry' | 'recoverDay' = 'addEntry') => {
+    if (!user) return;
+    const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
+    await addDocumentNonBlocking(diaryCollection, { ...entryData, userId: user.uid });
+    await checkAndUnlockRewards(trigger);
   };
   
   const handleQuizComplete = (success: boolean, date: Date | null) => {
@@ -310,8 +253,9 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   };
 
     const saveEmotion = async (emotionData: Omit<Emotion, 'id' | 'userId'> & { id?: string }) => {
-    if (!user || !firestore) return;
+    if (!user) return;
     
+    // Check if an emotion with the same name already exists
     if (emotionsList && emotionsList.some(e => e.name.toLowerCase() === emotionData.name.toLowerCase() && e.id !== emotionData.id)) {
         toast({
             title: "Emoción Duplicada",
@@ -322,80 +266,48 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     }
 
     const emotionsCollection = collection(firestore, 'users', user.uid, 'emotions');
-    const userProfileRef = doc(firestore, 'users', user.uid);
+    
     const isNew = !emotionData.id;
 
-    try {
-        await runTransaction(firestore, async (transaction) => {
-            if (isNew) {
-                const userProfileDoc = await transaction.get(userProfileRef);
-                if (!userProfileDoc.exists()) {
-                    throw "User profile does not exist!";
-                }
-                const newEmotionCount = (userProfileDoc.data().emotionCount || 0) + 1;
-                transaction.update(userProfileRef, { emotionCount: newEmotionCount });
-            }
+    const dataToSave = {
+      ...emotionData,
+      userId: user.uid,
+    };
 
-            const dataToSave = { ...emotionData, userId: user.uid };
-            let emotionRef;
-
-            if (isNew) {
-                emotionRef = doc(emotionsCollection);
-                transaction.set(emotionRef, { ...dataToSave, id: emotionRef.id });
-            } else {
-                emotionRef = doc(emotionsCollection, emotionData.id!);
-                transaction.update(emotionRef, dataToSave);
-            }
-        });
-        
-        toast({
-            title: isNew ? "Emoción Añadida" : "Emoción Actualizada",
-            description: `"${emotionData.name}" ha sido ${isNew ? 'añadida a' : 'actualizada en'} tu emocionario.`,
-        });
-
-        if (isNew) {
-            await checkAndUnlockRewards('addEmotion');
-        }
-
-    } catch (e) {
-        console.error("Save emotion transaction failed: ", e);
-        toast({
-            title: "Error al guardar emoción",
-            description: "No se pudo guardar la emoción. Por favor, inténtalo de nuevo.",
-            variant: "destructive",
-        });
+    if (emotionData.id) {
+      const emotionRef = doc(emotionsCollection, emotionData.id);
+      updateDocumentNonBlocking(emotionRef, dataToSave);
+      toast({ title: "Emoción Actualizada", description: `"${emotionData.name}" ha sido actualizada.` });
+    } else {
+      const newDocRef = doc(emotionsCollection);
+      setDocumentNonBlocking(newDocRef, {...dataToSave, id: newDocRef.id});
+      toast({ title: "Emoción Añadida", description: `"${emotionData.name}" ha sido añadida a tu emocionario.` });
+    }
+    
+    if (isNew) {
+      await checkAndUnlockRewards('addEmotion');
     }
   };
 
     const deleteEmotion = async (emotionId: string) => {
-    if (!user || !firestore) return;
+    if (!user) return;
   
     const batch = writeBatch(firestore);
-    const userProfileRef = doc(firestore, 'users', user.uid);
+  
     const emotionDoc = doc(firestore, 'users', user.uid, 'emotions', emotionId);
-
     batch.delete(emotionDoc);
   
     const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
     const q = query(diaryCollection, where("emotionId", "==", emotionId));
     
     try {
-      // It's better to update the emotion count in a transaction, but for simplicity in deletion, we can do it separately.
-      const userProfileSnap = await getDoc(userProfileRef);
-      if (userProfileSnap.exists()) {
-          const currentCount = userProfileSnap.data().emotionCount || 0;
-          batch.update(userProfileRef, { emotionCount: Math.max(0, currentCount - 1) });
-      }
-
       const querySnapshot = await getDocs(q);
       querySnapshot.forEach((doc) => {
         batch.delete(doc.ref);
       });
       await batch.commit();
-      toast({ title: "Emoción eliminada", description: "La emoción y sus entradas asociadas han sido eliminadas." });
     } catch (error) {
       console.error("Error deleting emotion and associated entries: ", error);
-       toast({ title: "Error al eliminar", description: "No se pudo eliminar la emoción.", variant: "destructive" });
     }
   };
 
@@ -406,31 +318,9 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   };
   
   const deleteDiaryEntry = async (entryId: string) => {
-    if (!user || !firestore) return;
+    if (!user) return;
     const entryDoc = doc(firestore, 'users', user.uid, 'diaryEntries', entryId);
-
-     try {
-        await runTransaction(firestore, async (transaction) => {
-            const userProfileRef = doc(firestore, 'users', user.uid);
-            const userProfileDoc = await transaction.get(userProfileRef);
-            if (!userProfileDoc.exists()) {
-                throw "User profile not found";
-            }
-            
-            const newEntryCount = (userProfileDoc.data().entryCount || 1) - 1;
-            transaction.update(userProfileRef, { entryCount: Math.max(0, newEntryCount) });
-
-            transaction.delete(entryDoc);
-        });
-
-        toast({ title: "Entrada eliminada", description: "La entrada del diario ha sido eliminada." });
-        // Note: Recalculating streak after deletion is complex and might be better handled by a batch job or ignored on client-side.
-        // For simplicity, we are not recalculating streak here.
-
-    } catch (e) {
-        console.error("Error deleting diary entry: ", e);
-        toast({ title: "Error", description: "No se pudo eliminar la entrada.", variant: "destructive" });
-    }
+    deleteDocumentNonBlocking(entryDoc);
   };
 
 
