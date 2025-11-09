@@ -20,7 +20,10 @@
         },
         "avatarType": {
           "type": "string",
-          "enum": ["emoji", "generated"],
+          "enum": [
+            "emoji",
+            "generated"
+          ],
           "description": "The type of avatar used by the user."
         },
         "unlockedAnimalIds": {
