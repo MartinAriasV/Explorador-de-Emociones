@@ -76,9 +76,16 @@ export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: 
     if (!inputValue.trim() || !pet || !initialContext) return;
 
     const userMessage: Message = { text: inputValue, sender: 'user' };
-    setMessages(prev => [...prev, userMessage]);
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setInputValue('');
     setIsLoading(true);
+
+    // Format the history for the Genkit flow
+    const history = newMessages.slice(0, -1).map(msg => ({
+        role: msg.sender === 'user' ? 'user' : 'model',
+        content: [{ text: msg.text }],
+    }));
 
     try {
       const response = await chatWithPet({
@@ -86,6 +93,7 @@ export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: 
         message: inputValue,
         petName: pet.name,
         recentFeelingsContext: initialContext.contextString,
+        history: history,
       });
 
       const petMessage: Message = { text: response.response, sender: 'pet' };
@@ -136,7 +144,7 @@ export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: 
                         </div>
                     </div>
                 ))}
-                 {initialContext && initialContext.displayFeelings.length > 0 && messages.length === 1 && (
+                 {initialContext && initialContext.displayFeelings.length > 0 && messages.length <= 2 && (
                   <div className="flex items-start gap-3 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg animate-fade-in">
                     <Info className="h-5 w-5 mt-0.5 shrink-0" />
                     <p>Para esta charla, estoy recordando que últimamente te has sentido: {initialContext.displayFeelings.map(e => e.name).join(', ')}.</p>
