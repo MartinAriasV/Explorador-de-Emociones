@@ -53,24 +53,22 @@ const rarityBorderStyles: { [key: string]: string } = {
     'Legendario': 'border-amber-400',
 }
 
-function AppBody({ className, children }: { className: string, children: React.ReactNode }) {
+function AppBody({ className, children }: { className?: string, children: React.ReactNode }) {
     useEffect(() => {
+        if (!className) return;
         const body = document.body;
-        const classes = className.split(' ');
+        const classes = className.split(' ').filter(c => c);
         
-        // Remove all potential theme classes before adding new ones
-        body.classList.remove('bg-background', 'bg-forest-gradient', 'light', 'dark', 'theme-ocean', 'theme-forest');
-        
+        // Remove all theme-related classes that this component might manage.
+        const managedClasses = ['light', 'dark', 'theme-ocean', 'theme-forest', 'bg-background', 'bg-forest-gradient'];
+        body.classList.remove(...managedClasses);
+
         // Add the new classes
-        classes.forEach(c => {
-            if (c) body.classList.add(c);
-        });
+        body.classList.add(...classes);
 
         // Cleanup function to remove classes when component unmounts
         return () => {
-            classes.forEach(c => {
-                if (c) body.classList.remove(c);
-            });
+            body.classList.remove(...classes);
         };
     }, [className]);
     
@@ -109,7 +107,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     const equippedThemeId = userProfile?.equippedItems?.['theme'];
     const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
 
-    let classes = [theme];
+    let classes: string[] = [theme]; // 'light' or 'dark'
     if (themeItem) {
         classes.push(themeItem.value); // e.g. 'theme-forest'
         if (themeItem.value === 'theme-forest') {
@@ -120,7 +118,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     } else {
         classes.push('bg-background');
     }
-    return cn(classes);
+    return classes.join(' ');
   }, [userProfile?.equippedItems, theme]);
 
 
@@ -618,7 +616,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   return (
     <AppBody className={bodyClassName}>
       <SidebarProvider>
-        <div className="flex h-screen w-screen bg-background">
+        <div className="flex h-screen w-screen bg-transparent">
           <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
           <main className="flex-1 flex flex-col overflow-hidden">
             <header className="p-2 md:hidden flex items-center border-b">

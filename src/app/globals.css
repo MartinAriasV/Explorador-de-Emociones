@@ -135,7 +135,7 @@ body {
     --input: 120 20% 20%;
   }
 
-  .theme-forest body {
+  body.theme-forest {
     --background-color: transparent;
   }
 }
@@ -145,7 +145,7 @@ body {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
