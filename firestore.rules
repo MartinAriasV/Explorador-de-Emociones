@@ -37,40 +37,28 @@ service cloud.firestore {
       }
       
       // Allow updates if the user is the owner and the update does not try to change the points directly
-      // except by an authorized amount (e.g. +10 for a diary entry, +5 for game).
-      function isPointsUpdateValid() {
+      // except by an authorized amount (e.g. +10 for a diary entry).
+      // This is a simplified rule; a production app might use Cloud Functions for point updates.
+      function isUpdatingAllowedFields() {
         let newPoints = request.resource.data.points;
         let oldPoints = resource.data.points;
-        let allowedIncrements = [5, 10, 15]; // Game points, diary points
-        let allowedDecrements = [100, 150, 250, 500, 750]; // Shop items
-
-        // Check if it's an allowed increment
-        let isIncrementValid = allowedIncrements.some(inc => newPoints == oldPoints + inc);
-
-        // Check if it's an allowed decrement
-        let isDecrementValid = allowedDecrements.some(dec => newPoints == oldPoints - dec);
         
-        // This is a special case for transactional increments in Firestore rules,
-        // which might not work as expected with direct `+` checks.
-        // Instead, we verify that the point change is one of the allowed amounts.
-        let pointChange = newPoints - oldPoints;
-        let isChangeAllowed = pointChange == 10 || pointChange == 5 || pointChange == 15 ||
-                              pointChange == -100 || pointChange == -150 || pointChange == -250 ||
-                              pointChange == -500 || pointChange == -750;
-
-        return isChangeAllowed;
-      }
-
-      function isUpdatingAllowedFields() {
-        let onlyAllowedFieldsChanged = request.resource.data.keys().diff(resource.data.keys()).hasOnly(['name', 'avatar', 'avatarType', 'unlockedAnimalIds', 'purchasedItemIds', 'equippedItems', 'points']);
+        let pointsAreValid = (
+          newPoints == oldPoints + 10 || // Diary entry
+          newPoints == oldPoints + 5  || // Game win
+          newPoints == oldPoints + 15 || // Game win (story builder)
+          newPoints == oldPoints - 100 || // Shop
+          newPoints == oldPoints - 150 || // Shop
+          newPoints == oldPoints - 250 || // Shop
+          newPoints == oldPoints - 500 || // Shop
+          newPoints == oldPoints - 750 || // Shop
+          newPoints == oldPoints // No change
+        );
         
-        // If points are being changed, validate the change
-        if (request.resource.data.points != resource.data.points) {
-          return onlyAllowedFieldsChanged && isPointsUpdateValid();
-        }
+        let allowedFields = ['name', 'avatar', 'avatarType', 'unlockedAnimalIds', 'purchasedItemIds', 'equippedItems', 'points'];
+        let hasOnlyAllowedFields = request.resource.data.keys().diff(resource.data.keys()).hasOnly(allowedFields);
         
-        // If points are not being changed, just check the other fields
-        return onlyAllowedFieldsChanged;
+        return hasOnlyAllowedFields && (newPoints == oldPoints || pointsAreValid);
       }
       
       allow get: if isOwner(userId);
