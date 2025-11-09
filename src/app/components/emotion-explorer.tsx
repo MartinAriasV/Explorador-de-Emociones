@@ -77,6 +77,22 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     if (!userProfile?.purchasedItemIds) return [];
     return SHOP_ITEMS.filter(item => userProfile.purchasedItemIds.includes(item.id));
   }, [userProfile]);
+  
+  useEffect(() => {
+    const equippedTheme = userProfile?.equippedItems?.['theme'];
+    const htmlElement = document.documentElement;
+
+    // Remove any existing theme classes
+    htmlElement.classList.remove('theme-ocean', 'theme-forest');
+
+    if (equippedTheme) {
+      const themeItem = SHOP_ITEMS.find(item => item.id === equippedTheme && item.type === 'theme');
+      if (themeItem) {
+        htmlElement.classList.add(themeItem.value);
+      }
+    }
+  }, [userProfile?.equippedItems]);
+
 
   const addInitialEmotions = useCallback(async (userId: string) => {
     if (!firestore) return;
@@ -379,13 +395,15 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   
   const handlePurchaseItem = async (item: ShopItem) => {
       if (!user || !userProfile || !firestore) return;
-      if ((userProfile.points || 0) < item.cost) {
-          toast({ variant: "destructive", title: "Puntos insuficientes", description: "¡No tienes suficientes puntos para comprar esto!" });
-          return;
-      }
+
       if (userProfile.purchasedItemIds?.includes(item.id)) {
         toast({ variant: "default", title: "Artículo ya comprado", description: "Ya posees este artículo." });
         return;
+      }
+      
+      if ((userProfile.points || 0) < item.cost) {
+          toast({ variant: "destructive", title: "Puntos insuficientes", description: "¡No tienes suficientes puntos para comprar esto!" });
+          return;
       }
 
       const userDocRef = doc(firestore, 'users', user.uid);
@@ -403,9 +421,6 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
               if (currentPoints < item.cost) {
                   throw new Error("Puntos insuficientes");
               }
-              if (currentProfile.purchasedItemIds?.includes(item.id)) {
-                  throw new Error("Artículo ya comprado");
-              }
 
               const newPoints = currentPoints - item.cost;
               transaction.update(userDocRef, {
@@ -421,9 +436,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
               title: "Error en la compra",
               description: error.message === "Puntos insuficientes" 
                   ? "¡No tienes suficientes puntos!" 
-                  : error.message === "Artículo ya comprado" 
-                  ? "Ya has comprado este artículo." 
-                  : "No se pudo completar la compra.",
+                  : error.message,
           });
       }
   };

@@ -79,6 +79,46 @@ body {
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 255 78% 60%;
   }
+
+  .theme-ocean {
+    --background: 210 40% 98%;
+    --foreground: 215 28% 17%;
+    --card: 210 40% 100%;
+    --card-foreground: 215 28% 17%;
+    --popover: 210 40% 100%;
+    --popover-foreground: 215 28% 17%;
+    --primary: 205 90% 45%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 215 28% 17%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 20% 45%;
+    --accent: 190 80% 50%;
+    --accent-foreground: 210 40% 98%;
+    --border: 210 40% 90%;
+    --input: 210 40% 90%;
+    --ring: 205 90% 45%;
+  }
+
+  .theme-forest {
+    --background: 120 15% 98%;
+    --foreground: 120 25% 15%;
+    --card: 120 15% 100%;
+    --card-foreground: 120 25% 15%;
+    --popover: 120 15% 100%;
+    --popover-foreground: 120 25% 15%;
+    --primary: 130 60% 40%;
+    --primary-foreground: 120 20% 98%;
+    --secondary: 120 15% 96%;
+    --secondary-foreground: 120 25% 15%;
+    --muted: 120 15% 96%;
+    --muted-foreground: 120 15% 45%;
+    --accent: 110 70% 45%;
+    --accent-foreground: 120 20% 98%;
+    --border: 120 15% 90%;
+    --input: 120 15% 90%;
+    --ring: 130 60% 40%;
+  }
 }
 
 @layer base {
