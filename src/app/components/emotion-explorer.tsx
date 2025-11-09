@@ -430,7 +430,13 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
                         onSelectPet={handleSelectPet}
                       />;
             case 'pet-chat':
-              return <PetChatView pet={selectedPet} user={user} setView={setView} />;
+              return <PetChatView 
+                        pet={selectedPet} 
+                        user={user} 
+                        setView={setView} 
+                        diaryEntries={diaryEntries || []}
+                        emotionsList={emotionsList || []}
+                     />;
             case 'report':
               return <ReportView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} />;
             case 'share':

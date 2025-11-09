@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { chatWithPet } from '@/ai/flows/chat-with-pet';
-import type { SpiritAnimal, View } from '@/lib/types';
+import type { SpiritAnimal, View, DiaryEntry, Emotion } from '@/lib/types';
 import type { User } from 'firebase/auth';
 import { ArrowLeft, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,8 @@ interface PetChatViewProps {
   pet: SpiritAnimal | null;
   user: User;
   setView: (view: View) => void;
+  diaryEntries: DiaryEntry[];
+  emotionsList: Emotion[];
 }
 
 interface Message {
@@ -22,7 +24,7 @@ interface Message {
   sender: 'user' | 'pet';
 }
 
-export function PetChatView({ pet, user, setView }: PetChatViewProps) {
+export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: PetChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -55,10 +57,25 @@ export function PetChatView({ pet, user, setView }: PetChatViewProps) {
     setIsLoading(true);
 
     try {
+      const getEmotionById = (id: string) => emotionsList.find(e => e.id === id);
+
+      // 1. Get the 3 most recent diary entries.
+      const recentEntries = [...diaryEntries].reverse().slice(0, 3);
+      
+      // 2. Format the context string.
+      const recentFeelingsContext = recentEntries.length > 0
+        ? "Contexto de sentimientos recientes: " + recentEntries.map((entry, index) => {
+            const emotion = getEmotionById(entry.emotionId);
+            return `${index + 1}. Emoción: ${emotion?.name || 'desconocida'}, Pensamiento: "${entry.text}"`;
+          }).join(' ')
+        : "El usuario aún no ha escrito en su diario.";
+      
+      // 3. Call the Genkit flow with the new context.
       const response = await chatWithPet({
         userId: user.uid,
         message: inputValue,
         petName: pet.name,
+        recentFeelingsContext: recentFeelingsContext,
       });
 
       const petMessage: Message = { text: response.response, sender: 'pet' };
