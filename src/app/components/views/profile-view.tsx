@@ -1,13 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { UserProfile } from '@/lib/types';
-import { AVATAR_EMOJIS } from '@/lib/constants';
+import type { UserProfile, ShopItem, ShopItemType } from '@/lib/types';
+import { AVATAR_EMOJIS, SHOP_ITEMS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import { Check } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import Image from 'next/image';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
@@ -18,19 +18,19 @@ interface ProfileViewProps {
 }
 
 export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
-  // Local state to manage form fields, initialized from userProfile
   const [localName, setLocalName] = useState(userProfile?.name || '');
   const [localAvatar, setLocalAvatar] = useState(userProfile?.avatar || '');
   const [localAvatarType, setLocalAvatarType] = useState(userProfile?.avatarType || 'emoji');
+  const [localEquippedItems, setLocalEquippedItems] = useState(userProfile?.equippedItems || {});
   const [saved, setSaved] = useState(false);
   const { toast } = useToast();
 
-  // Effect to sync local state if the userProfile prop changes from Firestore
   useEffect(() => {
     if (userProfile) {
       setLocalName(userProfile.name);
       setLocalAvatar(userProfile.avatar);
       setLocalAvatarType(userProfile.avatarType);
+      setLocalEquippedItems(userProfile.equippedItems || {});
     }
   }, [userProfile]);
 
@@ -44,8 +44,7 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
       });
       return;
     }
-    // This function now handles UPDATING the document in Firestore
-    setUserProfile({ name: localName, avatar: localAvatar, avatarType: localAvatarType });
+    setUserProfile({ name: localName, avatar: localAvatar, avatarType: localAvatarType, equippedItems: localEquippedItems });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -54,6 +53,21 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
     setLocalAvatar(avatar);
     setLocalAvatarType(type);
   };
+  
+  const handleEquipItem = (item: ShopItem) => {
+    setLocalEquippedItems(prev => ({
+        ...prev,
+        [item.type]: item.id,
+    }));
+  };
+  
+  const handleUnequipItem = (itemType: ShopItemType) => {
+      const newItems = { ...localEquippedItems };
+      delete newItems[itemType];
+      setLocalEquippedItems(newItems);
+  }
+
+  const purchasedFrames = SHOP_ITEMS.filter(item => item.type === 'avatar_frame' && userProfile?.purchasedItemIds?.includes(item.id));
 
   if (!userProfile) {
     return (
@@ -79,9 +93,9 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
             />
         </div>
 
-        <div className="flex-grow flex flex-col min-h-0 space-y-2">
+        <div className="space-y-2">
             <label className="text-sm font-medium">Elige tu Avatar</label>
-            <ScrollArea className="flex-grow rounded-lg border">
+            <ScrollArea className="h-40 rounded-lg border">
                 <div className="grid grid-cols-8 gap-2 p-2">
                     {AVATAR_EMOJIS.map((emoji, index) => (
                         <button
@@ -104,6 +118,34 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
                 </div>
             </ScrollArea>
         </div>
+        
+        {purchasedFrames.length > 0 && (
+            <div className="space-y-2">
+                <label className="text-sm font-medium">Marcos de Avatar</label>
+                <div className="flex gap-4 items-center">
+                    <Button 
+                        variant="outline"
+                        onClick={() => handleUnequipItem('avatar_frame')}
+                        className={cn("h-16 w-16 text-muted-foreground", !localEquippedItems['avatar_frame'] && 'ring-2 ring-primary')}
+                    >
+                        <X/>
+                    </Button>
+                    {purchasedFrames.map(item => (
+                        <Button
+                            key={item.id}
+                            variant="outline"
+                            onClick={() => handleEquipItem(item)}
+                            className={cn(
+                                "h-16 w-16 text-3xl",
+                                localEquippedItems['avatar_frame'] === item.id && 'ring-2 ring-primary'
+                            )}
+                        >
+                           {item.icon}
+                        </Button>
+                    ))}
+                </div>
+            </div>
+        )}
       
         <Button onClick={handleSave} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground mt-auto">
           {saved ? <Check className="mr-2 h-4 w-4" /> : null}

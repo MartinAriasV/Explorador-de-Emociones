@@ -7,16 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Star, CheckCircle } from 'lucide-react';
 import type { ShopItem, UserProfile } from '@/lib/types';
 import { cn } from '@/lib/utils';
-
-// Hardcoded shop items for now
-const SHOP_ITEMS: ShopItem[] = [
-    { id: 'theme-ocean', name: 'Tema Océano', description: 'Un tema azul y relajante para la aplicación.', cost: 100, type: 'theme', value: 'theme-ocean', icon: '🌊' },
-    { id: 'theme-forest', name: 'Tema Bosque', description: 'Un tema verde y tranquilo inspirado en la naturaleza.', cost: 100, type: 'theme', value: 'theme-forest', icon: '🌳' },
-    { id: 'frame-gold', name: 'Marco Dorado', description: 'Un marco dorado brillante para tu avatar.', cost: 250, type: 'avatar_frame', value: 'frame-gold', icon: '🖼️' },
-    { id: 'frame-silver', name: 'Marco Plateado', description: 'Un marco plateado elegante para tu avatar.', cost: 150, type: 'avatar_frame', value: 'frame-silver', icon: '🖼️' },
-    { id: 'hat-cowboy', name: 'Sombrero de Vaquero', description: 'Un sombrero de vaquero para tu mascota IA.', cost: 500, type: 'pet_accessory', value: 'hat-cowboy', icon: '🤠' },
-    { id: 'hat-wizard', name: 'Sombrero de Mago', description: 'Un sombrero de mago místico para tu mascota.', cost: 750, type: 'pet_accessory', value: 'hat-wizard', icon: '🧙' },
-];
+import { SHOP_ITEMS } from '@/lib/constants';
 
 interface ShopViewProps {
   userProfile: UserProfile;

@@ -1,4 +1,4 @@
-import type { PredefinedEmotion, TourStepData, SpiritAnimal, Reward, QuizQuestion } from './types';
+import type { PredefinedEmotion, TourStepData, SpiritAnimal, Reward, QuizQuestion, ShopItem } from './types';
 
 export const PREDEFINED_EMOTIONS: PredefinedEmotion[] = [
   { name: 'Alegría', icon: '😄', description: 'Sentimiento de vivo placer y contentamiento.', example: 'Sentí una gran alegría al ver a mi familia.', color: '#FFD700' },
@@ -267,4 +267,13 @@ export const QUIZ_QUESTIONS: QuizQuestion[] = [
     { question: 'Comienzas un nuevo proyecto con una energía vibrante y una gran sonrisa. ¿Qué sientes?', options: ['Entusiasmo', 'Ansiedad', 'Calma', 'Orgullo'], correctAnswer: 'Entusiasmo', difficulty: 'Experto' },
     { question: 'Un desconocido realiza un acto de bondad inesperado hacia ti. ¿Qué sientes?', options: ['Gratitud', 'Sorpresa', 'Confianza', 'Alegría'], correctAnswer: 'Gratitud', difficulty: 'Experto' },
     { question: 'Defiendes a un amigo a pesar de que te da miedo hacerlo. ¿Qué sientes?', options: ['Valentía', 'Orgullo', 'Miedo', 'Confianza'], correctAnswer: 'Valentía', difficulty: 'Experto' }
+];
+
+export const SHOP_ITEMS: ShopItem[] = [
+    { id: 'theme-ocean', name: 'Tema Océano', description: 'Un tema azul y relajante para la aplicación.', cost: 100, type: 'theme', value: 'theme-ocean', icon: '🌊' },
+    { id: 'theme-forest', name: 'Tema Bosque', description: 'Un tema verde y tranquilo inspirado en la naturaleza.', cost: 100, type: 'theme', value: 'theme-forest', icon: '🌳' },
+    { id: 'frame-gold', name: 'Marco Dorado', description: 'Un marco dorado brillante para tu avatar.', cost: 250, type: 'avatar_frame', value: 'border-amber-400', icon: '🖼️' },
+    { id: 'frame-silver', name: 'Marco Plateado', description: 'Un marco plateado elegante para tu avatar.', cost: 150, type: 'avatar_frame', value: 'border-slate-400', icon: '🖼️' },
+    { id: 'hat-cowboy', name: 'Sombrero de Vaquero', description: 'Un sombrero de vaquero para tu mascota IA.', cost: 500, type: 'pet_accessory', value: 'hat-cowboy', icon: '🤠' },
+    { id: 'hat-wizard', name: 'Sombrero de Mago', description: 'Un sombrero de mago místico para tu mascota.', cost: 750, type: 'pet_accessory', value: 'hat-wizard', icon: '🧙' },
 ];
