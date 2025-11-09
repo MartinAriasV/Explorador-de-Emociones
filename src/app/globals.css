@@ -145,10 +145,6 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-
-  body.bg-forest-gradient {
-    background-color: transparent !important;
-  }
 }
 
 @layer utilities {

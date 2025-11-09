@@ -86,27 +86,33 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     const htmlElement = document.documentElement;
     const bodyElement = document.body;
 
-    // Base theme (light/dark)
-    htmlElement.classList.remove('light', 'dark');
+    // Reset all theme classes
+    htmlElement.classList.remove('light', 'dark', 'theme-ocean', 'theme-forest');
+    bodyElement.classList.remove('bg-forest-gradient');
+
+    // Apply base theme (light/dark)
     htmlElement.classList.add(theme);
 
-    // Cosmetic themes from shop
-    htmlElement.classList.remove('theme-ocean', 'theme-forest');
-    bodyElement.classList.remove('bg-forest-gradient');
-    bodyElement.style.backgroundColor = '';
-
+    // Apply cosmetic themes from shop
     if (equippedThemeId) {
-      const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
-      if (themeItem) {
-        htmlElement.classList.add(themeItem.value);
-        if (themeItem.value === 'theme-forest') {
-            bodyElement.classList.add('bg-forest-gradient');
-            // This makes the default background transparent to let the gradient show through
-            bodyElement.style.backgroundColor = 'transparent';
+        const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
+        if (themeItem) {
+            htmlElement.classList.add(themeItem.value); // e.g., 'theme-forest'
+            
+            // Special handling for backgrounds
+            if (themeItem.value === 'theme-forest') {
+                bodyElement.classList.remove('bg-background'); // Remove default background
+                bodyElement.classList.add('bg-forest-gradient');
+            } else {
+                bodyElement.classList.add('bg-background'); // Ensure default bg is there for other themes
+            }
+        } else {
+             bodyElement.classList.add('bg-background');
         }
-      }
+    } else {
+        bodyElement.classList.add('bg-background');
     }
-  }, [userProfile?.equippedItems, theme]);
+}, [userProfile?.equippedItems, theme]);
 
 
   const addInitialEmotions = useCallback(async (userId: string) => {
