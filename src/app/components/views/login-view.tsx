@@ -40,6 +40,7 @@ export default function LoginView() {
                 title: 'Error de inicio de sesión',
                 description: error.code || error.message || 'No se pudo iniciar sesión con Google.',
             });
+        } finally {
             setIsSubmitting(false);
         }
     }, [auth, toast]);
