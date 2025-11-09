@@ -147,7 +147,7 @@ export default function LoginView() {
                             <span className="text-xs text-muted-foreground">O CONTINÚA CON</span>
                             <Separator className="flex-1" />
                         </div>
-                        <form className="space-y-4">
+                        <form className="space-y-4" onSubmit={handleEmailSignIn}>
                             <div className="space-y-2">
                                 <div>
                                     <Label htmlFor="email">Email</Label>
@@ -159,10 +159,10 @@ export default function LoginView() {
                                 </div>
                             </div>
                             <div className="flex flex-col gap-2">
-                                <Button type="submit" onClick={handleEmailSignIn} disabled={isSubmitting} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                                <Button type="submit" disabled={isSubmitting} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
                                     {isSubmitting ? 'Iniciando...' : 'Iniciar Sesión'}
                                 </Button>
-                                <Button type="submit" variant="outline" onClick={handleEmailSignUp} disabled={isSubmitting} className="w-full">
+                                <Button type="button" variant="outline" onClick={handleEmailSignUp} disabled={isSubmitting} className="w-full">
                                     {isSubmitting ? 'Creando...' : 'Crear Cuenta'}
                                 </Button>
                             </div>
