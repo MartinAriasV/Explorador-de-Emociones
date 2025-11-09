@@ -65,7 +65,7 @@ export default function LoginView() {
         try {
             await signInWithEmailAndPassword(auth, email, password);
         } catch (error: any) {
-            if (error.code === 'auth/invalid-credential') {
+            if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
                 toast({
                     variant: "destructive",
                     title: "Credenciales no válidas",
@@ -159,11 +159,11 @@ export default function LoginView() {
                                 </div>
                             </div>
                             <div className="flex flex-col gap-2">
-                                <Button type="submit" onClick={handleEmailSignUp} disabled={isSubmitting} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-                                    {isSubmitting ? 'Creando...' : 'Crear Cuenta'}
-                                </Button>
-                                <Button type="submit" variant="outline" onClick={handleEmailSignIn} disabled={isSubmitting} className="w-full">
+                                <Button type="submit" onClick={handleEmailSignIn} disabled={isSubmitting} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
                                     {isSubmitting ? 'Iniciando...' : 'Iniciar Sesión'}
+                                </Button>
+                                <Button type="submit" variant="outline" onClick={handleEmailSignUp} disabled={isSubmitting} className="w-full">
+                                    {isSubmitting ? 'Creando...' : 'Crear Cuenta'}
                                 </Button>
                             </div>
                         </form>
