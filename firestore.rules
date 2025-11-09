@@ -2,79 +2,104 @@
  * @fileoverview Firestore Security Rules for Emotion Explorer.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model. Users can only access their own data.
- * The data is structured with user-specific subcollections to facilitate this.
+ * This ruleset enforces a strict user-ownership model. Only the authenticated user who owns a document can read, create, update, or delete it.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profile data, accessible only by the user.
+ * - /users/{userId}/emotions/{emotionId}: Stores custom emotions, accessible only by the user.
+ * - /users/{userId}/diaryEntries/{diaryEntryId}: Stores diary entries, accessible only by the user.
+ *
+ * Key Security Decisions:
+ * - Users can only access their own data. No cross-user data access is allowed.
+ * - Listing operations are restricted to the owner of the data.
+ * - Data validation is minimal in this prototype, focusing on ownership and relational integrity.
+ *
+ * Denormalization for Authorization:
+ * - The `userId` is encoded in the path for `emotions` and `diaryEntries` collections, which avoids the need for `get()` calls and simplifies security rules.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Checks if the request is made by an authenticated user.
-     * @return {boolean} True if the user is signed in, false otherwise.
-     */
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    /**
-     * @description Checks if the request is made by the owner of the resource.
-     * @param {string} userId The user ID to compare with the request's authentication UID.
-     * @return {boolean} True if the user is the owner, false otherwise.
-     */
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    /**
-     * @description Validates the incoming UserProfile data.
-     * @param {map} data The resource data from the request.
-     * @param {string} userId The user's ID.
-     * @return {boolean} True if the data is valid, false otherwise.
-     */
-    function isValidUserProfile(data, userId) {
-        return data.id == userId &&
-               data.name is string && data.name.size() > 0 &&
-               data.email is string && data.email.size() > 0 &&
-               data.avatar is string && data.avatar.size() > 0 &&
-               data.avatarType is string && (data.avatarType == 'emoji' || data.avatarType == 'generated');
-    }
-
-    /**
-     * @description Rule for the users collection.
-     * @path /users
+     * @description Controls access to user profile documents.
+     * @path /users/{userId}
+     * @allow (create) - User with UID 'user_abc' can create their profile at /users/user_abc if the document id matches the uid.
+     * @allow (get) - User with UID 'user_abc' can read their profile at /users/user_abc.
+     * @allow (update) - User with UID 'user_abc' can update their profile at /users/user_abc.
+     * @allow (delete) - User with UID 'user_abc' can delete their profile at /users/user_abc.
+     * @deny (create) - User with UID 'user_xyz' cannot create a profile at /users/user_abc.
+     * @deny (get) - User with UID 'user_xyz' cannot read the profile at /users/user_abc.
+     * @principle Enforces document ownership.  Only the user with the matching UID can create, read, update, or delete their profile.
      */
     match /users/{userId} {
-      // Disallow listing all users for security.
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
       allow list: if false;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
 
-      // Allow a user to read or delete their own profile.
-      allow get, delete: if isOwner(userId);
-
-      // Allow a user to create their own profile document if it doesn't exist yet
-      // and the data is valid.
-      allow create: if isOwner(userId) && isValidUserProfile(request.resource.data, userId);
-
-      // Allow a user to update their own profile if the data is valid.
-      allow update: if isOwner(userId) && isValidUserProfile(request.resource.data, userId);
-
-      /**
-       * @description Rule for user-specific emotions.
-       * @path /users/{userId}/emotions/{emotionId}
-       * @allow (read, write) Allow users to manage their own emotions.
-       */
-      match /emotions/{emotionId} {
-        allow read, write: if isOwner(userId);
+    /**
+     * @description Controls access to user-defined emotion documents.
+     * @path /users/{userId}/emotions/{emotionId}
+     * @allow (create) - User with UID 'user_abc' can create a new emotion under /users/user_abc/emotions/{emotionId}.
+     * @allow (get) - User with UID 'user_abc' can read an emotion under /users/user_abc/emotions/{emotionId}.
+     * @allow (update) - User with UID 'user_abc' can update an emotion under /users/user_abc/emotions/{emotionId}.
+     * @allow (delete) - User with UID 'user_abc' can delete an emotion under /users/user_abc/emotions/{emotionId}.
+     * @deny (create) - User with UID 'user_xyz' cannot create an emotion under /users/user_abc/emotions/{emotionId}.
+     * @deny (get) - User with UID 'user_xyz' cannot read an emotion under /users/user_abc/emotions/{emotionId}.
+     * @principle Enforces document ownership. Only the user with the matching UID can create, read, update, or delete their emotions.
+     */
+    match /users/{userId}/emotions/{emotionId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
       }
 
-      /**
-       * @description Rule for user-specific diary entries.
-       * @path /users/{userId}/diaryEntries/{diaryEntryId}
-       * @allow (read, write) Allow users to manage their own diary entries.
-       */
-      match /diaryEntries/{diaryEntryId} {
-        allow read, write: if isOwner(userId);
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
       }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Controls access to diary entry documents.
+     * @path /users/{userId}/diaryEntries/{diaryEntryId}
+     * @allow (create) - User with UID 'user_abc' can create a diary entry under /users/user_abc/diaryEntries/{diaryEntryId}.
+     * @allow (get) - User with UID 'user_abc' can read a diary entry under /users/user_abc/diaryEntries/{diaryEntryId}.
+     * @allow (update) - User with UID 'user_abc' can update a diary entry under /users/user_abc/diaryEntries/{diaryEntryId}.
+     * @allow (delete) - User with UID 'user_abc' can delete a diary entry under /users/user_abc/diaryEntries/{diaryEntryId}.
+     * @deny (create) - User with UID 'user_xyz' cannot create a diary entry under /users/user_abc/diaryEntries/{diaryEntryId}.
+     * @deny (get) - User with UID 'user_xyz' cannot read a diary entry under /users/user_abc/diaryEntries/{diaryEntryId}.
+     * @principle Enforces document ownership. Only the user with the matching UID can create, read, update, or delete their diary entries.
+     */
+    match /users/{userId}/diaryEntries/{diaryEntryId} {
+      function isOwner(userId) {
+        return request.auth.uid == userId;
+      }
+
+      function isExistingOwner(userId) {
+        return isOwner(userId) && resource != null;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isExistingOwner(userId);
+      allow delete: if isExistingOwner(userId);
     }
   }
 }

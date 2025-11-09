@@ -8,92 +8,160 @@
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the user profile, matches the auth UID."
+          "description": "Unique identifier for the UserProfile entity."
         },
         "name": {
           "type": "string",
-          "description": "The user's display name."
-        },
-        "email": {
-          "type": "string",
-          "format": "email",
-          "description": "The user's email address."
+          "description": "User's display name."
         },
         "avatar": {
           "type": "string",
-          "description": "The user's selected avatar (e.g., an emoji or URL)."
-        },
-        "avatarType": {
-          "type": "string",
-          "enum": ["emoji", "generated"]
-        },
-        "unlockedAnimalIds": {
-            "type": "array",
-            "items": { "type": "string" },
-            "description": "List of IDs for unlocked spirit animals."
+          "description": "Emoji representing the user's avatar."
         }
       },
-      "required": ["id", "name", "email", "avatar", "avatarType"]
+      "required": [
+        "id",
+        "name",
+        "avatar"
+      ]
     },
     "Emotion": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Emotion",
       "type": "object",
-      "description": "Represents an emotion that a user can track in their diary. Stored in a subcollection under each user.",
+      "description": "Represents an emotion that a user can track in their diary.",
       "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "name": { "type": "string" },
-        "icon": { "type": "string" },
-        "color": { "type": "string" },
-        "description": { "type": "string" },
-        "isCustom": { "type": "boolean" }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Emotion entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the emotion (e.g., Joy, Sadness)."
+        },
+        "icon": {
+          "type": "string",
+          "description": "Emoji representing the emotion."
+        },
+        "color": {
+          "type": "string",
+          "description": "Color associated with the emotion, used for visual representation."
+        },
+        "description": {
+          "type": "string",
+          "description": "User-defined meaning or description of the emotion."
+        }
       },
-      "required": ["userId", "name", "icon", "color", "isCustom"]
+      "required": [
+        "id",
+        "name",
+        "icon",
+        "color",
+        "description"
+      ]
     },
     "DiaryEntry": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "DiaryEntry",
       "type": "object",
-      "description": "Represents a diary entry, recording a user's emotion and experience on a specific date.",
+      "description": "Represents a single diary entry recording a user's emotions and experiences on a specific date.",
       "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "emotionId": { "type": "string" },
-        "date": { "type": "string", "format": "date-time" },
-        "text": { "type": "string" }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the DiaryEntry entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N DiaryEntry)"
+        },
+        "emotionId": {
+          "type": "string",
+          "description": "Reference to Emotion. (Relationship: Emotion 1:N DiaryEntry)"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date of the diary entry.",
+          "format": "date-time"
+        },
+        "text": {
+          "type": "string",
+          "description": "Textual description of the user's experience."
+        }
       },
-      "required": ["userId", "emotionId", "date", "text"]
+      "required": [
+        "id",
+        "userId",
+        "emotionId",
+        "date",
+        "text"
+      ]
     }
   },
   "auth": {
-    "providers": []
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
     "structure": [
       {
         "path": "/users/{userId}",
         "definition": {
-          "schema": { "$ref": "#/entities/UserProfile" },
-          "description": "Stores user profiles. Path-based ownership."
-        },
-        "subcollections": [
-          {
-            "path": "/emotions/{emotionId}",
-            "definition": {
-              "schema": { "$ref": "#/entities/Emotion" },
-              "description": "Stores user-specific emotions."
-            }
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
           },
-          {
-            "path": "/diaryEntries/{diaryEntryId}",
-            "definition": {
-              "schema": { "$ref": "#/entities/DiaryEntry" },
-              "description": "Stores diary entries for each user."
+          "description": "Stores user profile data. Owned by the user; accessible only by the user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user, corresponding to their Firebase Auth UID."
             }
-          }
-        ]
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/emotions/{emotionId}",
+        "definition": {
+          "entityName": "Emotion",
+          "schema": {
+            "$ref": "#/backend/entities/Emotion"
+          },
+          "description": "Stores custom emotions defined by the user. Owned by the user; accessible only by the user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user, corresponding to their Firebase Auth UID."
+            },
+            {
+              "name": "emotionId",
+              "description": "The unique identifier for the Emotion entity."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/diaryEntries/{diaryEntryId}",
+        "definition": {
+          "entityName": "DiaryEntry",
+          "schema": {
+            "$ref": "#/backend/entities/DiaryEntry"
+          },
+          "description": "Stores diary entries created by the user. Owned by the user; accessible only by the user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user, corresponding to their Firebase Auth UID."
+            },
+            {
+              "name": "diaryEntryId",
+              "description": "The unique identifier for the DiaryEntry entity."
+            }
+          ]
+        }
       }
-    ]
+    ],
+    "reasoning": "The Firestore structure is designed to support the Emotion Explorer application's core features, including diary entries, emotion tracking, user profiles, and sharing capabilities. It prioritizes authorization independence, clarity, and scalability. User-specific data is stored under the `/users/{userId}` path to ensure private access, in accordance with Access Modeling principles. The structure avoids hierarchical authorization dependencies, enabling atomic operations and simplified security rules. \n\nDiary entries are stored within user-specific subcollections (`/users/{userId}/diaryEntries/{diaryEntryId}`) to ensure ownership and facilitate secure listing. Emotion data is stored at the user level (`/users/{userId}/emotions/{emotionId}`) allowing for custom emotions for each user. User profiles are stored directly under `/users/{userId}` for easy access. This design avoids the need for `get()` calls in security rules, promoting Authorization Independence. The app stores all data specific to a user in user-owned paths, creating homogeneous security postures.\n\nThe structure supports the required QAPs through structural segregation. Path-based ownership is applied to all user data, making listing only entries owned by a user simple and secure. The structure supports writing security rules based on `request.auth.uid` without the need to inspect the data. The chosen structure emphasizes clarity and predictability, with explicit state modeling (though not directly applicable in the current schema) and semantic naming conventions to improve maintainability and debuggability."
   }
 }
