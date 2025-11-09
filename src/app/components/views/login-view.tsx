@@ -158,15 +158,16 @@ export default function LoginView() {
                                     <Input id="password" type="password" required value={password} onChange={e => setPassword(e.target.value)} className="bg-background/70" />
                                 </div>
                             </div>
-                            <div className="flex flex-col gap-2">
-                                <Button type="submit" disabled={isSubmitting} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-                                    {isSubmitting ? 'Iniciando...' : 'Iniciar Sesión'}
-                                </Button>
-                                <Button type="button" variant="outline" onClick={handleEmailSignUp} disabled={isSubmitting} className="w-full">
-                                    {isSubmitting ? 'Creando...' : 'Crear Cuenta'}
-                                </Button>
-                            </div>
+                             <Button type="submit" disabled={isSubmitting} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                                {isSubmitting ? 'Iniciando...' : 'Iniciar Sesión'}
+                            </Button>
                         </form>
+                         <div className="text-center text-sm">
+                            ¿No tienes una cuenta?{' '}
+                            <Button variant="link" className="p-0 h-auto" onClick={handleEmailSignUp} disabled={isSubmitting}>
+                                Crear una cuenta
+                            </Button>
+                        </div>
                     </div>
                 </CardContent>
             </Card>
