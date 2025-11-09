@@ -193,7 +193,6 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
                 onLoad={() => setIsLoadingImage(false)}
                 data-ai-hint={currentQuestion.hint}
                 unoptimized
-                priority={true} 
             />
          </div>
       </Card>
