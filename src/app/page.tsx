@@ -17,42 +17,6 @@ import { SHOP_ITEMS } from '@/lib/constants';
 
 function AppGate() {
   const { user, isUserLoading } = useUser();
-  const [theme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
-  const { firestore } = useFirebase();
-
-  const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
-  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const body = document.body;
-    const root = document.documentElement;
-
-    // Remove all theme-related classes to start fresh
-    root.classList.remove('light', 'dark', 'theme-forest', 'theme-ocean');
-    body.classList.remove('bg-background', 'bg-forest-gradient');
-    
-    // Apply light/dark mode
-    root.classList.add(theme);
-
-    const equippedThemeId = userProfile?.equippedItems?.['theme'];
-    const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
-
-    if (themeItem) {
-      root.classList.add(themeItem.value); // e.g., 'theme-forest'
-      if (themeItem.value === 'theme-forest') {
-        body.classList.add('bg-forest-gradient');
-      } else {
-        body.classList.add('bg-background');
-      }
-    } else {
-      // Default behavior if no theme is equipped
-      body.classList.add('bg-background');
-    }
-    
-  }, [theme, userProfile]);
-
 
   if (isUserLoading) {
     return (

@@ -101,7 +101,6 @@ body {
   }
 
   .theme-forest {
-    --background: transparent;
     --foreground: 120 25% 15%;
     --card: 120 15% 100%;
     --card-foreground: 120 25% 15%;
