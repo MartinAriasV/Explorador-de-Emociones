@@ -45,18 +45,17 @@ export default function LoginView() {
         try {
             const provider = new GoogleAuthProvider();
             await signInWithPopup(auth, provider);
-            // The user will be redirected to Google's sign-in page.
-            // After successful sign-in, they will be redirected back here,
-            // and the onAuthStateChanged listener will handle the app state.
         } catch (error: any) {
-            console.error("Google Sign-In Error:", error);
-            if (error.code !== 'auth/popup-closed-by-user') {
-                toast({
-                    variant: 'destructive',
-                    title: 'Error de Autenticación',
-                    description: 'No se pudo iniciar el proceso de sesión con Google. Por favor, inténtalo de nuevo.',
-                });
+            if (error.code === 'auth/popup-closed-by-user') {
+                // User closed the popup, this is not a real error, so we can safely ignore it.
+                return;
             }
+            console.error("Google Sign-In Error:", error);
+            toast({
+                variant: 'destructive',
+                title: 'Error de Autenticación',
+                description: 'No se pudo iniciar el proceso de sesión con Google. Por favor, inténtalo de nuevo.',
+            });
         } finally {
              setIsSubmitting(false);
         }
@@ -169,5 +168,3 @@ export default function LoginView() {
         </div>
     );
 }
-
-    
