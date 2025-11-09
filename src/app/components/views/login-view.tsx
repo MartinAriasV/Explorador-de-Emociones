@@ -22,13 +22,13 @@ function GoogleIcon() {
     )
 }
 
-
 export default function LoginView() {
     const { auth } = useFirebase();
     const { toast } = useToast();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [view, setView] = useState<'login' | 'signup'>('login');
 
     const validateEmail = (email: string) => {
         const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -54,74 +54,123 @@ export default function LoginView() {
     const handleEmailSignIn = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!validateEmail(email)) {
-            toast({
-                variant: "destructive",
-                title: "Correo electrónico no válido",
-                description: "Por favor, introduce una dirección de correo electrónico válida.",
-            });
+            toast({ variant: "destructive", title: "Correo no válido", description: "Introduce un correo válido." });
             return;
         }
         setIsSubmitting(true);
         try {
             await signInWithEmailAndPassword(auth, email, password);
         } catch (error: any) {
-            if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-                toast({
-                    variant: "destructive",
-                    title: "Credenciales no válidas",
-                    description: "El correo electrónico o la contraseña son incorrectos.",
-                });
-            } else {
-                toast({
-                    variant: "destructive",
-                    title: "Error al iniciar sesión",
-                    description: error.message || "No se pudo iniciar sesión. Por favor, inténtalo de nuevo.",
-                });
-            }
+            toast({ variant: "destructive", title: "Error al iniciar sesión", description: "Credenciales incorrectas. Inténtalo de nuevo." });
         } finally {
             setIsSubmitting(false);
         }
     };
-    
+
     const handleEmailSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
-         if (!validateEmail(email)) {
-            toast({
-                variant: "destructive",
-                title: "Correo electrónico no válido",
-                description: "Por favor, introduce una dirección de correo electrónico válida para crear una cuenta.",
-            });
+        if (!validateEmail(email)) {
+            toast({ variant: "destructive", title: "Correo no válido", description: "Introduce un correo válido." });
             return;
         }
         if (password.length < 6) {
-            toast({
-                variant: "destructive",
-                title: "Contraseña débil",
-                description: "La contraseña debe tener al menos 6 caracteres.",
-            });
+            toast({ variant: "destructive", title: "Contraseña débil", description: "La contraseña debe tener al menos 6 caracteres." });
             return;
         }
         setIsSubmitting(true);
         try {
             await createUserWithEmailAndPassword(auth, email, password);
         } catch (error: any) {
-             if (error.code === 'auth/email-already-in-use') {
-                toast({
-                    variant: "destructive",
-                    title: "El correo electrónico ya está en uso",
-                    description: "Esta dirección de correo electrónico ya está registrada. Por favor, inicia sesión.",
-                });
+            if (error.code === 'auth/email-already-in-use') {
+                toast({ variant: "destructive", title: "Correo ya en uso", description: "Este correo ya está registrado. Por favor, inicia sesión." });
             } else {
-                toast({
-                    variant: "destructive",
-                    title: "Error al crear la cuenta",
-                    description: error.message || "No se pudo crear la cuenta. Por favor, inténtalo de nuevo.",
-                });
+                toast({ variant: "destructive", title: "Error al crear cuenta", description: error.message || "No se pudo crear la cuenta." });
             }
         } finally {
             setIsSubmitting(false);
         }
     };
+
+    const renderLogin = () => (
+        <>
+            <CardHeader className="text-center space-y-4">
+                <Sparkles className="w-12 h-12 text-primary mx-auto" />
+                <div className="space-y-1">
+                    <CardTitle className="text-3xl font-bold text-primary">Diario de Emociones</CardTitle>
+                    <CardDescription>Inicia sesión para continuar tu viaje</CardDescription>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    <Button onClick={handleGoogleSignIn} disabled={isSubmitting} className="w-full" variant="outline">
+                        <GoogleIcon />
+                        <span>{isSubmitting ? 'Iniciando...' : 'Iniciar Sesión con Google'}</span>
+                    </Button>
+                    <div className="flex items-center space-x-2">
+                        <Separator className="flex-1" />
+                        <span className="text-xs text-muted-foreground">O CONTINÚA CON</span>
+                        <Separator className="flex-1" />
+                    </div>
+                    <form className="space-y-4" onSubmit={handleEmailSignIn}>
+                        <div className="space-y-2">
+                            <div>
+                                <Label htmlFor="email-login">Email</Label>
+                                <Input id="email-login" type="email" placeholder="m@example.com" required value={email} onChange={e => setEmail(e.target.value)} className="bg-background/70"/>
+                            </div>
+                            <div>
+                                <Label htmlFor="password-login">Contraseña</Label>
+                                <Input id="password-login" type="password" required value={password} onChange={e => setPassword(e.target.value)} className="bg-background/70" />
+                            </div>
+                        </div>
+                        <Button type="submit" disabled={isSubmitting} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                            {isSubmitting ? 'Iniciando...' : 'Iniciar Sesión'}
+                        </Button>
+                    </form>
+                    <div className="text-center text-sm">
+                        ¿No tienes una cuenta?{' '}
+                        <Button variant="link" className="p-0 h-auto" onClick={() => setView('signup')} disabled={isSubmitting}>
+                            Regístrate
+                        </Button>
+                    </div>
+                </div>
+            </CardContent>
+        </>
+    );
+
+    const renderSignUp = () => (
+        <>
+            <CardHeader className="text-center space-y-4">
+                <Sparkles className="w-12 h-12 text-primary mx-auto" />
+                <div className="space-y-1">
+                    <CardTitle className="text-3xl font-bold text-primary">Crear Cuenta</CardTitle>
+                    <CardDescription>Comienza tu viaje de autoconocimiento</CardDescription>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <form className="space-y-4" onSubmit={handleEmailSignUp}>
+                    <div className="space-y-2">
+                        <div>
+                            <Label htmlFor="email-signup">Email</Label>
+                            <Input id="email-signup" type="email" placeholder="m@example.com" required value={email} onChange={e => setEmail(e.target.value)} className="bg-background/70"/>
+                        </div>
+                        <div>
+                            <Label htmlFor="password-signup">Contraseña (mín. 6 caracteres)</Label>
+                            <Input id="password-signup" type="password" required value={password} onChange={e => setPassword(e.target.value)} className="bg-background/70" />
+                        </div>
+                    </div>
+                    <Button type="submit" disabled={isSubmitting} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
+                        {isSubmitting ? 'Creando cuenta...' : 'Crear Cuenta'}
+                    </Button>
+                </form>
+                <div className="text-center text-sm mt-4">
+                    ¿Ya tienes una cuenta?{' '}
+                    <Button variant="link" className="p-0 h-auto" onClick={() => setView('login')} disabled={isSubmitting}>
+                        Inicia sesión
+                    </Button>
+                </div>
+            </CardContent>
+        </>
+    );
 
     return (
         <div className="flex items-center justify-center h-screen w-screen relative overflow-hidden">
@@ -129,47 +178,7 @@ export default function LoginView() {
             <div className="absolute inset-0 bg-grid-pattern opacity-5 dark:opacity-10 z-0"></div>
             
             <Card className="w-full max-w-sm mx-auto z-10 bg-card/80 backdrop-blur-lg border-white/20 shadow-2xl animate-fade-in-up">
-                <CardHeader className="text-center space-y-4">
-                    <Sparkles className="w-12 h-12 text-primary mx-auto" />
-                    <div className="space-y-1">
-                        <CardTitle className="text-3xl font-bold text-primary">Diario de Emociones</CardTitle>
-                        <CardDescription>Inicia sesión o crea una cuenta para continuar</CardDescription>
-                    </div>
-                </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        <Button onClick={handleGoogleSignIn} disabled={isSubmitting} className="w-full" variant="outline">
-                            <GoogleIcon />
-                            <span>{isSubmitting ? 'Iniciando...' : 'Iniciar Sesión con Google'}</span>
-                        </Button>
-                        <div className="flex items-center space-x-2">
-                            <Separator className="flex-1" />
-                            <span className="text-xs text-muted-foreground">O CONTINÚA CON</span>
-                            <Separator className="flex-1" />
-                        </div>
-                        <form className="space-y-4" onSubmit={handleEmailSignIn}>
-                            <div className="space-y-2">
-                                <div>
-                                    <Label htmlFor="email">Email</Label>
-                                    <Input id="email" type="email" placeholder="m@example.com" required value={email} onChange={e => setEmail(e.target.value)} className="bg-background/70"/>
-                                </div>
-                                <div>
-                                    <Label htmlFor="password">Contraseña</Label>
-                                    <Input id="password" type="password" required value={password} onChange={e => setPassword(e.target.value)} className="bg-background/70" />
-                                </div>
-                            </div>
-                             <Button type="submit" disabled={isSubmitting} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground">
-                                {isSubmitting ? 'Iniciando...' : 'Iniciar Sesión'}
-                            </Button>
-                        </form>
-                         <div className="text-center text-sm">
-                            ¿No tienes una cuenta?{' '}
-                            <Button variant="link" className="p-0 h-auto" onClick={handleEmailSignUp} disabled={isSubmitting}>
-                                Crear una cuenta
-                            </Button>
-                        </div>
-                    </div>
-                </CardContent>
+                {view === 'login' ? renderLogin() : renderSignUp()}
             </Card>
         </div>
     );
