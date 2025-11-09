@@ -51,13 +51,13 @@ service cloud.firestore {
           newPoints == oldPoints - 150 || // Shop
           newPoints == oldPoints - 250 || // Shop
           newPoints == oldPoints - 500 || // Shop
-          newPoints == oldPoints - 750 || // Shop
-          newPoints == oldPoints // No change
+          newPoints == oldPoints - 750    // Shop
         );
         
         let allowedFields = ['name', 'avatar', 'avatarType', 'unlockedAnimalIds', 'purchasedItemIds', 'equippedItems', 'points'];
         let hasOnlyAllowedFields = request.resource.data.keys().diff(resource.data.keys()).hasOnly(allowedFields);
         
+        // Allow if fields are allowed AND (points are unchanged OR the point change is valid)
         return hasOnlyAllowedFields && (newPoints == oldPoints || pointsAreValid);
       }
       
