@@ -38,7 +38,7 @@ export default function LoginView() {
             toast({
                 variant: 'destructive',
                 title: 'Error de inicio de sesión',
-                description: error.code || error.message || 'No se pudo iniciar sesión con Google.',
+                description: error.message || 'No se pudo iniciar sesión con Google.',
             });
         } finally {
             setIsSubmitting(false);
@@ -70,5 +70,3 @@ export default function LoginView() {
         </div>
     );
 }
-
-    
