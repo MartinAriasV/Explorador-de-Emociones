@@ -42,7 +42,15 @@ service cloud.firestore {
       function isUpdatingAllowedFields() {
         let newPoints = request.resource.data.points;
         let oldPoints = resource.data.points;
+        let allowedFields = ['name', 'avatar', 'avatarType', 'unlockedAnimalIds', 'purchasedItemIds', 'equippedItems', 'points'];
+        let hasOnlyAllowedFields = request.resource.data.keys().diff(resource.data.keys()).hasOnly(allowedFields);
         
+        // Scenario 1: Points are not changing, allow update if other fields are valid.
+        if (newPoints == oldPoints) {
+            return hasOnlyAllowedFields;
+        }
+
+        // Scenario 2: Points are changing, validate the change amount.
         let pointsAreValid = (
           newPoints == oldPoints + 10 || // Diary entry
           newPoints == oldPoints + 5  || // Game win
@@ -54,11 +62,7 @@ service cloud.firestore {
           newPoints == oldPoints - 750    // Shop
         );
         
-        let allowedFields = ['name', 'avatar', 'avatarType', 'unlockedAnimalIds', 'purchasedItemIds', 'equippedItems', 'points'];
-        let hasOnlyAllowedFields = request.resource.data.keys().diff(resource.data.keys()).hasOnly(allowedFields);
-        
-        // Allow if fields are allowed AND (points are unchanged OR the point change is valid)
-        return hasOnlyAllowedFields && (newPoints == oldPoints || pointsAreValid);
+        return hasOnlyAllowedFields && pointsAreValid;
       }
       
       allow get: if isOwner(userId);
