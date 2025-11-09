@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -41,7 +40,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
       if (!userProfile) return;
       const nameChanged = localName !== userProfile.name;
       const avatarChanged = localAvatar !== userProfile.avatar;
-      const itemsChanged = JSON.stringify(localEquippedItems) !== JSON.stringify(userProfile.equippedItems);
+      const itemsChanged = JSON.stringify(localEquippedItems) !== JSON.stringify(userProfile.equippedItems || {});
       setHasChanges(nameChanged || avatarChanged || itemsChanged);
   }, [localName, localAvatar, localEquippedItems, userProfile]);
 

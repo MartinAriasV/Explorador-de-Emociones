@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, createRef, useCallback, useMemo } from 'react';
@@ -661,5 +660,3 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     </SidebarProvider>
   );
 }
-
-    
