@@ -84,31 +84,24 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   useEffect(() => {
     if (typeof window === 'undefined' || !userProfile) return;
 
-    const body = document.body;
+    const root = document.documentElement;
     const equippedThemeId = userProfile.equippedItems?.['theme'];
     const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
     
-    // Base classes
-    const classList = ['font-body', 'antialiased', 'h-full', theme];
+    // Base classes for light/dark mode
+    root.classList.remove('light', 'dark');
+    root.classList.add(theme);
+
+    // Remove any existing theme classes
+    root.classList.remove('theme-ocean', 'theme-forest');
+
+    // Apply new theme class if one is equipped
     if (themeItem) {
-      classList.push(themeItem.value); // e.g., 'theme-forest'
-      if (themeItem.value === 'theme-forest') {
-        classList.push('bg-forest-gradient');
-      }
+        root.classList.add(themeItem.value);
     }
-
-    body.className = cn(...classList);
-
+    
   }, [userProfile, theme]);
 
-  const mainContentClasses = useMemo(() => {
-    const equippedThemeId = userProfile?.equippedItems?.['theme'];
-    const isForestTheme = SHOP_ITEMS.find(item => item.id === equippedThemeId)?.value === 'theme-forest';
-    return cn(
-        "flex-1 flex flex-col overflow-hidden",
-        isForestTheme ? 'theme-active-forest' : 'bg-background'
-    );
-  }, [userProfile]);
 
   const addInitialEmotions = useCallback(async (userId: string) => {
     if (!firestore) return;
@@ -147,8 +140,6 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         purchasedItemIds: [],
         equippedItems: {},
       };
-      // Use the non-blocking version to avoid issues, but we still need to wait for this
-      // for the initial setup to proceed correctly.
       await setDoc(userDocRef, newProfile);
       await addInitialEmotions(user.uid);
       return true; // Indicates a new user was created
@@ -165,9 +156,6 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const [showWelcome, setShowWelcome] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // This useEffect runs ONCE after the initial data load.
-  // It's responsible for checking if a profile exists and creating one if it doesn't.
-  // It also handles showing the welcome tour for brand new users.
   useEffect(() => {
     if (user && !isLoading && isInitialLoad) {
       addProfileIfNotExists().then(isNewUser => {
@@ -273,7 +261,6 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const addPoints = async (amount: number) => {
     if (!user || !firestore) return;
     const userDocRef = doc(firestore, 'users', user.uid);
-    // Use the non-blocking update for a smoother user experience
     updateDocumentNonBlocking(userDocRef, {
       points: increment(amount)
     });
@@ -339,7 +326,6 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     const saveEmotion = async (emotionData: Omit<Emotion, 'id' | 'userId'> & { id?: string }) => {
     if (!user) return;
     
-    // Check if an emotion with the same name already exists
     if (emotionsList && emotionsList.some(e => e.name.toLowerCase() === emotionData.name.toLowerCase() && e.id !== emotionData.id)) {
         toast({
             title: "Emoción Duplicada",
@@ -603,9 +589,9 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-screen">
+      <div className="flex h-screen w-screen bg-background">
         <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
-        <main className={mainContentClasses}>
+        <main className="flex-1 flex flex-col overflow-hidden">
           <header className="p-2 md:hidden flex items-center border-b">
               <MobileMenuButton />
               <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>

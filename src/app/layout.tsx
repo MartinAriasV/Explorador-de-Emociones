@@ -3,13 +3,13 @@ import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
 import { Poppins } from 'next/font/google';
 import { cn } from '@/lib/utils';
+import React from 'react';
 
 const poppins = Poppins({
   subsets: ['latin'],
   weight: ['400', '700'],
   variable: '--font-poppins',
 });
-
 
 export const metadata: Metadata = {
   title: 'Diario de Emociones',
@@ -23,7 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${poppins.variable} h-full`}>
-      <body className="font-body antialiased h-full">
+      <body>
         {children}
         <Toaster />
       </body>
