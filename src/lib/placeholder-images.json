@@ -3,52 +3,52 @@
     {
       "id": "photo-1509909756405-be0199881695",
       "emotion": "Alegría",
-      "hint": "mujer sonriendo"
+      "hint": "https://images.unsplash.com/photo-1509909756405-be0199881695?w=600&h=400&fit=crop&q=80"
     },
     {
       "id": "photo-1518898696378-838d7528334a",
       "emotion": "Tristeza",
-      "hint": "hombre triste retrato"
+      "hint": "https://images.unsplash.com/photo-1518898696378-838d7528334a?w=600&h=400&fit=crop&q=80"
     },
     {
       "id": "photo-1542384976-893457229953",
       "emotion": "Sorpresa",
-      "hint": "niño sorprendido"
+      "hint": "https://images.unsplash.com/photo-1542384976-893457229953?w=600&h=400&fit=crop&q=80"
     },
     {
       "id": "photo-1576755977234-2b735f93539b",
       "emotion": "Ira",
-      "hint": "persona enojada"
+      "hint": "https://images.unsplash.com/photo-1576755977234-2b735f93539b?w=600&h=400&fit=crop&q=80"
     },
     {
       "id": "photo-1533103445414-52033c4f7457",
       "emotion": "Miedo",
-      "hint": "mujer asustada"
+      "hint": "https://images.unsplash.com/photo-1533103445414-52033c4f7457?w=600&h=400&fit=crop&q=80"
     },
     {
       "id": "photo-1622463062233-02095f4a816f",
       "emotion": "Confianza",
-      "hint": "persona segura brazos cruzados"
+      "hint": "https://images.unsplash.com/photo-1622463062233-02095f4a816f?w=600&h=400&fit=crop&q=80"
     },
     {
       "id": "photo-1579487788931-68536952a460",
       "emotion": "Orgullo",
-      "hint": "atleta orgulloso ganador"
+      "hint": "https://images.unsplash.com/photo-1579487788931-68536952a460?w=600&h=400&fit=crop&q=80"
     },
     {
       "id": "photo-1474418397713-7e17b2443b35",
       "emotion": "Calma",
-      "hint": "persona meditando atardecer"
+      "hint": "https://images.unsplash.com/photo-1474418397713-7e17b2443b35?w=600&h=400&fit=crop&q=80"
     },
     {
-      "id": "gen-confusion",
+      "id": "photo-1534349762230-e08878303e30",
       "emotion": "Confusión",
-      "hint": "persona confundida con un mapa"
+      "hint": "https://images.unsplash.com/photo-1534349762230-e08878303e30?w=600&h=400&fit=crop&q=80"
     },
     {
-      "id": "gen-euphoria",
+      "id": "photo-1494200483035-db7bc62a37d7",
       "emotion": "Euforia",
-      "hint": "multitud celebrando en un concierto"
+      "hint": "https://images.unsplash.com/photo-1494200483035-db7bc62a37d7?w=600&h=400&fit=crop&q=80"
     }
   ]
 }

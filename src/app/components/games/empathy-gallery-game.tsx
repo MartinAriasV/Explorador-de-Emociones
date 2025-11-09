@@ -46,16 +46,13 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     setIsLoading(true);
     setError(null);
     
-    // Filter images that correspond to emotions the user actually has.
     const userEmotionNames = new Set(emotionsList.map(e => e.name.toLowerCase()));
     
-    // Find all image definitions that match the user's available emotions and haven't been used yet.
     let playableImages = empathyImages.filter(imgDef => 
         userEmotionNames.has(imgDef.emotion.toLowerCase()) && !questionHistory.includes(imgDef.id)
     );
 
-    // If we've shown all available images, reset the history and allow repeats.
-    if (playableImages.length === 0) {
+    if (playableImages.length === 0 && questionHistory.length > 0) {
         setQuestionHistory([]);
         playableImages = empathyImages.filter(imgDef => 
             userEmotionNames.has(imgDef.emotion.toLowerCase())
@@ -73,7 +70,6 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     const correctEmotion = emotionsList.find(e => e.name.toLowerCase() === questionImageDef.emotion.toLowerCase());
 
     if (!correctEmotion) {
-        console.error("Logic error: Correct emotion not found in user's list, this should not happen.");
         setError("Ocurrió un error al generar la pregunta.");
         setIsLoading(false);
         setIsPlaying(false);
@@ -92,10 +88,10 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
 
     setCurrentQuestion({
-        imageUrl: `https://source.unsplash.com/600x400/?${questionImageDef.hint}`,
+        imageUrl: questionImageDef.hint, // The 'hint' now contains the full URL
         correctEmotion: correctEmotion.name,
         options: allOptions,
-        hint: questionImageDef.hint,
+        hint: correctEmotion.name, // Use emotion name as a fallback hint
     });
     
     setQuestionHistory(prev => [...prev, questionImageDef.id]);
@@ -195,7 +191,6 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 className="object-cover"
                 data-ai-hint={currentQuestion.hint}
-                unoptimized={true}
             />
          </div>
       </Card>
