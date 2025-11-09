@@ -4,16 +4,9 @@ import React, { Suspense, useEffect } from 'react';
 import EmotionExplorer from '@/app/components/emotion-explorer';
 import {
   FirebaseClientProvider,
-  useDoc,
-  useMemoFirebase,
   useUser,
 } from '@/firebase';
 import LoginView from './components/views/login-view';
-import useLocalStorage from '@/hooks/use-local-storage';
-import { doc } from 'firebase/firestore';
-import { useFirebase } from '@/firebase/provider';
-import type { UserProfile } from '@/lib/types';
-import { SHOP_ITEMS } from '@/lib/constants';
 
 function AppGate() {
   const { user, isUserLoading } = useUser();

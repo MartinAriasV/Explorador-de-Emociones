@@ -79,6 +79,22 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 
   const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
 
+   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      document.body.classList.remove('light', 'dark');
+      document.body.classList.add(theme);
+
+      const equippedThemeId = userProfile?.equippedItems?.['theme'];
+      const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
+      if (themeItem) {
+        document.body.classList.add(themeItem.value);
+      } else {
+        // Clean up theme classes if none is equipped
+        SHOP_ITEMS.filter(item => item.type === 'theme').forEach(item => document.body.classList.remove(item.value));
+      }
+    }
+   }, [theme, userProfile]);
+
   const addInitialEmotions = useCallback(async (userId: string) => {
     if (!firestore) return;
     const emotionsCollectionRef = collection(firestore, 'users', userId, 'emotions');
@@ -565,15 +581,17 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const themeItem = SHOP_ITEMS.find(item => item.id === equippedThemeId && item.type === 'theme');
   const isForestTheme = themeItem?.value === 'theme-forest';
   
+  const containerClasses = cn(
+    "flex h-screen w-screen",
+    isForestTheme ? 'bg-forest-gradient' : 'bg-background'
+  );
+
   return (
     <SidebarProvider>
-      <div className={cn(
-          "flex h-screen w-screen",
-          isForestTheme ? 'bg-forest-gradient' : 'bg-background'
-      )}>
+      <div className={containerClasses}>
         <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
         <main className="flex-1 flex flex-col overflow-hidden bg-transparent">
-          <header className="p-2 md:hidden flex items-center border-b bg-background/80 backdrop-blur-sm">
+          <header className="p-2 md:hidden flex items-center border-b bg-card/80 backdrop-blur-sm">
               <MobileMenuButton />
               <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
           </header>
