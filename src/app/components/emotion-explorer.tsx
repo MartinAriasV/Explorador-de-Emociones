@@ -15,7 +15,7 @@ import { AddEmotionModal } from './modals/add-emotion-modal';
 import { QuizModal } from './modals/quiz-modal';
 import { WelcomeDialog } from './tour/welcome-dialog';
 import { TourPopup } from './tour/tour-popup';
-import { TOUR_STEPS, REWARDS } from '@/lib/constants';
+import { TOUR_STEPS, REWARDS, PREDEFINED_EMOTIONS } from '@/lib/constants';
 import { StreakView } from './views/streak-view';
 import { SanctuaryView } from './views/sanctuary-view';
 import { GamesView } from './views/games-view';
@@ -70,6 +70,25 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   
   const isLoading = isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading;
 
+  const addInitialEmotions = useCallback(async (userId: string) => {
+    if (!firestore) return;
+    const emotionsCollectionRef = collection(firestore, 'users', userId, 'emotions');
+    const emotionsSnapshot = await getDocs(emotionsCollectionRef);
+    if (emotionsSnapshot.empty) {
+      console.log('No emotions found, adding predefined emotions.');
+      const batch = writeBatch(firestore);
+      PREDEFINED_EMOTIONS.slice(0, 5).forEach(emotion => {
+        const newEmotionRef = doc(emotionsCollectionRef);
+        batch.set(newEmotionRef, {
+          ...emotion,
+          isCustom: false,
+        });
+      });
+      await batch.commit();
+    }
+  }, [firestore]);
+
+
   const addProfileIfNotExists = useCallback(async (): Promise<boolean> => {
     if (!user || !firestore) return false;
     
@@ -86,10 +105,11 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         unlockedAnimalIds: [],
       };
       await setDoc(userDocRef, newProfile);
+      await addInitialEmotions(user.uid);
       return true; // Indicates a new user was created
     }
     return false; // Indicates user already existed
-  }, [user, firestore]);
+  }, [user, firestore, addInitialEmotions]);
 
 
   const [addingEmotionData, setAddingEmotionData] = useState<Partial<Emotion> | null>(null);
@@ -205,10 +225,10 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     checkAndUnlockRewards('share');
   };
 
-    const addDiaryEntry = async (entryData: Omit<DiaryEntry, 'id' | 'userProfileId'>, trigger: 'addEntry' | 'recoverDay' = 'addEntry') => {
+    const addDiaryEntry = async (entryData: Omit<DiaryEntry, 'id' | 'userId'>, trigger: 'addEntry' | 'recoverDay' = 'addEntry') => {
     if (!user) return;
     const diaryCollection = collection(firestore, 'users', user.uid, 'diaryEntries');
-    await addDocumentNonBlocking(diaryCollection, { ...entryData, userProfileId: user.uid });
+    await addDocumentNonBlocking(diaryCollection, { ...entryData, userId: user.uid });
     await checkAndUnlockRewards(trigger);
   };
   
@@ -228,7 +248,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     updateDocumentNonBlocking(userProfileRef, profile);
   };
 
-    const saveEmotion = async (emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string }) => {
+    const saveEmotion = async (emotionData: Omit<Emotion, 'id' | 'userId'> & { id?: string }) => {
     if (!user) return;
     const emotionsCollection = collection(firestore, 'users', user.uid, 'emotions');
     
@@ -236,7 +256,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 
     const dataToSave = {
       ...emotionData,
-      userProfileId: user.uid,
+      userId: user.uid,
     };
 
     if (emotionData.id) {
@@ -249,6 +269,11 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         addDocumentNonBlocking(emotionsCollection, dataToSave);
       } else {
         console.log(`Predefined emotion "${dataToSave.name}" already exists. Skipping.`);
+        toast({
+          title: "Emoción Duplicada",
+          description: `La emoción "${dataToSave.name}" ya existe en tu emocionario.`,
+          variant: "default",
+        })
       }
     }
     

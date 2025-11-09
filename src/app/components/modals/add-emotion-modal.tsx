@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface AddEmotionModalProps {
   initialData: (Partial<Emotion>) | null;
-  onSave: (emotionData: Omit<Emotion, 'id' | 'userProfileId' | 'isCustom'> & { id?: string, isCustom: boolean }) => void;
+  onSave: (emotionData: Omit<Emotion, 'id' | 'userId' | 'isCustom'> & { id?: string, isCustom: boolean }) => void;
   onClose: () => void;
 }
 

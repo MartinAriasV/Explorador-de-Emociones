@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 interface DiaryViewProps {
   emotionsList: Emotion[];
   diaryEntries: DiaryEntry[];
-  addDiaryEntry: (entry: Omit<DiaryEntry, 'id' | 'userProfileId'>) => void;
+  addDiaryEntry: (entry: Omit<DiaryEntry, 'id' | 'userId'>) => void;
   updateDiaryEntry: (entry: DiaryEntry) => void;
   deleteDiaryEntry: (entryId: string) => void;
   setView: (view: View) => void;

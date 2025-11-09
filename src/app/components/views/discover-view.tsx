@@ -40,6 +40,7 @@ export function DiscoverView({ onAddEmotion }: DiscoverViewProps) {
                           name: emotion.name, 
                           icon: emotion.icon, 
                           description: `${emotion.description} Ejemplo: "${emotion.example}"`,
+                          color: emotion.color,
                           isCustom: false, // Mark as not custom
                         })}
                         className="w-full bg-primary hover:bg-primary/90"

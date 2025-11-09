@@ -1,6 +1,6 @@
 export type Emotion = {
   id: string;
-  userProfileId: string;
+  userId: string;
   name: string;
   icon: string;
   color: string;
@@ -10,7 +10,7 @@ export type Emotion = {
 
 export type DiaryEntry = {
   id: string;
-  userProfileId: string;
+  userId: string;
   date: string;
   emotionId: string;
   text: string;
@@ -31,6 +31,7 @@ export type PredefinedEmotion = {
   icon: string;
   description: string;
   example: string;
+  color: string;
 };
 
 export type TourStepData = {

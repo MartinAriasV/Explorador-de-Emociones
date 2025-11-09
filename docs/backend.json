@@ -29,11 +29,15 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Emotion",
       "type": "object",
-      "description": "Represents an emotion that a user can track in their diary.",
+      "description": "Represents an emotion that a user can track in their diary. Stored in a subcollection under each user.",
       "properties": {
         "id": {
           "type": "string",
           "description": "Unique identifier for the emotion."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who owns this emotion."
         },
         "name": {
           "type": "string",
@@ -50,14 +54,19 @@
         "description": {
           "type": "string",
           "description": "A user-defined description or meaning of the emotion."
+        },
+        "isCustom": {
+          "type": "boolean",
+          "description": "Flag to indicate if the emotion was created by the user."
         }
       },
       "required": [
         "id",
+        "userId",
         "name",
         "icon",
         "color",
-        "description"
+        "isCustom"
       ]
     },
     "DiaryEntry": {
@@ -72,11 +81,11 @@
         },
         "userId": {
           "type": "string",
-          "description": "Reference to UserProfile. (Relationship: UserProfile 1:N DiaryEntry)"
+          "description": "The ID of the user who owns this entry."
         },
         "emotionId": {
           "type": "string",
-          "description": "Reference to Emotion. (Relationship: Emotion 1:N DiaryEntry)"
+          "description": "Reference to an Emotion document in the user's subcollection."
         },
         "date": {
           "type": "string",
@@ -107,56 +116,32 @@
       {
         "path": "/users/{userId}",
         "definition": {
-          "entityName": "UserProfile",
           "schema": {
-            "$ref": "#/backend/entities/UserProfile"
+            "$ref": "#/entities/UserProfile"
           },
-          "description": "Stores user profiles. Path-based ownership.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
+          "description": "Stores user profiles. Path-based ownership."
+        },
+        "subcollections": [
+          {
+            "path": "/emotions/{emotionId}",
+            "definition": {
+              "schema": {
+                "$ref": "#/entities/Emotion"
+              },
+              "description": "Stores user-specific emotions."
             }
-          ]
-        }
-      },
-      {
-        "path": "/emotions/{emotionId}",
-        "definition": {
-          "entityName": "Emotion",
-          "schema": {
-            "$ref": "#/backend/entities/Emotion"
           },
-          "description": "Stores the list of available emotions. Publicly readable.",
-          "params": [
-            {
-              "name": "emotionId",
-              "description": "The unique identifier of the emotion."
+          {
+            "path": "/diaryEntries/{diaryEntryId}",
+            "definition": {
+              "schema": {
+                "$ref": "#/entities/DiaryEntry"
+              },
+              "description": "Stores diary entries for each user. Path-based ownership enforced by the collection structure."
             }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/diaryEntries/{diaryEntryId}",
-        "definition": {
-          "entityName": "DiaryEntry",
-          "schema": {
-            "$ref": "#/backend/entities/DiaryEntry"
-          },
-          "description": "Stores diary entries for each user. Path-based ownership enforced by the collection structure.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            },
-            {
-              "name": "diaryEntryId",
-              "description": "The unique identifier of the diary entry."
-            }
-          ]
-        }
+          }
+        ]
       }
-    ],
-    "reasoning": "The Firestore structure is designed to ensure Authorization Independence, DBAC, and QAPs. User profiles and emotions are stored in their own collections. Diary entries are stored in a subcollection of the user's document to enforce ownership. This structure uses path-based ownership for diary entries, simplifying security rules. No `get()` calls are needed in security rules, enabling atomic operations. The structure facilitates secure `list` operations, as each collection contains homogeneous data with consistent security requirements. The diary entries subcollection enforces a clear ownership model using hierarchical paths."
+    ]
   }
 }

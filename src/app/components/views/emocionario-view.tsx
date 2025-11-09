@@ -18,7 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 interface EmocionarioViewProps {
   emotionsList: Emotion[];
-  addEmotion: (emotion: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string }) => void;
+  addEmotion: (emotion: Omit<Emotion, 'id' | 'userId'> & { id?: string }) => void;
   onEditEmotion: (emotion: Emotion) => void;
   onDeleteEmotion: (emotionId: string) => void;
   editingEmotion: Emotion | null;
@@ -93,7 +93,7 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
         return;
       }
 
-      const emotionData: Omit<Emotion, 'id' | 'userProfileId'> & { id?: string } = {
+      const emotionData: Omit<Emotion, 'id' | 'userId'> & { id?: string } = {
         name,
         icon,
         color,
@@ -253,7 +253,7 @@ export function EmocionarioView({ emotionsList, addEmotion, onEditEmotion, onDel
                               <AlertDialogHeader>
                                 <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Esta acción no se puede deshacer. Esto eliminará permanentemente la emoción y afectará a las entradas del diario asociadas.
+                                  Esta acción no se puede deshacer. Esto eliminará permanentemente la emoción y todas las entradas del diario asociadas.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
