@@ -36,39 +36,56 @@ service cloud.firestore {
           return isOwner(userId) && resource != null;
       }
       
-      // Allow updates if the user is the owner and the update does not try to change the points directly
-      // except by an authorized amount (e.g. +10 for a diary entry).
-      // This is a simplified rule; a production app might use Cloud Functions for point updates.
       function isUpdatingAllowedFields() {
-        let newPoints = request.resource.data.points;
-        let oldPoints = resource.data.points;
-        let allowedFields = ['name', 'avatar', 'avatarType', 'unlockedAnimalIds', 'purchasedItemIds', 'equippedItems', 'points'];
-        let hasOnlyAllowedFields = request.resource.data.keys().diff(resource.data.keys()).hasOnly(allowedFields);
+        // Defines the fields a user IS allowed to change directly on their profile.
+        let allowedWriteFields = ['name', 'avatar', 'avatarType', 'equippedItems'];
         
-        // Scenario 1: Points are not changing, allow update if other fields are valid.
-        if (newPoints == oldPoints) {
-            return hasOnlyAllowedFields;
+        // System-managed fields a user should NOT be able to change directly.
+        let protectedFields = ['points', 'purchasedItemIds', 'unlockedAnimalIds'];
+
+        // Check if ANY protected field is being changed.
+        let isChangingProtectedField = protectedFields.some(field => request.resource.data[field] != resource.data[field]);
+
+        // If a protected field is being changed, the entire update is denied from this rule.
+        // It must pass through a different mechanism (like transaction rules).
+        if (isChangingProtectedField) {
+            return false;
         }
 
-        // Scenario 2: Points are changing, validate the change amount.
-        let pointsAreValid = (
-          newPoints == oldPoints + 10 || // Diary entry
-          newPoints == oldPoints + 5  || // Game win
-          newPoints == oldPoints + 15 || // Game win (story builder)
-          newPoints == oldPoints - 100 || // Shop
-          newPoints == oldPoints - 150 || // Shop
-          newPoints == oldPoints - 250 || // Shop
-          newPoints == oldPoints - 500 || // Shop
-          newPoints == oldPoints - 750    // Shop
-        );
-        
-        return hasOnlyAllowedFields && pointsAreValid;
+        // If we are here, it means no protected fields are being changed.
+        // Now, we ensure ONLY the allowed fields are being updated.
+        // `request.resource.data.keys()` gives all keys in the incoming data.
+        // `resource.data.keys()` gives all keys in the existing data.
+        // `diff()` shows the changes. `hasOnly()` checks if the changes are ONLY in the allowed list.
+        return request.resource.data.keys().diff(resource.data.keys()).hasOnly(allowedWriteFields);
+      }
+
+      function isPointsTransactionValid() {
+          let newPoints = request.resource.data.points;
+          let oldPoints = resource.data.points;
+
+          // If points are not changing, another rule should handle it.
+          if (newPoints == oldPoints) {
+            return false;
+          }
+          
+          // Allow specific point changes from transactions (diary, games, shop)
+          return (
+            newPoints == oldPoints + 10 || // Diary entry
+            newPoints == oldPoints + 5  || // Game win
+            newPoints == oldPoints + 15 || // Game win (story builder)
+            newPoints == oldPoints - 100 || // Shop
+            newPoints == oldPoints - 150 || // Shop
+            newPoints == oldPoints - 250 || // Shop
+            newPoints == oldPoints - 500 || // Shop
+            newPoints == oldPoints - 750    // Shop
+          );
       }
       
       allow get: if isOwner(userId);
       allow list: if false; // User listing is not allowed for privacy.
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && isUpdatingAllowedFields();
+      allow update: if isExistingOwner(userId) && (isUpdatingAllowedFields() || isPointsTransactionValid());
       allow delete: if isExistingOwner(userId);
     }
 
