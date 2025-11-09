@@ -17,6 +17,7 @@ import {
     ChatWithPetOutput, 
     ChatWithPetOutputSchema 
 } from './chat-with-pet-types';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 // Server-side Firebase initialization
 function initializeServerFirebase() {
@@ -58,36 +59,50 @@ const chatWithPetFlow = ai.defineFlow(
     outputSchema: ChatWithPetOutputSchema,
   },
   async ({ userId, message, petName }) => {
-    // 1. Fetch recent diary entries
-    const diaryEntriesRef = collection(firestore, 'users', userId, 'diaryEntries');
-    const q = query(diaryEntriesRef, orderBy('date', 'desc'), limit(3));
-    const diarySnapshot = await getDocs(q);
-    const recentEntries = diarySnapshot.docs.map(d => d.data() as DiaryEntry);
-
+    let recentEntries: DiaryEntry[] = [];
     let recentFeelingsContext = 'No hay entradas recientes en el diario.';
+    const diaryEntriesRef = collection(firestore, 'users', userId, 'diaryEntries');
 
-    if (recentEntries.length > 0) {
-      // 2. Fetch corresponding emotions to get their names
-      const emotionIds = [...new Set(recentEntries.map(entry => entry.emotionId))];
-      const emotionDocs = await Promise.all(
-        emotionIds.map(id => getDoc(doc(firestore, 'users', userId, 'emotions', id)))
-      );
-      const emotionsMap = new Map<string, Emotion>();
-      emotionDocs.forEach(d => {
-        if (d.exists()) {
-          emotionsMap.set(d.id, d.data() as Emotion);
+    try {
+      // 1. Fetch recent diary entries
+      const q = query(diaryEntriesRef, orderBy('date', 'desc'), limit(3));
+      const diarySnapshot = await getDocs(q);
+      recentEntries = diarySnapshot.docs.map(d => d.data() as DiaryEntry);
+
+      if (recentEntries.length > 0) {
+        // 2. Fetch corresponding emotions to get their names
+        const emotionIds = [...new Set(recentEntries.map(entry => entry.emotionId))];
+        const emotionDocs = await Promise.all(
+          emotionIds.map(id => getDoc(doc(firestore, 'users', userId, 'emotions', id)))
+        );
+        const emotionsMap = new Map<string, Emotion>();
+        emotionDocs.forEach(d => {
+          if (d.exists()) {
+            emotionsMap.set(d.id, d.data() as Emotion);
+          }
+        });
+
+        // 3. Create the context string
+        recentFeelingsContext = recentEntries
+          .map(entry => {
+            const emotion = emotionsMap.get(entry.emotionId);
+            const emotionName = emotion ? emotion.name : 'un sentimiento desconocido';
+            return `- Sintió ${emotionName}. Reflexión: "${entry.text}"`;
+          })
+          .join('\n');
+      }
+    } catch (error: any) {
+        // If we catch a permissions error, re-throw it as a structured error for better debugging.
+        if (error.code === 'permission-denied') {
+            throw new FirestorePermissionError({
+                path: diaryEntriesRef.path,
+                operation: 'list',
+            });
         }
-      });
-
-      // 3. Create the context string
-      recentFeelingsContext = recentEntries
-        .map(entry => {
-          const emotion = emotionsMap.get(entry.emotionId);
-          const emotionName = emotion ? emotion.name : 'un sentimiento desconocido';
-          return `- Sintió ${emotionName}. Reflexión: "${entry.text}"`;
-        })
-        .join('\n');
+        // For other errors, just re-throw them.
+        throw error;
     }
+
 
     // 4. Call the AI model with the context
     const { output } = await prompt({
