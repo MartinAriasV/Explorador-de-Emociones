@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { Emotion, GameProps, UserProfile } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
@@ -104,7 +104,7 @@ export function EmotionalAscentGame({ emotionsList, userProfile, onGameEnd }: Em
         });
         
         // Generate starting platforms
-        for (let i = 0; i < 10; i++) {
+        for (let i = 1; i < 10; i++) {
             const newY = gameHeight - (i * 80);
             initialPlatforms.push(generateNewPlatform(newY, gameWidth));
         }
@@ -126,74 +126,72 @@ export function EmotionalAscentGame({ emotionsList, userProfile, onGameEnd }: Em
                 return;
             }
 
-            // Update player velocity and position
-            let newVelY = Math.min(playerVel.y + GRAVITY, MAX_FALL_SPEED);
-            let newPosX = playerPos.x;
-            if (keysRef.current['ArrowLeft']) newPosX -= HORIZONTAL_SPEED;
-            if (keysRef.current['ArrowRight']) newPosX += HORIZONTAL_SPEED;
-            
-            const gameWidth = gameAreaRef.current?.clientWidth || 500;
-            const gameHeight = gameAreaRef.current?.clientHeight || 400;
-            
-            // Handle screen wrapping
-            if (newPosX > gameWidth) newPosX = -PLAYER_WIDTH;
-            if (newPosX < -PLAYER_WIDTH) newPosX = gameWidth;
+            setPlayerPos(prevPos => {
+                let newVelX = 0;
+                if (keysRef.current['ArrowLeft']) newVelX = -HORIZONTAL_SPEED;
+                if (keysRef.current['ArrowRight']) newVelX = HORIZONTAL_SPEED;
+                
+                let newPosX = prevPos.x + newVelX;
+                const gameWidth = gameAreaRef.current?.clientWidth || 500;
+                const gameHeight = gameAreaRef.current?.clientHeight || 400;
 
-            let newPosY = playerPos.y + newVelY;
-            
-            // Platform generation and scrolling
-            let scrollOffset = 0;
-            if (newPosY < gameHeight / 2) {
-                scrollOffset = (gameHeight / 2) - newPosY;
-                newPosY = gameHeight / 2;
-                setScore(s => s + Math.round(scrollOffset));
-            }
+                // Screen wrapping
+                if (newPosX > gameWidth) newPosX = -PLAYER_WIDTH;
+                if (newPosX < -PLAYER_WIDTH) newPosX = gameWidth;
+                
+                let newPosY = prevPos.y;
+                let newVelY = Math.min(playerVel.y + GRAVITY, MAX_FALL_SPEED);
 
-            // Collision detection
-            if (newVelY > 0) { // Only check for collision when falling
-                 platforms.forEach(p => {
-                    if (
-                        playerPos.x < p.x + PLATFORM_WIDTH &&
-                        playerPos.x + PLAYER_WIDTH > p.x &&
-                        playerPos.y + PLAYER_HEIGHT <= p.y &&
-                        newPosY + PLAYER_HEIGHT >= p.y
-                    ) {
-                        newVelY = p.type === 'boost' ? BOOST_JUMP_FORCE : JUMP_FORCE;
-                        if (p.type === 'brittle' && !p.isBreaking) {
-                            p.isBreaking = true;
-                            // Set a timeout to remove the platform
-                            setTimeout(() => {
-                                setPlatforms(prev => prev.filter(plat => plat.id !== p.id));
-                            }, 300);
+                // Platform Collision
+                if (newVelY > 0) { // Only check for collision when falling
+                    platforms.forEach(p => {
+                        if (
+                            newPosX < p.x + PLATFORM_WIDTH &&
+                            newPosX + PLAYER_WIDTH > p.x &&
+                            prevPos.y + PLAYER_HEIGHT <= p.y &&
+                            prevPos.y + PLAYER_HEIGHT + newVelY >= p.y
+                        ) {
+                            newPosY = p.y - PLAYER_HEIGHT;
+                            newVelY = p.type === 'boost' ? BOOST_JUMP_FORCE : JUMP_FORCE;
+                            if (p.type === 'brittle' && !p.isBreaking) {
+                                p.isBreaking = true;
+                                setTimeout(() => {
+                                    setPlatforms(prev => prev.filter(plat => plat.id !== p.id));
+                                }, 300);
+                            }
                         }
-                    }
-                });
-            }
+                    });
+                }
+                
+                newPosY += newVelY;
 
-            // Update states
-            setPlayerVel({ x: 0, y: newVelY });
-            setPlayerPos({ x: newPosX, y: newPosY });
-            
-            setPlatforms(prevPlats => {
-                const scrolledPlatforms = prevPlats
-                    .map(p => ({ ...p, y: p.y + scrollOffset }))
-                    .filter(p => p.y < gameHeight + 50); // Remove platforms that are off-screen
-
-                // Add new platforms at the top
-                const highestPlatY = scrolledPlatforms.reduce((minY, p) => Math.min(minY, p.y), Infinity);
-                if (scrolledPlatforms.length < 15) { // Ensure there are always enough platforms
-                     scrolledPlatforms.push(generateNewPlatform(highestPlatY - (80 + Math.random() * 20), gameWidth));
+                let scrollOffset = 0;
+                if (newPosY < gameHeight / 2) {
+                    scrollOffset = (gameHeight / 2) - newPosY;
+                    newPosY = gameHeight / 2;
+                    setScore(s => s + Math.round(scrollOffset));
                 }
 
-                return scrolledPlatforms;
+                setPlatforms(prevPlats => {
+                    const scrolledPlatforms = prevPlats
+                        .map(p => ({ ...p, y: p.y + scrollOffset }))
+                        .filter(p => p.y < gameHeight + 50);
+
+                    if (scrolledPlatforms.length < 15) {
+                        const highestPlatY = scrolledPlatforms.reduce((minY, p) => Math.min(minY, p.y), Infinity);
+                        scrolledPlatforms.push(generateNewPlatform(highestPlatY - (80 + Math.random() * 20), gameWidth));
+                    }
+                    return scrolledPlatforms;
+                });
+                
+                if (newPosY > gameHeight) {
+                    setGameState('gameOver');
+                }
+
+                setPlayerVel({ x: newVelX, y: newVelY });
+                return { x: newPosX, y: newPosY };
             });
 
-            // Game over condition
-            if (playerPos.y > gameHeight) {
-                setGameState('gameOver');
-                onGameEnd(score);
-            }
-            
             animationFrameIdRef.current = requestAnimationFrame(gameLoop);
         };
 
@@ -206,7 +204,14 @@ export function EmotionalAscentGame({ emotionsList, userProfile, onGameEnd }: Em
             window.removeEventListener('keyup', handleKeyUp);
             if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
         };
-    }, [gameState, playerPos, playerVel, platforms, score, resetGame, onGameEnd]);
+    }, [gameState, playerVel.y, platforms, resetGame]);
+
+    useEffect(() => {
+        if (gameState === 'gameOver' && score > 0) {
+            onGameEnd(score);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gameState]);
 
 
     if (gameState === 'start') {
@@ -271,5 +276,7 @@ export function EmotionalAscentGame({ emotionsList, userProfile, onGameEnd }: Em
         </div>
     );
 }
+
+    
 
     
