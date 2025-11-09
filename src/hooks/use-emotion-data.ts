@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useFirebase, useCollection, useDoc } from '@/firebase';
+import { useFirebase, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import type { Emotion, DiaryEntry, UserProfile, Reward } from '@/lib/types';
-import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak } from '@/lib/utils';
 import { REWARDS } from '@/lib/constants';
 import type { User } from 'firebase/auth';
@@ -13,13 +13,13 @@ export function useEmotionData(user: User | null) {
   const { firestore } = useFirebase();
 
   // --- Firestore Data Hooks ---
-  const userProfileRef = useMemo(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
+  const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
-  const emotionsQuery = useMemo(() => (user ? collection(firestore, 'users', user.uid, 'emotions') : null), [firestore, user]);
+  const emotionsQuery = useMemoFirebase(() => (user ? collection(firestore, 'users', user.uid, 'emotions') : null), [firestore, user]);
   const { data: emotionsList, isLoading: areEmotionsLoading } = useCollection<Emotion>(emotionsQuery);
   
-  const diaryEntriesQuery = useMemo(() => (user ? collection(firestore, 'users', user.uid, 'diaryEntries') : null), [firestore, user]);
+  const diaryEntriesQuery = useMemoFirebase(() => (user ? collection(firestore, 'users', user.uid, 'diaryEntries') : null), [firestore, user]);
   const { data: diaryEntries, isLoading: areDiaryEntriesLoading } = useCollection<DiaryEntry>(diaryEntriesQuery);
 
   const [newlyUnlockedReward, setNewlyUnlockedReward] = useState<Reward | null>(null);
@@ -34,7 +34,7 @@ export function useEmotionData(user: User | null) {
     if (!docSnap.exists()) {
       console.log("No profile found for user, creating one...");
       const newProfile: Omit<UserProfile, 'id'> = {
-        name: user.email?.split('@')[0] || 'Usuario',
+        name: user.displayName || user.email?.split('@')[0] || 'Usuario',
         avatar: '😊',
         avatarType: 'emoji',
         unlockedAnimalIds: [],
@@ -155,13 +155,13 @@ export function useEmotionData(user: User | null) {
 
     if (emotionData.id) {
       const emotionRef = doc(emotionsCollection, emotionData.id);
-      await updateDocumentNonBlocking(emotionRef, dataToSave);
+      updateDocumentNonBlocking(emotionRef, dataToSave);
     } else {
       // Check if a non-custom emotion with the same name already exists
       const q = query(emotionsCollection, where("name", "==", dataToSave.name), where("isCustom", "==", false));
       const existing = await getDocs(q);
       if (existing.empty) {
-        await addDocumentNonBlocking(emotionsCollection, dataToSave);
+        addDocumentNonBlocking(emotionsCollection, dataToSave);
       } else {
         console.log(`Predefined emotion "${dataToSave.name}" already exists. Skipping.`);
       }
