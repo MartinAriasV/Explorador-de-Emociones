@@ -6,10 +6,11 @@ import type { Emotion, GameProps } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { CheckCircle, XCircle, Zap, Image as ImageIcon } from 'lucide-react';
+import { CheckCircle, XCircle, Zap, Image as ImageIcon, Loader } from 'lucide-react';
 import imageData from '@/lib/placeholder-images.json';
 import Image from 'next/image';
 import type { User } from 'firebase/auth';
+import { generateEmpathyImage } from '@/ai/flows/generate-empathy-image';
 
 const shuffleArray = <T,>(array: T[]): T[] => {
   return [...array].sort(() => Math.random() - 0.5);
@@ -37,7 +38,8 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [questionHistory, setQuestionHistory] = useState<string[]>([]);
-  const [isLoadingImage, setIsLoadingImage] = useState(true);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const empathyImages = useMemo(() => imageData.empathy_gallery, []);
   
@@ -46,13 +48,14 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     return emotionsList.filter(emotion => imageEmotions.has(emotion.name.toLowerCase()));
   }, [emotionsList, empathyImages]);
 
-  const generateQuestion = useCallback(() => {
+  const generateQuestion = useCallback(async () => {
     if (playableEmotions.length < 4) {
         setIsPlaying(false);
         return;
     }
-    
-    setIsLoadingImage(true);
+
+    setIsGeneratingImage(true);
+    setError(null);
 
     let localHistory = [...questionHistory];
     if (localHistory.length >= empathyImages.length) {
@@ -60,48 +63,54 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     }
 
     let possibleImages = empathyImages.filter(img => !localHistory.includes(img.id));
-    if(possibleImages.length === 0) {
+    if (possibleImages.length === 0) {
         possibleImages = empathyImages;
         localHistory = [];
     }
     
-    const questionImage = shuffleArray(possibleImages)[0];
-    const correctEmotion = playableEmotions.find(e => e.name.toLowerCase() === questionImage.emotion.toLowerCase());
+    const questionImageDef = shuffleArray(possibleImages)[0];
+    const correctEmotion = playableEmotions.find(e => e.name.toLowerCase() === questionImageDef.emotion.toLowerCase());
 
     if (!correctEmotion) {
-        console.error("No playable emotion found for image:", questionImage);
-        let nextHistory = [...localHistory, questionImage.id];
-        setQuestionHistory(nextHistory);
-        
-        if (empathyImages.length > nextHistory.length) {
-            generateQuestion();
+        console.error("No playable emotion found for image:", questionImageDef);
+        setQuestionHistory(prev => [...prev, questionImageDef.id]);
+        // Try to generate another question if there are more images left
+        if (empathyImages.length > questionHistory.length + 1) {
+            await generateQuestion();
         } else {
             setIsPlaying(false);
         }
         return;
     }
     
-    const incorrectOptions = shuffleArray(playableEmotions.filter(e => e.id !== correctEmotion!.id)).slice(0, 3);
-    
-    if (incorrectOptions.length < 3) {
-      console.error("Not enough emotions to form a full question.");
-      setIsPlaying(false);
-      return;
+    try {
+        const { imageUrl } = await generateEmpathyImage({ emotion: correctEmotion.name, hint: questionImageDef.hint });
+
+        const incorrectOptions = shuffleArray(playableEmotions.filter(e => e.id !== correctEmotion!.id)).slice(0, 3);
+        if (incorrectOptions.length < 3) {
+            console.error("Not enough emotions to form a full question.");
+            setIsPlaying(false);
+            return;
+        }
+        const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
+
+        setCurrentQuestion({
+            imageUrl: imageUrl,
+            correctEmotion: correctEmotion.name,
+            options: allOptions,
+            hint: questionImageDef.hint
+        });
+        
+        setQuestionHistory(prev => [...prev, questionImageDef.id]);
+        setIsAnswered(false);
+        setSelectedAnswer(null);
+
+    } catch (err) {
+        console.error("Error generating image:", err);
+        setError("No se pudo crear una imagen. Intenta de nuevo.");
+    } finally {
+        setIsGeneratingImage(false);
     }
-
-    const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
-    
-    setCurrentQuestion({
-        imageUrl: `https://source.unsplash.com/600x400/?${questionImage.hint}`,
-        correctEmotion: correctEmotion.name,
-        options: allOptions,
-        hint: questionImage.hint
-    });
-    
-    setQuestionHistory(prev => [...prev, questionImage.id]);
-    setIsAnswered(false);
-    setSelectedAnswer(null);
-
   }, [playableEmotions, empathyImages, questionHistory]);
 
 
@@ -111,7 +120,6 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     } else if (questionsAnswered >= QUESTIONS_PER_GAME) {
       setIsPlaying(false);
     }
-  // This dependency array is correct. `generateQuestion` is memoized and changes only when its own dependencies change.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlaying, questionsAnswered]);
 
@@ -127,6 +135,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
   };
 
   const handleNext = () => {
+    setCurrentQuestion(null);
     setQuestionsAnswered(prev => prev + 1);
   };
 
@@ -136,6 +145,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     setQuestionHistory([]);
     setIsAnswered(false);
     setSelectedAnswer(null);
+    setCurrentQuestion(null);
     setIsPlaying(true);
   };
 
@@ -152,7 +162,7 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     return (
         <div className="flex flex-col items-center justify-center h-full text-center p-4 md:p-8">
             <h2 className="text-2xl font-bold text-primary">Galería de Empatía</h2>
-            <p className="text-muted-foreground my-4 max-w-md">Observa la imagen y adivina qué emoción está sintiendo la persona. ¡Gana 5 puntos por cada acierto!</p>
+            <p className="text-muted-foreground my-4 max-w-md">Observa la imagen y adivina qué emoción representa. ¡Gana 5 puntos por cada acierto!</p>
             {questionsAnswered >= QUESTIONS_PER_GAME && (
                 <>
                     <p className="text-lg my-2">¡Partida terminada!</p>
@@ -167,12 +177,24 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
     );
   }
 
-  if (!currentQuestion) {
+  if (isGeneratingImage || !currentQuestion) {
     return (
         <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-4 md:p-8 rounded-lg bg-muted/50">
-            <p className="text-lg font-semibold">Cargando...</p>
+            <Loader className="h-10 w-10 animate-spin text-primary mb-4" />
+            <p className="text-lg font-semibold">Generando una imagen para ti...</p>
         </div>
     );
+  }
+
+  if (error) {
+     return (
+        <div className="flex flex-col items-center justify-center h-full text-center text-destructive p-4 md:p-8 rounded-lg bg-destructive/10">
+            <p className="text-lg font-semibold">{error}</p>
+            <Button onClick={startGame} size="lg" variant="destructive" className="mt-4">
+                Reiniciar Juego
+            </Button>
+        </div>
+     )
   }
 
   return (
@@ -184,20 +206,13 @@ export function EmpathyGalleryGame({ emotionsList, addPoints }: EmpathyGalleryGa
 
       <Card className="w-full max-w-2xl shadow-inner bg-muted/30 overflow-hidden aspect-video">
          <div className="relative w-full h-full">
-            {isLoadingImage && (
-                <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                    <ImageIcon className="w-12 h-12 text-muted-foreground animate-pulse" />
-                </div>
-            )}
             <Image 
                 src={currentQuestion.imageUrl}
                 alt={currentQuestion.hint}
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                className={cn("object-cover transition-opacity duration-300", isLoadingImage ? "opacity-0" : "opacity-100")}
-                onLoad={() => setIsLoadingImage(false)}
+                className="object-cover"
                 data-ai-hint={currentQuestion.hint}
-                unoptimized
             />
          </div>
       </Card>
