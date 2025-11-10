@@ -7,11 +7,6 @@ export default {
       './src/components/**/*.{js,ts,jsx,tsx,mdx}',
       './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
-  safelist: [
-    'bg-living-room',
-    'bg-garden',
-    'bg-bedroom',
-  ],
   theme: {
     extend: {
       fontFamily: {
@@ -140,3 +135,5 @@ export default {
   },
   plugins: [require('tailwindcss-animate')],
 } satisfies Config;
+
+    
