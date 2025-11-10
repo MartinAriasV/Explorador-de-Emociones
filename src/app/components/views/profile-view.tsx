@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { UserProfile, ShopItem, ShopItemType } from '@/lib/types';
-import { AVATAR_EMOJIS } from '@/lib/constants';
+import { AVATAR_EMOJIS, SPIRIT_ANIMALS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Check, X } from 'lucide-react';
 import Image from 'next/image';
@@ -23,6 +23,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
   const [localAvatar, setLocalAvatar] = useState(userProfile?.avatar || '');
   const [localAvatarType, setLocalAvatarType] = useState(userProfile?.avatarType || 'emoji');
   const [localEquippedItems, setLocalEquippedItems] = useState(userProfile?.equippedItems || {});
+  const [localEquippedPetAccessories, setLocalEquippedPetAccessories] = useState(userProfile?.equippedPetAccessories || {});
   const [hasChanges, setHasChanges] = useState(false);
   const [saved, setSaved] = useState(false);
   const { toast } = useToast();
@@ -33,6 +34,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
       setLocalAvatar(userProfile.avatar);
       setLocalAvatarType(userProfile.avatarType);
       setLocalEquippedItems(userProfile.equippedItems || {});
+      setLocalEquippedPetAccessories(userProfile.equippedPetAccessories || {});
     }
   }, [userProfile]);
   
@@ -41,8 +43,9 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
       const nameChanged = localName !== userProfile.name;
       const avatarChanged = localAvatar !== userProfile.avatar;
       const itemsChanged = JSON.stringify(localEquippedItems) !== JSON.stringify(userProfile.equippedItems || {});
-      setHasChanges(nameChanged || avatarChanged || itemsChanged);
-  }, [localName, localAvatar, localEquippedItems, userProfile]);
+      const petItemsChanged = JSON.stringify(localEquippedPetAccessories) !== JSON.stringify(userProfile.equippedPetAccessories || {});
+      setHasChanges(nameChanged || avatarChanged || itemsChanged || petItemsChanged);
+  }, [localName, localAvatar, localEquippedItems, localEquippedPetAccessories, userProfile]);
 
   const handleSave = () => {
     if (!localName || !localAvatar) {
@@ -53,7 +56,13 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
       });
       return;
     }
-    setUserProfile({ name: localName, avatar: localAvatar, avatarType: localAvatarType, equippedItems: localEquippedItems });
+    setUserProfile({ 
+        name: localName, 
+        avatar: localAvatar, 
+        avatarType: localAvatarType, 
+        equippedItems: localEquippedItems,
+        equippedPetAccessories: localEquippedPetAccessories,
+    });
     setSaved(true);
     setHasChanges(false);
     setTimeout(() => setSaved(false), 2000);
@@ -77,8 +86,21 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
       setLocalEquippedItems(newItems);
   }
 
+  const handleTogglePetAccessory = (item: ShopItem) => {
+      setLocalEquippedPetAccessories(prev => {
+          const newAccessories = {...prev};
+          if (newAccessories[item.id]) {
+              delete newAccessories[item.id];
+          } else {
+              newAccessories[item.id] = item.icon;
+          }
+          return newAccessories;
+      })
+  }
+
   const purchasedFrames = purchasedItems.filter(item => item.type === 'avatar_frame');
   const purchasedThemes = purchasedItems.filter(item => item.type === 'theme');
+  const purchasedPetAccessories = purchasedItems.filter(item => item.type === 'pet_accessory');
 
 
   if (!userProfile) {
@@ -188,6 +210,37 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
                 </div>
               </div>
             )}
+            
+            {purchasedPetAccessories.length > 0 && (
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">Accesorios para Mascotas</label>
+                     <div className="flex items-center gap-4 p-4 border rounded-lg">
+                        <div className="relative w-24 h-24">
+                            <span className="text-7xl">
+                                {SPIRIT_ANIMALS.find(p => p.id === 'loyal-dog')?.icon || '🐶'}
+                            </span>
+                             {Object.entries(localEquippedPetAccessories).map(([key, icon]) => (
+                                <span key={key} className="absolute text-3xl" style={{top: '-10px', right: '-10px'}}>
+                                    {icon}
+                                </span>
+                            ))}
+                        </div>
+                        <div className="flex flex-wrap gap-2 flex-1">
+                            {purchasedPetAccessories.map(item => (
+                                <Button
+                                    key={item.id}
+                                    variant="outline"
+                                    onClick={() => handleTogglePetAccessory(item)}
+                                    className={cn("h-14 w-14 text-3xl", localEquippedPetAccessories[item.id] && "ring-2 ring-primary")}
+                                >
+                                    {item.icon}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
           </div>
         </ScrollArea>
       </CardContent>

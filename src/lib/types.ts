@@ -27,6 +27,7 @@ export type UserProfile = {
   purchasedItemIds: string[];
   equippedItems: { [key in ShopItemType]?: string }; // e.g. { 'theme': 'theme-ocean', 'avatar_frame': 'frame-gold' }
   ascentHighScore?: number;
+  equippedPetAccessories?: { [key: string]: string }; // e.g. { 'hat-cowboy': '🤠', 'scarf-gryffindor': '🧣' }
 };
 
 export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary' | 'games' | 'pet-chat' | 'shop';

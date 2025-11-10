@@ -6,10 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { chatWithPet } from '@/ai/flows/chat-with-pet';
-import type { SpiritAnimal, View, DiaryEntry, Emotion } from '@/lib/types';
+import type { SpiritAnimal, View, DiaryEntry, Emotion, UserProfile } from '@/lib/types';
 import type { User } from 'firebase/auth';
 import { ArrowLeft, Send, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useDoc, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import { useFirebase } from '@/firebase';
 
 interface PetChatViewProps {
   pet: SpiritAnimal | null;
@@ -45,15 +48,35 @@ const getRecentFeelingsContext = (diaryEntries: DiaryEntry[], emotionsList: Emot
     return { contextString, displayFeelings };
 };
 
+function PetAvatar({ pet, equippedAccessories }: { pet: SpiritAnimal, equippedAccessories: { [key: string]: string } | undefined }) {
+  if (!equippedAccessories || Object.keys(equippedAccessories).length === 0) {
+    return <span className="text-5xl">{pet.icon}</span>;
+  }
+  
+  return (
+    <div className="relative w-12 h-12 flex items-center justify-center">
+      <span className="text-5xl">{pet.icon}</span>
+      {Object.entries(equippedAccessories).map(([id, icon]) => (
+        <span key={id} className="absolute text-2xl" style={{top: "-15px", right: "-15px"}}>
+          {icon}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: PetChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [initialContext, setInitialContext] = useState<{ contextString: string; displayFeelings: Emotion[] } | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const { firestore } = useFirebase();
+
+  const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
+  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
 
   useEffect(() => {
-    // Scroll to the bottom of the chat on new messages
     if (scrollAreaRef.current) {
         const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
         if (viewport) {
@@ -81,7 +104,6 @@ export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: 
     setInputValue('');
     setIsLoading(true);
 
-    // Format the history for the Genkit flow
     const history = newMessages.slice(0, -1).map(msg => ({
         role: msg.sender === 'user' ? 'user' : 'model',
         content: [{ text: msg.text }],
@@ -124,7 +146,7 @@ export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: 
         <Button variant="ghost" size="icon" onClick={() => setView('sanctuary')}>
             <ArrowLeft />
         </Button>
-        <span className="text-5xl">{pet.icon}</span>
+        <PetAvatar pet={pet} equippedAccessories={userProfile?.equippedPetAccessories} />
         <div>
             <CardTitle className="text-2xl font-bold text-primary">{pet.name}</CardTitle>
             <p className="text-sm text-muted-foreground">Tu compañero IA</p>
@@ -135,7 +157,7 @@ export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: 
             <div className="p-4 space-y-4">
                 {messages.map((msg, index) => (
                     <div key={index} className={cn("flex items-end gap-2", msg.sender === 'user' ? 'justify-end' : 'justify-start')}>
-                        {msg.sender === 'pet' && <span className="text-3xl">{pet.icon}</span>}
+                        {msg.sender === 'pet' && <div className="w-12 h-12 flex-shrink-0"><PetAvatar pet={pet} equippedAccessories={userProfile?.equippedPetAccessories} /></div>}
                         <div className={cn(
                             "p-3 rounded-lg max-w-xs md:max-w-md lg:max-w-lg",
                              msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
@@ -152,7 +174,7 @@ export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: 
                 )}
                 {isLoading && (
                      <div className="flex items-end gap-2 justify-start">
-                        <span className="text-3xl">{pet.icon}</span>
+                        <div className="w-12 h-12 flex-shrink-0"><PetAvatar pet={pet} equippedAccessories={userProfile?.equippedPetAccessories} /></div>
                         <div className="p-3 rounded-lg bg-muted">
                            <div className="flex items-center gap-1.5">
                                <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.3s]"></span>
