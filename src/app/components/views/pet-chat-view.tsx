@@ -24,11 +24,13 @@ import type {
 import type { User } from 'firebase/auth';
 import { ArrowLeft, Send, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useDoc, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useFirebase } from '@/firebase';
 import { SHOP_ITEMS } from '@/lib/constants';
 import anime from 'animejs';
+import Image from 'next/image';
+
 
 interface PetChatViewProps {
   pet: SpiritAnimal | null;
@@ -196,10 +198,10 @@ const DraggablePet: React.FC<DraggablePetProps> = ({ pet, initialPosition, onPos
     return (
         <div
             ref={itemRef}
-            className="absolute text-7xl cursor-grab w-24 h-24 flex items-center justify-center bg-card border-2 border-border rounded-full"
+            className="absolute cursor-grab w-24 h-24 flex items-center justify-center"
             onMouseDown={handleMouseDown}
         >
-            <span className="drop-shadow-lg">{pet.icon}</span>
+            <Image src={pet.imageUrl} alt={pet.name} width={96} height={96} className="drop-shadow-lg" />
         </div>
     );
 };
@@ -375,15 +377,13 @@ export function PetChatView({
     ? SHOP_ITEMS.find(item => item.id === userProfile.activePetBackgroundId)
     : null;
     
-  const backgroundStyle = backgroundItem?.value
+    const backgroundStyle = backgroundItem?.imageUrl
     ? {
-        backgroundImage: `url('/backgrounds/${backgroundItem.value}.png')`,
+        backgroundImage: `url(${backgroundItem.imageUrl})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
       }
-    : {
-        backgroundColor: 'hsl(var(--muted) / 0.5)'
-      };
+    : {};
 
 
   if (!pet || !userProfile) {
@@ -410,7 +410,9 @@ export function PetChatView({
             >
             <ArrowLeft />
             </Button>
-            <div className="text-5xl">{pet.icon}</div>
+            <div className="w-12 h-12 relative">
+                <Image src={pet.imageUrl} alt={pet.name} fill sizes="48px" className="object-contain" />
+            </div>
             <div>
             <CardTitle className="text-2xl font-bold text-primary">
                 {pet.name}
@@ -423,7 +425,7 @@ export function PetChatView({
         <CardContent className="flex-grow overflow-hidden flex flex-col gap-4 p-4 pt-0 md:p-6 md:pt-0">
             <div 
               ref={roomContainerRef} 
-              className="relative rounded-lg flex-shrink-0 overflow-hidden h-64 border-2 transition-all duration-500"
+              className="relative rounded-lg flex-shrink-0 overflow-hidden h-64 border-2 bg-muted/30"
               style={backgroundStyle}
             >
                 
@@ -456,8 +458,8 @@ export function PetChatView({
                     )}
                 >
                     {msg.sender === 'pet' && (
-                    <div className="w-10 h-10 flex-shrink-0 text-3xl">
-                        {pet.icon}
+                    <div className="w-10 h-10 flex-shrink-0 relative">
+                        <Image src={pet.imageUrl} alt={pet.name} fill sizes="40px" className="object-contain" />
                     </div>
                     )}
                     <div
@@ -486,8 +488,8 @@ export function PetChatView({
                 )}
                 {isLoading && (
                 <div className="flex items-end gap-2 justify-start">
-                    <div className="w-10 h-10 flex-shrink-0 text-3xl">
-                        {pet.icon}
+                    <div className="w-10 h-10 flex-shrink-0 relative">
+                        <Image src={pet.imageUrl} alt={pet.name} fill sizes="40px" className="object-contain" />
                     </div>
                     <div className="p-3 rounded-lg bg-muted">
                     <div className="flex items-center gap-1.5">
