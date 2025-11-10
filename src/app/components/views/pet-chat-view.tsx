@@ -371,21 +371,19 @@ export function PetChatView({
       return purchasedItems.filter(item => item.type === 'pet_accessory');
   }, [purchasedItems]);
 
-  const activeBackground = useMemo(() => {
-      if (!userProfile?.activePetBackgroundId) return null;
-      return SHOP_ITEMS.find(item => item.id === userProfile.activePetBackgroundId);
-  }, [userProfile]);
-
-  const currentBackgroundStyle = useMemo(() => {
-    if (activeBackground?.value) {
-      return {
-        backgroundImage: `url('/backgrounds/${activeBackground.value}.png')`,
+  const backgroundItem = userProfile?.activePetBackgroundId
+    ? SHOP_ITEMS.find(item => item.id === userProfile.activePetBackgroundId)
+    : null;
+    
+  const backgroundStyle = backgroundItem?.value
+    ? {
+        backgroundImage: `url('/backgrounds/${backgroundItem.value}.png')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
+      }
+    : {
+        backgroundColor: 'hsl(var(--muted) / 0.5)'
       };
-    }
-    return { backgroundColor: 'hsl(var(--muted) / 0.5)' };
-}, [activeBackground]);
 
 
   if (!pet || !userProfile) {
@@ -423,11 +421,11 @@ export function PetChatView({
             </div>
         </CardHeader>
         <CardContent className="flex-grow overflow-hidden flex flex-col gap-4 p-4 pt-0 md:p-6 md:pt-0">
-            <div ref={roomContainerRef} className="relative rounded-lg flex-shrink-0 overflow-hidden h-64 border-2" >
-                <div 
-                    className="absolute inset-0 transition-all duration-500"
-                    style={currentBackgroundStyle}
-                ></div>
+            <div 
+              ref={roomContainerRef} 
+              className="relative rounded-lg flex-shrink-0 overflow-hidden h-64 border-2 transition-all duration-500"
+              style={backgroundStyle}
+            >
                 
                  <DraggablePet
                     pet={pet}
