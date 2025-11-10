@@ -42,6 +42,17 @@ interface Message {
   sender: 'user' | 'pet';
 }
 
+// Debounce function
+function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
+  let timeout: NodeJS.Timeout;
+
+  return function (this: ThisParameterType<F>, ...args: Parameters<F>): void {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), waitFor);
+  };
+}
+
+
 interface DraggableItemProps {
     item: ShopItem;
     initialPosition: { x: number; y: number };
@@ -55,10 +66,12 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
     const dragOffset = useRef({ x: 0, y: 0 });
 
     const handleMouseDown = (e: React.MouseEvent) => {
+        if (!containerRef.current) return;
         setIsDragging(true);
+        const containerRect = containerRef.current.getBoundingClientRect();
         dragOffset.current = {
-            x: e.clientX - position.x,
-            y: e.clientY - position.y,
+            x: e.clientX - containerRect.left - position.x,
+            y: e.clientY - containerRect.top - position.y,
         };
         e.preventDefault();
     };
@@ -66,12 +79,13 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
     const handleMouseMove = useCallback((e: MouseEvent) => {
         if (!isDragging || !containerRef.current) return;
         const containerRect = containerRef.current.getBoundingClientRect();
-        let newX = e.clientX - dragOffset.current.x;
-        let newY = e.clientY - dragOffset.current.y;
+        let newX = e.clientX - containerRect.left - dragOffset.current.x;
+        let newY = e.clientY - containerRect.top - dragOffset.current.y;
 
-        // Constrain movement within the container
-        newX = Math.max(0, Math.min(newX, containerRect.width - 64)); // Assuming item width is approx 64px
-        newY = Math.max(0, Math.min(newY, containerRect.height - 64)); // Assuming item height is approx 64px
+        const itemWidth = 64; // Approximate width
+        const itemHeight = 64; // Approximate height
+        newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
+        newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
 
         setPosition({ x: newX, y: newY });
     }, [isDragging, containerRef]);
@@ -151,16 +165,16 @@ const getRecentFeelingsContext = (
 };
 
 const backgroundStyles: { [key: string]: React.CSSProperties } = {
-    'bg-living-room': {
+    'living-room': {
         backgroundColor: '#f0e6dd',
         backgroundImage: 'linear-gradient(to right, #e3d5c5 1px, transparent 1px), linear-gradient(to bottom, #e3d5c5 1px, transparent 1px), radial-gradient(circle at 10% 20%, rgba(255, 235, 205, 0.4) 0%, transparent 40%), radial-gradient(circle at 90% 80%, rgba(210, 180, 140, 0.4) 0%, transparent 40%)',
         backgroundSize: '50px 50px, 50px 50px, 200px 200px, 300px 300px',
     },
-    'bg-garden': {
+    'garden': {
         backgroundColor: '#e6f0e6',
         backgroundImage: 'radial-gradient(circle at 100% 0, #d4edda 0%, #e6f0e6 40%)',
     },
-    'bg-bedroom': {
+    'bedroom': {
         backgroundColor: '#1a202c',
         backgroundImage: 'radial-gradient(circle at 10px 10px, rgba(255, 255, 255, 0.1) 1px, transparent 1px), radial-gradient(circle at 50px 50px, rgba(255, 255, 255, 0.08) 1px, transparent 1px), radial-gradient(circle at 100px 20px, rgba(255, 255, 255, 0.05) 1px, transparent 1px)',
         backgroundSize: '150px 150px',
@@ -200,15 +214,23 @@ export function PetChatView({
     }
   }, [userProfile?.petAccessoryPositions]);
 
+  const debouncedUpdatePositions = useCallback(
+    debounce((newPositions) => {
+        if (userProfileRef) {
+            updateDocumentNonBlocking(userProfileRef, { petAccessoryPositions: newPositions });
+        }
+    }, 500),
+    [userProfileRef]
+  );
+
   const handlePositionChange = useCallback((itemId: string, pos: { x: number; y: number }) => {
-    if (!userProfileRef) return;
     const newPositions = {
       ...accessoryPositions,
       [itemId]: pos
     };
     setAccessoryPositions(newPositions);
-    updateDocumentNonBlocking(userProfileRef, { petAccessoryPositions: newPositions });
-  }, [userProfileRef, accessoryPositions]);
+    debouncedUpdatePositions(newPositions);
+  }, [accessoryPositions, debouncedUpdatePositions]);
 
 
   useEffect(() => {
@@ -278,7 +300,11 @@ export function PetChatView({
       return SHOP_ITEMS.find(item => item.id === userProfile.activePetBackgroundId);
   }, [userProfile]);
 
-  const currentBackgroundStyle = activeBackground ? backgroundStyles[activeBackground.value] : {};
+  const currentBackgroundStyle = useMemo(() => {
+    if (!activeBackground) return {};
+    const styleKey = activeBackground.value.replace('bg-', '');
+    return backgroundStyles[styleKey] || {};
+  }, [activeBackground]);
 
 
   if (!pet || isProfileLoading) {
@@ -315,11 +341,10 @@ export function PetChatView({
         </div>
       </CardHeader>
       <CardContent className="flex-grow overflow-hidden flex flex-col gap-4">
-
-        <div className="rounded-lg p-4 flex-shrink-0 relative overflow-hidden h-48" ref={roomContainerRef}>
+        <div className="rounded-lg flex-shrink-0 relative overflow-hidden h-48" ref={roomContainerRef}>
             <div 
-                className="absolute inset-0"
-                style={activeBackground ? currentBackgroundStyle : { backgroundColor: 'hsl(var(--muted) / 0.5)' }}
+                className="absolute inset-0 transition-all duration-500"
+                style={Object.keys(currentBackgroundStyle).length > 0 ? currentBackgroundStyle : { backgroundColor: 'hsl(var(--muted) / 0.5)' }}
             ></div>
             <div className="relative w-full h-full flex items-center justify-center">
                 <div className="relative w-48 h-32">
