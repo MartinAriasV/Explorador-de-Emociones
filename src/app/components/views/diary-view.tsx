@@ -119,8 +119,9 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
     e.preventDefault();
     if (!date || !selectedEmotionId || !text) return;
     
-    const utcDate = new Date(date).toISOString();
-    const entryData = { date: utcDate, emotionId: selectedEmotionId, text };
+    const utcDate = new Date(date);
+    utcDate.setUTCHours(0, 0, 0, 0);
+    const entryData = { date: utcDate.toISOString(), emotionId: selectedEmotionId, text };
 
     if (editingEntry) {
       updateDiaryEntry({ ...editingEntry, ...entryData });
