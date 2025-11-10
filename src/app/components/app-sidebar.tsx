@@ -74,7 +74,7 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
     ? cn('rounded-full p-1 transition-colors', equippedFrame.value) 
     : '';
 
-  const avatarClasses = equippedFrame ? '' : 'border-2 border-primary/20';
+  const avatarClasses = !equippedFrame ? 'border-2 border-primary/20' : '';
 
 
   return (
