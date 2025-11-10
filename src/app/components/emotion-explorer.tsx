@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, createRef, useCallback, useMemo } from 'react';
@@ -77,7 +76,6 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     if (!userProfile?.activePetId) return SPIRIT_ANIMALS.find(p => p.id === 'loyal-dog') || null;
     return SPIRIT_ANIMALS.find(p => p.id === userProfile.activePetId) || null;
   }, [userProfile]);
-
 
   const purchasedItems = useMemo(() => {
     if (!userProfile?.purchasedItemIds) return [];
@@ -607,6 +605,9 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   };
 
   const renderView = () => {
+    const commonProps = {
+      userProfile: userProfile!,
+    };
     return (
       <div className="animate-fade-in-up h-full">
         {(() => {
@@ -633,8 +634,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
               return <DiscoverView onAddPredefinedEmotion={saveEmotion} />;
             case 'games':
                 return <GamesView 
+                           {...commonProps}
                            emotionsList={emotionsList || []}
-                           userProfile={userProfile!}
                            addPoints={addPoints} 
                            user={user} 
                            onAscentGameEnd={handleAscentGameEnd}
@@ -658,7 +659,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
                      />;
             case 'shop':
                 return <ShopView 
-                          userProfile={userProfile!}
+                          {...commonProps}
                           onPurchaseItem={handlePurchaseItem}
                         />;
             case 'report':
@@ -666,7 +667,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
             case 'share':
               return <ShareView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} userProfile={userProfile!} onShare={handleShare} />;
             case 'profile':
-              return <ProfileView userProfile={userProfile} setUserProfile={setUserProfile} purchasedItems={purchasedItems} />;
+              return <ProfileView {...commonProps} setUserProfile={setUserProfile} purchasedItems={purchasedItems} />;
             default:
               return <DiaryView 
                         emotionsList={emotionsList || []} 

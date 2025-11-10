@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -60,6 +59,7 @@ interface DraggableItemProps {
 const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, onPositionChange, containerRef }) => {
     const itemRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const dragOffset = useRef({ x: 0, y: 0 });
 
     useEffect(() => {
         const currentItem = itemRef.current;
@@ -72,56 +72,60 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
         if (!itemRef.current || !containerRef.current) return;
         
         setIsDragging(true);
+        const itemRect = itemRef.current.getBoundingClientRect();
+        dragOffset.current = {
+            x: e.clientX - itemRect.left,
+            y: e.clientY - itemRect.top
+        };
+        e.preventDefault();
+
+    }, [containerRef]);
+    
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (!isDragging || !itemRef.current || !containerRef.current) return;
         
-        const startPos = { x: e.clientX, y: e.clientY };
-        const startTranslate = { 
-            x: parseFloat(itemRef.current.style.transform.split('(')[1]) || 0,
-            y: parseFloat(itemRef.current.style.transform.split(',')[1]) || 0
-        };
+        const containerRect = containerRef.current.getBoundingClientRect();
 
-        const handleMouseMove = (moveEvent: MouseEvent) => {
-            const dx = moveEvent.clientX - startPos.x;
-            const dy = moveEvent.clientY - startPos.y;
-            
-            let newX = startTranslate.x + dx;
-            let newY = startTranslate.y + dy;
-            
-            const containerRect = containerRef.current!.getBoundingClientRect();
-            const itemWidth = itemRef.current!.offsetWidth;
-            const itemHeight = itemRef.current!.offsetHeight;
+        let newX = e.clientX - containerRect.left - dragOffset.current.x;
+        let newY = e.clientY - containerRect.top - dragOffset.current.y;
+        
+        const itemWidth = itemRef.current.offsetWidth;
+        const itemHeight = itemRef.current.offsetHeight;
 
-            newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
-            newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
-            
-            if(itemRef.current) {
-                itemRef.current.style.transform = `translate(${newX}px, ${newY}px)`;
-            }
-        };
+        newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
+        newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
+        
+        itemRef.current.style.transform = `translate(${newX}px, ${newY}px)`;
+    }, [isDragging, containerRef]);
 
-        const handleMouseUp = (upEvent: MouseEvent) => {
-            setIsDragging(false);
+    const handleMouseUp = useCallback(() => {
+        if (!isDragging || !itemRef.current) return;
+        
+        setIsDragging(false);
+
+        const transform = itemRef.current.style.transform;
+        const translateValues = transform.match(/translate\(([^,]+)px, ([^,]+)px\)/);
+        if (translateValues) {
+            const finalX = parseFloat(translateValues[1]);
+            const finalY = parseFloat(translateValues[2]);
+            onPositionChange(item.id, { x: finalX, y: finalY });
+        }
+    }, [isDragging, item.id, onPositionChange]);
+
+    useEffect(() => {
+        if(isDragging) {
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        } else {
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
-            
-            const dx = upEvent.clientX - startPos.x;
-            const dy = upEvent.clientY - startPos.y;
-
-            let finalX = startTranslate.x + dx;
-            let finalY = startTranslate.y + dy;
-
-            const containerRect = containerRef.current!.getBoundingClientRect();
-            const itemWidth = itemRef.current!.offsetWidth;
-            const itemHeight = itemRef.current!.offsetHeight;
-            
-            finalX = Math.max(0, Math.min(finalX, containerRect.width - itemWidth));
-            finalY = Math.max(0, Math.min(finalY, containerRect.height - itemHeight));
-            
-            onPositionChange(item.id, { x: finalX, y: finalY });
-        };
-
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-    }, [item.id, onPositionChange, containerRef]);
+        }
+        
+        return () => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        }
+    }, [isDragging, handleMouseMove, handleMouseUp]);
     
     return (
         <div
@@ -331,8 +335,8 @@ export function PetChatView({
 
   return (
     <div className="-m-4 md:-m-6 h-full">
-      <Card className="w-full h-full shadow-lg flex flex-col max-w-4xl mx-auto p-4 md:p-6">
-        <CardHeader className="flex flex-row items-center gap-4 p-0 pb-4">
+      <Card className="w-full h-full shadow-lg flex flex-col max-w-4xl mx-auto">
+        <CardHeader className="flex flex-row items-center gap-4 p-4 md:p-6 pb-4">
             <Button
             variant="ghost"
             size="icon"
@@ -350,7 +354,7 @@ export function PetChatView({
             </p>
             </div>
         </CardHeader>
-        <CardContent className="flex-grow overflow-hidden flex flex-col gap-4 p-0">
+        <CardContent className="flex-grow overflow-hidden flex flex-col gap-4 p-4 pt-0 md:p-6 md:pt-0">
             <div ref={roomContainerRef} className="relative rounded-lg flex-shrink-0 overflow-hidden h-64 border-2" >
                 <div 
                     className="absolute inset-0 transition-all duration-500"
@@ -430,7 +434,7 @@ export function PetChatView({
             </div>
             </ScrollArea>
         </CardContent>
-        <CardFooter className="p-0 pt-4">
+        <CardFooter className="p-4 pt-0 md:p-6 md:pt-0">
             <form
             onSubmit={(e) => {
                 e.preventDefault();
