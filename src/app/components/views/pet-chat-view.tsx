@@ -1,35 +1,16 @@
+"use client";
 
-'use client';
-
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from '@/components/ui/card';
+import React, { useState, useEffect, useRef } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { chatWithPet } from '@/ai/flows/chat-with-pet';
-import type {
-  SpiritAnimal,
-  View,
-  DiaryEntry,
-  Emotion,
-  UserProfile,
-  ShopItem,
-} from '@/lib/types';
+import type { SpiritAnimal, View, DiaryEntry, Emotion, UserProfile, ShopItem } from '@/lib/types';
 import type { User } from 'firebase/auth';
 import { ArrowLeft, Send, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
-import { doc } from 'firebase/firestore';
-import { useFirebase } from '@/firebase';
-import { SHOP_ITEMS } from '@/lib/constants';
-import anime from 'animejs';
-
+import { SHOP_ITEMS } from '@/lib/constants'; // ¡IMPORTANTE!
 
 interface PetChatViewProps {
   pet: SpiritAnimal | null;
@@ -37,8 +18,7 @@ interface PetChatViewProps {
   setView: (view: View) => void;
   diaryEntries: DiaryEntry[];
   emotionsList: Emotion[];
-  userProfile: UserProfile | null;
-  purchasedItems: ShopItem[];
+  userProfile: UserProfile; // ¡PROP NECESARIO!
 }
 
 interface Message {
@@ -46,305 +26,83 @@ interface Message {
   sender: 'user' | 'pet';
 }
 
-function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<F>): void => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), waitFor);
-  };
-}
+const getEmotionById = (id: string, emotionsList: Emotion[]) => emotionsList.find(e => e.id === id);
 
-interface DraggableItemProps {
-    item: ShopItem;
-    initialPosition: { x: number; y: number };
-    onPositionChange: (itemId: string, pos: { x: number; y: number }) => void;
-    containerRef: React.RefObject<HTMLDivElement>;
-}
-
-const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, onPositionChange, containerRef }) => {
-    const itemRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const currentItem = itemRef.current;
-        if (currentItem) {
-            anime({
-                targets: currentItem,
-                translateX: initialPosition.x,
-                translateY: initialPosition.y,
-                duration: 0,
-            });
-        }
-    }, [initialPosition]);
-
-    const handleMouseDown = useCallback((e: React.MouseEvent) => {
-        if (!itemRef.current || !containerRef.current) return;
-        
-        const currentItem = itemRef.current;
-        anime.remove(currentItem); 
-
-        const containerRect = containerRef.current.getBoundingClientRect();
-        
-        const onMouseMove = (moveEvent: MouseEvent) => {
-            let newX = moveEvent.clientX - containerRect.left - (currentItem.offsetWidth / 2);
-            let newY = moveEvent.clientY - containerRect.top - (currentItem.offsetHeight / 2);
-
-            newX = Math.max(0, Math.min(newX, containerRect.width - currentItem.offsetWidth));
-            newY = Math.max(0, Math.min(newY, containerRect.height - currentItem.offsetHeight));
-
-            anime({
-                targets: currentItem,
-                translateX: newX,
-                translateY: newY,
-                duration: 0,
-                easing: 'linear'
-            });
-        };
-
-        const onMouseUp = (upEvent: MouseEvent) => {
-            let finalX = upEvent.clientX - containerRect.left - (currentItem.offsetWidth / 2);
-            let finalY = upEvent.clientY - containerRect.top - (currentItem.offsetHeight / 2);
-            
-            finalX = Math.max(0, Math.min(finalX, containerRect.width - currentItem.offsetWidth));
-            finalY = Math.max(0, Math.min(finalY, containerRect.height - currentItem.offsetHeight));
-
-            onPositionChange(item.id, { x: finalX, y: finalY });
-            
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-        };
-
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-
-        e.preventDefault();
-    }, [containerRef, item.id, onPositionChange]);
-    
-    return (
-        <div
-            ref={itemRef}
-            className="absolute text-5xl cursor-grab w-16 h-16 flex items-center justify-center"
-            onMouseDown={handleMouseDown}
-        >
-            {item.icon}
-        </div>
-    );
-};
-
-interface DraggablePetProps {
-    pet: SpiritAnimal;
-    initialPosition: { x: number; y: number };
-    onPositionChange: (pos: { x: number; y: number }) => void;
-    containerRef: React.RefObject<HTMLDivElement>;
-}
-
-const DraggablePet: React.FC<DraggablePetProps> = ({ pet, initialPosition, onPositionChange, containerRef }) => {
-    const itemRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const currentItem = itemRef.current;
-        if (currentItem) {
-            anime({
-                targets: currentItem,
-                translateX: initialPosition.x,
-                translateY: initialPosition.y,
-                duration: 0,
-            });
-        }
-    }, [initialPosition]);
-
-    const handleMouseDown = useCallback((e: React.MouseEvent) => {
-        if (!itemRef.current || !containerRef.current) return;
-        
-        const currentItem = itemRef.current;
-        anime.remove(currentItem); 
-
-        const containerRect = containerRef.current.getBoundingClientRect();
-        
-        const onMouseMove = (moveEvent: MouseEvent) => {
-            let newX = moveEvent.clientX - containerRect.left - (currentItem.offsetWidth / 2);
-            let newY = moveEvent.clientY - containerRect.top - (currentItem.offsetHeight / 2);
-
-            newX = Math.max(0, Math.min(newX, containerRect.width - currentItem.offsetWidth));
-            newY = Math.max(0, Math.min(newY, containerRect.height - currentItem.offsetHeight));
-
-            anime({
-                targets: currentItem,
-                translateX: newX,
-                translateY: newY,
-                duration: 0,
-                easing: 'linear'
-            });
-        };
-
-        const onMouseUp = (upEvent: MouseEvent) => {
-            let finalX = upEvent.clientX - containerRect.left - (currentItem.offsetWidth / 2);
-            let finalY = upEvent.clientY - containerRect.top - (currentItem.offsetHeight / 2);
-            
-            finalX = Math.max(0, Math.min(finalX, containerRect.width - currentItem.offsetWidth));
-            finalY = Math.max(0, Math.min(finalY, containerRect.height - currentItem.offsetHeight));
-
-            onPositionChange({ x: finalX, y: finalY });
-            
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-        };
-
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
-
-        e.preventDefault();
-    }, [containerRef, onPositionChange]);
-    
-    return (
-        <div
-            ref={itemRef}
-            className="absolute cursor-grab w-36 h-36 flex items-center justify-center"
-            onMouseDown={handleMouseDown}
-        >
-             <div className="w-24 h-24 rounded-full bg-card flex items-center justify-center text-6xl shadow-lg border-4 border-white dark:border-gray-800">
-                <span className="drop-shadow-lg">{pet.icon}</span>
-            </div>
-        </div>
-    );
-};
-
-
-const getEmotionById = (id: string, emotionsList: Emotion[]) =>
-  emotionsList.find((e) => e.id === id);
-
-const getRecentFeelingsContext = (
-  diaryEntries: DiaryEntry[],
-  emotionsList: Emotion[]
-) => {
-  const recentEntries = [...diaryEntries].reverse().slice(0, 3);
-  if (recentEntries.length === 0) {
-    return {
-      contextString: 'El usuario aún no ha escrito en su diario.',
-      displayFeelings: [],
-    };
-  }
-
-  const contextString =
-    'Contexto de sentimientos recientes: ' +
-    recentEntries
-      .map((entry, index) => {
-        const emotion = getEmotionById(entry.emotionId, emotionsList);
-        return `${index + 1}. Emoción: ${
-          emotion?.name || 'desconocida'
-        }, Pensamiento: "${entry.text}"`;
-      })
-      .join(' ');
-
-  const displayFeelings = recentEntries
-    .map((entry) => getEmotionById(entry.emotionId, emotionsList))
-    .filter(Boolean) as Emotion[];
-
-  return { contextString, displayFeelings };
-};
-
-export function PetChatView({
-  pet,
-  user,
-  setView,
-  diaryEntries,
-  emotionsList,
-  userProfile,
-  purchasedItems,
-}: PetChatViewProps) {
+export function PetChatView({ pet, user, setView, diaryEntries, emotionsList, userProfile }: PetChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [initialContext, setInitialContext] = useState<{
-    contextString: string;
-    displayFeelings: Emotion[];
-  } | null>(null);
+  const [initialContext, setInitialContext] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const roomContainerRef = useRef<HTMLDivElement>(null);
-  const { firestore } = useFirebase();
 
-  const userProfileRef = useMemoFirebase(
-    () => (user ? doc(firestore, 'users', user.uid) : null),
-    [firestore, user]
-  );
-  
-  const [accessoryPositions, setAccessoryPositions] = useState(userProfile?.petAccessoryPositions || {});
-  const [petPosition, setPetPosition] = useState(userProfile?.petPosition || { x: 200, y: 150 });
+  // --- LÓGICA DEL FONDO (¡ARREGLADA!) ---
+  const backgroundItem = userProfile.activeRoomBackgroundId
+    ? SHOP_ITEMS.find(item => item.id === userProfile.activeRoomBackgroundId)
+    : null;
 
-
-  useEffect(() => {
-    if (userProfile?.petAccessoryPositions) {
-      setAccessoryPositions(userProfile.petAccessoryPositions);
-    }
-    if (userProfile?.petPosition) {
-        setPetPosition(userProfile.petPosition);
-    }
-  }, [userProfile?.petAccessoryPositions, userProfile?.petPosition]);
-  
-  const debouncedUpdateAccessoryPositions = useCallback(
-    debounce((newPositions) => {
-        if (userProfileRef) {
-            updateDocumentNonBlocking(userProfileRef, { petAccessoryPositions: newPositions });
-        }
-    }, 1000),
-    [userProfileRef]
-  );
-  
-  const debouncedUpdatePetPosition = useCallback(
-    debounce((newPosition) => {
-        if (userProfileRef) {
-            updateDocumentNonBlocking(userProfileRef, { petPosition: newPosition });
-        }
-    }, 1000),
-    [userProfileRef]
-  );
-
-
-  const handleAccessoryPositionChange = useCallback((itemId: string, pos: { x: number; y: number }) => {
-    setAccessoryPositions(prev => {
-        const newPositions = { ...prev, [itemId]: pos };
-        debouncedUpdateAccessoryPositions(newPositions);
-        return newPositions;
-    });
-  }, [debouncedUpdateAccessoryPositions]);
-
-  const handlePetPositionChange = useCallback((pos: { x: number; y: number }) => {
-    setPetPosition(pos);
-    debouncedUpdatePetPosition(pos);
-  }, [debouncedUpdatePetPosition]);
-
-
-  useEffect(() => {
-    if (scrollAreaRef.current) {
-      const viewport =
-        scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (viewport) {
-        viewport.scrollTop = viewport.scrollHeight;
+  const backgroundStyle = backgroundItem
+    ? { 
+        backgroundImage: `url(${backgroundItem.imageUrl})`, 
+        backgroundSize: 'cover', 
+        backgroundPosition: 'center' 
       }
+    : { 
+        backgroundColor: '#F0FDF4', // Color verde claro por defecto
+        backgroundImage: 'none'
+      };
+  // --- FIN LÓGICA DEL FONDO ---
+
+  // --- LÓGICA DE ÍTEMS (¡ARREGLADA!) ---
+  const purchasedItems = userProfile.purchasedItemIds
+    ? SHOP_ITEMS.filter(item => 
+        userProfile.purchasedItemIds.includes(item.id) && 
+        (item.type === 'pet_accessory') // (Usamos 'pet_accessory' de tu 'constants.ts')
+      )
+    : [];
+  // --- FIN LÓGICA DE ÍTEMS ---
+
+  useEffect(() => {
+    // Scroll al final del chat
+    if (scrollAreaRef.current) {
+        const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+        if (viewport) {
+          viewport.scrollTop = viewport.scrollHeight;
+        }
     }
   }, [messages]);
 
   useEffect(() => {
+    // Cargar saludo inicial y contexto
     if (pet) {
       setMessages([
-        { text: `¡Hola! Soy ${pet.name}. ¿Cómo estás hoy?`, sender: 'pet' },
+        { text: `¡Hola! Soy ${pet.name}. ¿Cómo estás hoy?`, sender: 'pet' }
       ]);
-      const context = getRecentFeelingsContext(diaryEntries, emotionsList);
-      setInitialContext(context);
+      
+      const recentEntries = [...diaryEntries].reverse().slice(0, 3);
+      if (recentEntries.length > 0) {
+          const contextStr = "Contexto: " + recentEntries.map((entry, index) => {
+              const emotion = getEmotionById(entry.emotionId, emotionsList);
+              return `${emotion?.name || 'desconocida'}: "${entry.text}"`;
+          }).join('; ');
+          setInitialContext(contextStr);
+      } else {
+          setInitialContext("El usuario aún no ha escrito en su diario.");
+      }
     }
   }, [pet, diaryEntries, emotionsList]);
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || !pet || !initialContext) return;
-
+    
     const userMessage: Message = { text: inputValue, sender: 'user' };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInputValue('');
     setIsLoading(true);
 
-    const history = newMessages.slice(0, -1).map((msg) => ({
-      role: msg.sender === 'user' ? 'user' : ('model' as 'user' | 'model'),
-      content: [{ text: msg.text }],
+    const history = newMessages.slice(0, -1).map(msg => ({
+        role: msg.sender === 'user' ? 'user' : ('model' as 'user' | 'model'),
+        content: [{ text: msg.text }],
     }));
 
     try {
@@ -352,178 +110,141 @@ export function PetChatView({
         userId: user.uid,
         message: inputValue,
         petName: pet.name,
-        recentFeelingsContext: initialContext.contextString,
+        recentFeelingsContext: initialContext,
         history: history,
       });
-
       const petMessage: Message = { text: response.response, sender: 'pet' };
-      setMessages((prev) => [...prev, petMessage]);
+      setMessages(prev => [...prev, petMessage]);
     } catch (error) {
-      console.error('Error chatting with pet:', error);
-      const errorMessage: Message = {
-        text: 'Uhm... no sé qué decir. Inténtalo de nuevo.',
-        sender: 'pet',
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      console.error("Error chatting with pet:", error);
+      const errorMessage: Message = { text: "Uhm... no sé qué decir. Inténtalo de nuevo.", sender: 'pet' };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const purchasedAccessories = useMemo(() => {
-      if (!purchasedItems) return [];
-      return purchasedItems.filter(item => item.type === 'pet_accessory');
-  }, [purchasedItems]);
-
-  const backgroundItem = userProfile?.activePetBackgroundId
-    ? SHOP_ITEMS.find(item => item.id === userProfile.activePetBackgroundId)
-    : null;
-    
-    const backgroundStyle = backgroundItem?.imageUrl
-    ? {
-        backgroundImage: `url(${backgroundItem.imageUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }
-    : {};
-
-
-  if (!pet || !userProfile) {
+  if (!pet) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
-        <p className="text-lg font-semibold">
-          { !userProfile ? "Cargando compañero..." : "No has seleccionado ninguna mascota."}
-        </p>
-        {userProfile && <Button onClick={() => setView('sanctuary')} className="mt-4">
-          Ir al Santuario
-        </Button>}
+          <p className="text-lg font-semibold">No has seleccionado ninguna mascota.</p>
+          <Button onClick={() => setView('sanctuary')} className="mt-4">
+            Ir a Mi Habitación
+          </Button>
       </div>
-    );
+    )
   }
 
+  // --- RENDERIZADO (LAYOUT CORRECTO) ---
   return (
-    <div className="h-full">
-      <Card className="w-full h-full shadow-lg flex flex-col max-w-4xl mx-auto rounded-lg">
-        <CardHeader className="flex flex-row items-center gap-4 p-4 md:p-6 pb-4">
-            <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setView('sanctuary')}
-            >
+    <Card className="w-full h-full shadow-lg flex flex-col max-w-3xl mx-auto">
+      {/* 1. CABECERA */}
+      <CardHeader className="flex flex-row items-center gap-4">
+        <Button variant="ghost" size="icon" onClick={() => setView('sanctuary')}>
             <ArrowLeft />
-            </Button>
-            <span className="text-4xl">{pet.icon}</span>
-            <div>
-            <CardTitle className="text-2xl font-bold text-primary">
-                {pet.name}
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-                Tu compañero IA activo
-            </p>
-            </div>
-        </CardHeader>
-        <CardContent className="flex-grow overflow-hidden flex flex-col gap-4 p-4 pt-0 md:p-6 md:pt-0">
-            <div 
-              ref={roomContainerRef} 
-              className="relative rounded-lg flex-shrink-0 overflow-hidden h-64 border-2 bg-muted/30"
-              style={backgroundStyle}
-            >
-                
-                 <DraggablePet
-                    pet={pet}
-                    initialPosition={petPosition}
-                    onPositionChange={handlePetPositionChange}
-                    containerRef={roomContainerRef}
-                />
+        </Button>
+        <div className="w-12 h-12 rounded-full bg-card flex items-center justify-center text-3xl shadow border-2">
+          {pet.icon}
+        </div>
+        <div>
+            <CardTitle className="text-2xl font-bold text-primary">{pet.name}</CardTitle>
+            <p className="text-sm text-muted-foreground">Tu compañero IA activo</p>
+        </div>
+      </CardHeader>
 
-                {purchasedAccessories.map(item => (
-                    <DraggableItem
-                        key={item.id}
-                        item={item}
-                        initialPosition={accessoryPositions[item.id] || { x: Math.random() * 200, y: Math.random() * 100 }}
-                        onPositionChange={handleAccessoryPositionChange}
-                        containerRef={roomContainerRef}
-                    />
-                ))}
-            </div>
+      {/* 2. CONTENIDO PRINCIPAL (Habitación + Chat) */}
+      <CardContent className="flex-grow flex flex-col min-h-0">
 
-            <ScrollArea className="h-full flex-grow" ref={scrollAreaRef}>
-            <div className="p-4 space-y-4">
-                {messages.map((msg, index) => (
-                <div
-                    key={index}
-                    className={cn(
-                    'flex items-end gap-2',
-                    msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                    )}
-                >
-                    {msg.sender === 'pet' && (
-                    <span className="text-3xl w-10 h-10 flex-shrink-0">
-                        {pet.icon}
-                    </span>
-                    )}
-                    <div
-                    className={cn(
-                        'p-3 rounded-lg max-w-xs md:max-w-md lg:max-w-lg',
-                        msg.sender === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted'
-                    )}
-                    >
-                    <p>{msg.text}</p>
-                    </div>
-                </div>
-                ))}
-                {initialContext &&
-                initialContext.displayFeelings.length > 0 &&
-                messages.length <= 2 && (
-                    <div className="flex items-start gap-3 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg animate-fade-in">
+        {/* 2a. LA HABITACIÓN (con fondo dinámico) */}
+        <div 
+          className="h-1/2 w-full relative rounded-lg border" // Añadido border para verla
+          style={backgroundStyle}
+        >
+          {/* Renderizar Ítems Comprados */}
+          {purchasedItems.map((item, index) => (
+            <img
+              key={item.id}
+              src={item.imageUrl} // <-- Usa la imagen grande
+              alt={item.name}
+              className="w-16 h-16 absolute"
+              // Posición temporal (¡luego la haremos 'draggable'!)
+              style={{ top: '70%', left: `${20 + (index * 20)}%` }} 
+            />
+          ))}
+
+          {/* Mascota Emoji en la Habitación */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+            <div className="w-24 h-24 rounded-full bg-card/80 dark:bg-card flex items-center justify-center text-6xl shadow-lg border-4 border-white dark:border-gray-800">
+              {pet.icon}
+            </div>
+          </div>
+        </div>
+
+        {/* 2b. EL CHAT (separado de la habitación) */}
+        <div className="h-1/2 flex flex-col pt-4">
+          <ScrollArea className="flex-grow h-full" ref={scrollAreaRef}>
+              <div className="p-4 space-y-4">
+                {/* Contexto Inicial */}
+                {initialContext && messages.length <= 1 && (
+                  <div className="flex items-start gap-3 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg animate-fade-in">
                     <Info className="h-5 w-5 mt-0.5 shrink-0" />
-                    <p>
-                        Para esta charla, estoy recordando que últimamente te has
-                        sentido:{' '}
-                        {initialContext.displayFeelings.map((e) => e.name).join(', ')}.
-                    </p>
-                    </div>
+                    <p>{initialContext.replace('Contexto de sentimientos recientes: ', 'Para esta charla, estoy recordando que: ')}</p>
+                  </div>
                 )}
+                {/* Mensajes del Chat */}
+                {messages.map((msg, index) => (
+                  <div key={index} className={cn("flex items-end gap-2", msg.sender === 'user' ? 'justify-end' : 'justify-start')}>
+                      {msg.sender === 'pet' && (
+                        <div className="w-8 h-8 rounded-full bg-card flex items-center justify-center text-xl shadow border-2 shrink-0">
+                          {pet.icon}
+                        </div>
+                      )}
+                      <div className={cn(
+                          "p-3 rounded-lg max-w-xs md:max-w-md lg:max-w-lg shadow",
+                          msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-card'
+                      )}>
+                          <p>{msg.text}</p>
+                      </div>
+                  </div>
+                ))}
+                {/* Indicador de "Escribiendo..." */}
                 {isLoading && (
-                <div className="flex items-end gap-2 justify-start">
-                    <span className="text-3xl w-10 h-10 flex-shrink-0">
+                    <div className="flex items-end gap-2 justify-start">
+                      <div className="w-8 h-8 rounded-full bg-card flex items-center justify-center text-xl shadow border-2 shrink-0">
                         {pet.icon}
-                    </span>
-                    <div className="p-3 rounded-lg bg-muted">
-                    <div className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.3s]"></span>
-                        <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.15s]"></span>
-                        <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce"></span>
+                      </div>
+                      <div className="p-3 rounded-lg bg-card shadow">
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.3s]"></span>
+                            <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.15s]"></span>
+                            <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce"></span>
+                          </div>
+                      </div>
                     </div>
-                    </div>
-                </div>
                 )}
-            </div>
-            </ScrollArea>
-        </CardContent>
-        <CardFooter className="p-4 pt-0 md:p-6 md:pt-0">
-            <form
-            onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage();
-            }}
+              </div>
+          </ScrollArea>
+        </div>
+      </CardContent>
+
+      {/* 3. PIE DE PÁGINA (Input de Chat) */}
+      <CardFooter>
+        <form
+            onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }}
             className="flex w-full items-center space-x-2"
-            >
+        >
             <Input
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder={`Escribe un mensaje a ${pet.name}...`}
-                disabled={isLoading}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder={`Escribe un mensaje a ${pet.name}...`}
+              disabled={isLoading}
+              className="bg-card"
             />
             <Button type="submit" disabled={isLoading || !inputValue.trim()}>
-                <Send className="h-4 w-4" />
-                <span className="sr-only">Enviar</span>
+              <Send className="h-4 w-4"/>
             </Button>
-            </form>
-        </CardFooter>
-      </Card>
-    </div>
+        </form>
+      </CardFooter>
+    </Card>
   );
 }
