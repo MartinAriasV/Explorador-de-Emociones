@@ -60,71 +60,86 @@ interface DraggableItemProps {
 
 const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, onPositionChange, containerRef }) => {
     const [position, setPosition] = useState(initialPosition);
-    const [isDragging, setIsDragging] = useState(false);
+    const itemRef = useRef<HTMLDivElement>(null);
+    const isDraggingRef = useRef(false);
+    const dragStartPosRef = useRef({ x: 0, y: 0 });
+    const itemStartPosRef = useRef({ x: 0, y: 0 });
+
+    useEffect(() => {
+        setPosition(initialPosition);
+        if (itemRef.current) {
+            itemRef.current.style.transform = `translate(${initialPosition.x}px, ${initialPosition.y}px)`;
+        }
+    }, [initialPosition]);
 
     const handleMouseDown = (e: React.MouseEvent) => {
-        setIsDragging(true);
+        if (!itemRef.current) return;
+        isDraggingRef.current = true;
+        dragStartPosRef.current = { x: e.clientX, y: e.clientY };
+        itemStartPosRef.current = { ...position };
+        itemRef.current.style.transition = 'none'; // Disable transition during drag
+        itemRef.current.style.cursor = 'grabbing';
+        itemRef.current.style.zIndex = '20';
+        
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
         e.preventDefault();
-        e.stopPropagation();
     };
 
     const handleMouseMove = useCallback((e: MouseEvent) => {
-        if (!isDragging || !containerRef.current) return;
-        
+        if (!isDraggingRef.current || !containerRef.current || !itemRef.current) return;
+
+        const dx = e.clientX - dragStartPosRef.current.x;
+        const dy = e.clientY - dragStartPosRef.current.y;
+
         const containerRect = containerRef.current.getBoundingClientRect();
+        const itemWidth = itemRef.current.offsetWidth;
+        const itemHeight = itemRef.current.offsetHeight;
+
+        let newX = itemStartPosRef.current.x + dx;
+        let newY = itemStartPosRef.current.y + dy;
+
+        newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
+        newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
         
-        setPosition(prevPos => {
-            let newX = prevPos.x + e.movementX;
-            let newY = prevPos.y + e.movementY;
-            
-            const itemWidth = 64; 
-            const itemHeight = 64;
+        itemRef.current.style.transform = `translate(${newX}px, ${newY}px)`;
+    }, [containerRef]);
 
-            newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
-            newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
+    const handleMouseUp = useCallback((e: MouseEvent) => {
+        if (!isDraggingRef.current || !containerRef.current || !itemRef.current) return;
+        
+        isDraggingRef.current = false;
+        
+        const dx = e.clientX - dragStartPosRef.current.x;
+        const dy = e.clientY - dragStartPosRef.current.y;
 
-            return { x: newX, y: newY };
-        });
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const itemWidth = itemRef.current.offsetWidth;
+        const itemHeight = itemRef.current.offsetHeight;
 
-    }, [isDragging, containerRef]);
+        let finalX = itemStartPosRef.current.x + dx;
+        let finalY = itemStartPosRef.current.y + dy;
 
-    const handleMouseUp = useCallback(() => {
-        setIsDragging(false);
-    }, []);
+        finalX = Math.max(0, Math.min(finalX, containerRect.width - itemWidth));
+        finalY = Math.max(0, Math.min(finalY, containerRect.height - itemHeight));
+        
+        setPosition({ x: finalX, y: finalY });
+        onPositionChange(item.id, { x: finalX, y: finalY });
 
-    useEffect(() => {
-        if (isDragging) {
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
-        } else {
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
-        }
-        return () => {
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
-        };
-    }, [isDragging, handleMouseMove, handleMouseUp]);
+        itemRef.current.style.transition = 'transform 0.2s';
+        itemRef.current.style.cursor = 'grab';
+        itemRef.current.style.zIndex = '10';
 
-    useEffect(() => {
-        if (!isDragging) {
-            onPositionChange(item.id, position);
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isDragging]);
-    
-    useEffect(() => {
-        setPosition(initialPosition);
-    }, [initialPosition]);
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+    }, [containerRef, item.id, onPositionChange, handleMouseMove]);
 
     return (
         <div
+            ref={itemRef}
             className="absolute text-5xl z-10 cursor-grab"
             style={{
-                left: `${position.x}px`,
-                top: `${position.y}px`,
-                transform: isDragging ? 'scale(1.1)' : 'scale(1)',
-                transition: 'transform 0.1s ease-in-out',
+                transform: `translate(${position.x}px, ${position.y}px)`,
                 width: '64px',
                 height: '64px',
                 userSelect: 'none',
@@ -346,7 +361,7 @@ export function PetChatView({
         </div>
       </CardHeader>
       <CardContent className="flex-grow overflow-hidden flex flex-col gap-4 p-0">
-        <div className="rounded-lg flex-shrink-0 relative overflow-hidden h-64 border-2" ref={roomContainerRef}>
+        <div ref={roomContainerRef} className="rounded-lg flex-shrink-0 relative overflow-hidden h-64 border-2" >
             <div 
                 className="absolute inset-0 transition-all duration-500"
                 style={Object.keys(currentBackgroundStyle).length > 0 ? currentBackgroundStyle : { backgroundColor: 'hsl(var(--muted) / 0.5)' }}
@@ -354,19 +369,19 @@ export function PetChatView({
             <div className="relative w-full h-full flex items-center justify-center">
                 <div className="relative w-48 h-32">
                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
-                        <span className="text-8xl drop-shadow-lg z-20 relative">{pet.icon}</span>
+                        <span className="text-8xl drop-shadow-lg z-0 relative">{pet.icon}</span>
                     </div>
-                    {purchasedAccessories.map(item => (
-                        <DraggableItem
-                            key={item.id}
-                            item={item}
-                            initialPosition={accessoryPositions[item.id] || { x: Math.random() * ((roomContainerRef.current?.clientWidth || 300) - 64), y: Math.random() * ((roomContainerRef.current?.clientHeight || 200) - 64) }}
-                            onPositionChange={handlePositionChange}
-                            containerRef={roomContainerRef}
-                        />
-                    ))}
                 </div>
             </div>
+             {purchasedAccessories.map(item => (
+                <DraggableItem
+                    key={item.id}
+                    item={item}
+                    initialPosition={accessoryPositions[item.id] || { x: Math.random() * 200, y: Math.random() * 100 }}
+                    onPositionChange={handlePositionChange}
+                    containerRef={roomContainerRef}
+                />
+            ))}
         </div>
 
         <ScrollArea className="h-full flex-grow" ref={scrollAreaRef}>
