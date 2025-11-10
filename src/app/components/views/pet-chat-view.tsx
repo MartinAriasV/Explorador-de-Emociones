@@ -340,7 +340,7 @@ export function PetChatView({
             </div>
         </CardHeader>
         <CardContent className="flex-grow overflow-hidden flex flex-col gap-4 p-4 pt-0 md:p-6 md:pt-0">
-            <div ref={roomContainerRef} className="relative rounded-lg flex-shrink-0 overflow-hidden h-64 border-2 -m-4 md:-m-6" >
+            <div ref={roomContainerRef} className="relative rounded-lg flex-shrink-0 overflow-hidden h-64 border-2" >
                 <div 
                     className="absolute inset-0 transition-all duration-500"
                     style={Object.keys(currentBackgroundStyle).length > 0 ? currentBackgroundStyle : { backgroundColor: 'hsl(var(--muted) / 0.5)' }}
