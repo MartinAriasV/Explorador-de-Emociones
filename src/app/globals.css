@@ -107,6 +107,7 @@ body {
   }
 
   .theme-forest {
+    --background: 94 25% 90%;
     --foreground: 120 25% 15%;
     --card: 120 15% 100%;
     --card-foreground: 120 25% 15%;
@@ -126,6 +127,7 @@ body {
   }
   
   .dark.theme-forest {
+    --background: 120 15% 8%;
     --foreground: 120 10% 95%;
     --card: 120 25% 12%;
     --card-foreground: 120 10% 95%;
@@ -149,7 +151,7 @@ body {
     @apply border-border;
   }
   body {
-    @apply text-foreground;
+    @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
