@@ -608,7 +608,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 
   const renderView = () => {
     return (
-      <div className="animate-fade-in-up h-full p-4 md:p-6">
+      <div className="animate-fade-in-up h-full">
         {(() => {
           switch (view) {
             case 'diary':

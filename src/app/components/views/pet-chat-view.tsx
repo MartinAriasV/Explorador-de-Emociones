@@ -65,10 +65,9 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
 
     const handleMouseDown = (e: React.MouseEvent) => {
         setIsDragging(true);
-        // Calculate the offset from the element's top-left corner to the mouse click point
         dragOffset.current = {
-            x: e.clientX - e.currentTarget.getBoundingClientRect().left,
-            y: e.clientY - e.currentTarget.getBoundingClientRect().top,
+            x: e.clientX - position.x,
+            y: e.clientY - position.y
         };
         e.preventDefault();
         e.stopPropagation();
@@ -79,14 +78,12 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
         
         const containerRect = containerRef.current.getBoundingClientRect();
         
-        // Calculate new position based on mouse position relative to the container, adjusted by the initial click offset
-        let newX = e.clientX - containerRect.left - dragOffset.current.x;
-        let newY = e.clientY - containerRect.top - dragOffset.current.y;
+        let newX = e.clientX - dragOffset.current.x;
+        let newY = e.clientY - dragOffset.current.y;
 
         const itemWidth = 64; 
         const itemHeight = 64;
         
-        // Constrain the new position within the container's bounds
         newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
         newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
 
@@ -96,7 +93,6 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
     const handleMouseUp = useCallback(() => {
         if (!isDragging) return;
         setIsDragging(false);
-        // Final position update is sent via `position` state change in the useEffect below
     }, [isDragging]);
 
     useEffect(() => {
@@ -113,7 +109,6 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
         };
     }, [isDragging, handleMouseMove, handleMouseUp]);
 
-    // When dragging stops, call onPositionChange with the final position
     useEffect(() => {
         if (!isDragging) {
             onPositionChange(item.id, position);
@@ -121,7 +116,6 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isDragging]);
     
-    // Update local position if initialPosition prop changes from outside
     useEffect(() => {
         setPosition(initialPosition);
     }, [initialPosition]);
@@ -136,6 +130,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
                 transition: 'transform 0.1s ease-in-out',
                 width: '64px',
                 height: '64px',
+                userSelect: 'none',
             }}
             onMouseDown={handleMouseDown}
         >
@@ -334,8 +329,8 @@ export function PetChatView({
   }
 
   return (
-    <Card className="w-full h-full shadow-lg flex flex-col max-w-4xl mx-auto">
-      <CardHeader className="flex flex-row items-center gap-4">
+    <Card className="w-full h-full shadow-lg flex flex-col max-w-4xl mx-auto p-4 md:p-6">
+      <CardHeader className="flex flex-row items-center gap-4 p-0 pb-4">
         <Button
           variant="ghost"
           size="icon"
@@ -353,7 +348,7 @@ export function PetChatView({
           </p>
         </div>
       </CardHeader>
-      <CardContent className="flex-grow overflow-hidden flex flex-col gap-4">
+      <CardContent className="flex-grow overflow-hidden flex flex-col gap-4 p-0">
         <div className="rounded-lg flex-shrink-0 relative overflow-hidden h-64 border-2" ref={roomContainerRef}>
             <div 
                 className="absolute inset-0 transition-all duration-500"
@@ -368,7 +363,7 @@ export function PetChatView({
                         <DraggableItem
                             key={item.id}
                             item={item}
-                            initialPosition={accessoryPositions[item.id] || { x: Math.random() * 100, y: Math.random() * 50 }}
+                            initialPosition={accessoryPositions[item.id] || { x: Math.random() * (roomContainerRef.current?.clientWidth || 300) - 32, y: Math.random() * (roomContainerRef.current?.clientHeight || 200) - 32 }}
                             onPositionChange={handlePositionChange}
                             containerRef={roomContainerRef}
                         />
@@ -433,7 +428,7 @@ export function PetChatView({
           </div>
         </ScrollArea>
       </CardContent>
-      <CardFooter>
+      <CardFooter className="p-0 pt-4">
         <form
           onSubmit={(e) => {
             e.preventDefault();
