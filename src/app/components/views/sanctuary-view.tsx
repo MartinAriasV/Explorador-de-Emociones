@@ -10,7 +10,7 @@ import type { SpiritAnimal, UserProfile } from '@/lib/types';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, Star } from 'lucide-react';
-import Image from 'next/image';
+import { Player } from '@lottiefiles/react-lottie-player';
 
 
 interface SanctuaryViewProps {
@@ -55,14 +55,15 @@ function AnimalCard({ animal, isUnlocked, onSelectPet, isActivePet }: { animal: 
             {isUnlocked ? (
               <>
                 <div className="relative w-24 h-24">
-                  <Image src={animal.imageUrl} alt={animal.name} fill sizes="96px" className="object-contain drop-shadow-lg" />
+                  <Player src={animal.lottieUrl} autoplay loop />
                 </div>
                 <h3 className="text-xl font-bold text-foreground">{animal.name}</h3>
               </>
             ) : (
               <>
                 <div className="relative w-24 h-24">
-                  <Image src={animal.imageUrl} alt="Animal bloqueado" fill sizes="96px" className="object-contain grayscale opacity-40" />
+                  <Player src={animal.lottieUrl} loop />
+                   <div className="absolute inset-0 bg-background/50 backdrop-grayscale"></div>
                 </div>
                 <h3 className="text-xl font-bold text-muted-foreground">Bloqueado</h3>
               </>
@@ -79,8 +80,8 @@ function AnimalCard({ animal, isUnlocked, onSelectPet, isActivePet }: { animal: 
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-2xl text-primary flex items-center gap-3">
-             <div className="relative w-12 h-12">
-                <Image src={animal.imageUrl} alt={isUnlocked ? animal.name : "Animal bloqueado"} fill sizes="48px" className={cn("object-contain", !isUnlocked && "grayscale opacity-60")} />
+             <div className="relative w-16 h-16">
+                <Player src={animal.lottieUrl} autoplay loop className={cn(!isUnlocked && "grayscale opacity-60")} />
              </div>
              {isUnlocked ? animal.name : 'Animal Bloqueado'}
           </DialogTitle>

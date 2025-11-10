@@ -53,7 +53,7 @@ export type TourStepData = {
 export type SpiritAnimal = {
   id: string;
   name:string;
-  imageUrl: string;
+  lottieUrl: string;
   emotion: string;
   description: string;
   rarity: 'Común' | 'Poco Común' | 'Raro' | 'Épico' | 'Legendario';

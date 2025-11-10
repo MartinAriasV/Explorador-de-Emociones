@@ -95,7 +95,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
     {
         id: 'agile-hummingbird',
         name: 'Colibrí Ágil',
-        imageUrl: '/images/pets/colibri-agil.png',
+        lottieUrl: 'https://lottie.host/6d03b0d5-c518-42f5-b6d6-ba9c6f212781/h3HiaakpBC.json',
         emotion: 'Entusiasmo',
         description: 'Representa la alegría, la energía y la capacidad de encontrar la dulzura en cada día.',
         rarity: 'Común',
@@ -104,7 +104,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
     {
         id: 'social-butterfly',
         name: 'Mariposa Social',
-        imageUrl: '/images/pets/mariposa-social.png',
+        lottieUrl: 'https://lottie.host/79361718-f2b1-460d-83b6-d3b5b191c7c1/s8c6cImIeA.json',
         emotion: 'Alegría',
         description: 'Encarna la transformación, la belleza de la conexión y el compartir tu viaje con otros.',
         rarity: 'Común',
@@ -113,7 +113,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
     {
         id: 'cunning-fox',
         name: 'Zorro Astuto',
-        imageUrl: '/images/pets/zorro-astuto.png',
+        lottieUrl: 'https://lottie.host/a06c526f-4cff-4b8c-b633-90d576a96434/s7y8POc5nO.json',
         emotion: 'Curiosidad',
         description: 'Simboliza la inteligencia, la adaptabilidad y la capacidad de pensar de forma creativa.',
         rarity: 'Poco Común',
@@ -122,7 +122,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
     {
         id: 'patient-turtle',
         name: 'Tortuga Paciente',
-        imageUrl: '/images/pets/tortuga-paciente.png',
+        lottieUrl: 'https://lottie.host/e266c221-5120-410a-8c51-b0e6e7d39a3f/2B5mC9bVzG.json',
         emotion: 'Calma',
         description: 'Simboliza la perseverancia, la estabilidad y la sabiduría de ir a tu propio ritmo.',
         rarity: 'Poco Común',
@@ -131,7 +131,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
     {
         id: 'loyal-dog',
         name: 'Perro Leal',
-        imageUrl: '/images/pets/perro-leal.png',
+        lottieUrl: 'https://lottie.host/81a93549-9d96-4a41-9c60-e4a0b2a759c8/a53vnmPbQG.json',
         emotion: 'Confianza',
         description: 'Encarna la amistad incondicional, la confianza y la alegría de la compañía.',
         rarity: 'Poco Común',
@@ -140,7 +140,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
     {
         id: 'empathetic-elephant',
         name: 'Elefante Empático',
-        imageUrl: '/images/pets/elefante-empatico.png',
+        lottieUrl: 'https://lottie.host/a8b2ac84-189f-4318-971c-f235a9603357/PDR4C3N444.json',
         emotion: 'Empatía',
         description: 'Representa la memoria, la fuerza de los lazos afectivos y un profundo entendimiento de los demás.',
         rarity: 'Raro',
@@ -149,7 +149,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
     {
         id: 'loyal-wolf',
         name: 'Lobo Leal',
-        imageUrl: '/images/pets/lobo-leal.png',
+        lottieUrl: 'https://lottie.host/6d22c953-f772-466d-886d-965a3962d3c9/9b9D7wW9oW.json',
         emotion: 'Confianza',
         description: 'Encarna la lealtad, el trabajo en equipo y los fuertes lazos con la comunidad.',
         rarity: 'Raro',
@@ -158,7 +158,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
     {
         id: 'proud-lion',
         name: 'León Orgulloso',
-        imageUrl: '/images/pets/leon-orgulloso.png',
+        lottieUrl: 'https://lottie.host/f88f1c1f-c4a0-4354-8531-50e5015b3a62/n90E49xYk0.json',
         emotion: 'Orgullo',
         description: 'Representa la fuerza, el liderazgo y la satisfacción de alcanzar metas importantes.',
         rarity: 'Raro',
@@ -167,7 +167,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
      {
         id: 'brave-eagle',
         name: 'Águila Valiente',
-        imageUrl: '/images/pets/aguila-valiente.png',
+        lottieUrl: 'https://lottie.host/64293c83-b68a-446c-a808-16e537d995a9/gW71P7u1xH.json',
         emotion: 'Valentía',
         description: 'Simboliza la libertad, la visión clara y el coraje para volar por encima de los desafíos.',
         rarity: 'Épico',
@@ -176,7 +176,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
     {
         id: 'wise-owl',
         name: 'Búho Sabio',
-        imageUrl: '/images/pets/buho-sabio.png',
+        lottieUrl: 'https://lottie.host/1709424c-982c-473d-881e-128c68a41a46/1Y8zph7YV9.json',
         emotion: 'Serenidad',
         description: 'Representa la sabiduría, la intuición y la capacidad de ver más allá de lo evidente.',
         rarity: 'Épico',
@@ -185,7 +185,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
     {
         id: 'resilient-phoenix',
         name: 'Fénix Resiliente',
-        imageUrl: '/images/pets/fenix-resiliente.png',
+        lottieUrl: 'https://lottie.host/808b79c3-9840-424a-b620-562a9bd6663b/5t3oFqS9t0.json',
         emotion: 'Resiliencia',
         description: 'Encarna la capacidad de renacer de las cenizas, la superación y la transformación personal.',
         rarity: 'Épico',
@@ -194,7 +194,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
     {
         id: 'protective-dragon',
         name: 'Dragón Protector',
-        imageUrl: '/images/pets/dragon-protector.png',
+        lottieUrl: 'https://lottie.host/0a7a3721-3fab-4b13-883a-733d02b53a99/6jMv1vhtY7.json',
         emotion: 'Protección',
         description: 'Simboliza un poder inmenso, la protección de tus tesoros emocionales y una sabiduría ancestral.',
         rarity: 'Legendario',
