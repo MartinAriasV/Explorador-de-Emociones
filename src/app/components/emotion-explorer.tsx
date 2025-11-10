@@ -693,16 +693,18 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   
   return (
     <SidebarProvider>
-      <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} />
-      <SidebarInset>
-        <header className="p-2 md:hidden flex items-center border-b">
-            <MobileMenuButton />
-            <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
-        </header>
-        <div className="flex-1 overflow-y-auto">
+      <div className="flex h-screen w-screen bg-background md:pl-[--sidebar-width-icon]">
+        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} />
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <header className="p-2 md:hidden flex items-center border-b">
+             <MobileMenuButton />
+             <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
+          </header>
+          <div className="flex-1 p-4 md:p-6 overflow-y-auto">
             {renderView()}
-        </div>
-      </SidebarInset>
+          </div>
+        </main>
+      </div>
       
       <AddEmotionModal
         initialData={addingEmotionData}
@@ -775,3 +777,5 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     </SidebarProvider>
   );
 }
+
+    

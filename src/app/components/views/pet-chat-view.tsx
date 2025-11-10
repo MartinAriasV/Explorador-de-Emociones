@@ -50,7 +50,6 @@ function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
   };
 }
 
-
 interface DraggableItemProps {
     item: ShopItem;
     initialPosition: { x: number; y: number };
@@ -61,7 +60,8 @@ interface DraggableItemProps {
 const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, onPositionChange, containerRef }) => {
     const itemRef = useRef<HTMLDivElement>(null);
     const positionRef = useRef(initialPosition);
-    const dragStartRef = useRef({ x: 0, y: 0, itemX: 0, itemY: 0 });
+    const isDraggingRef = useRef(false);
+    const dragOffsetRef = useRef({ x: 0, y: 0 });
 
     useEffect(() => {
         positionRef.current = initialPosition;
@@ -71,48 +71,44 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
     }, [initialPosition]);
 
     const handleMouseDown = (e: React.MouseEvent) => {
-        if (!itemRef.current) return;
-        dragStartRef.current = {
-            x: e.clientX,
-            y: e.clientY,
-            itemX: positionRef.current.x,
-            itemY: positionRef.current.y,
+        if (!itemRef.current || !containerRef.current) return;
+        isDraggingRef.current = true;
+        const itemRect = itemRef.current.getBoundingClientRect();
+        dragOffsetRef.current = {
+            x: e.clientX - itemRect.left,
+            y: e.clientY - itemRect.top,
         };
         itemRef.current.style.cursor = 'grabbing';
         itemRef.current.style.userSelect = 'none';
         
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
-        e.preventDefault();
     };
 
     const handleMouseMove = useCallback((e: MouseEvent) => {
-        if (!itemRef.current || !containerRef.current) return;
-
-        const dx = e.clientX - dragStartRef.current.x;
-        const dy = e.clientY - dragStartRef.current.y;
+        if (!isDraggingRef.current || !itemRef.current || !containerRef.current) return;
         
         const containerRect = containerRef.current.getBoundingClientRect();
         const itemWidth = itemRef.current.offsetWidth;
         const itemHeight = itemRef.current.offsetHeight;
 
-        let newX = dragStartRef.current.itemX + dx;
-        let newY = dragStartRef.current.itemY + dy;
+        let newX = e.clientX - containerRect.left - dragOffsetRef.current.x;
+        let newY = e.clientY - containerRect.top - dragOffsetRef.current.y;
 
         newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
         newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
         
         itemRef.current.style.transform = `translate(${newX}px, ${newY}px)`;
         positionRef.current = { x: newX, y: newY };
-
     }, [containerRef]);
 
     const handleMouseUp = useCallback(() => {
-        if (!itemRef.current) return;
-        
-        itemRef.current.style.cursor = 'grab';
-        itemRef.current.style.removeProperty('user-select');
-
+        if (!isDraggingRef.current) return;
+        isDraggingRef.current = false;
+        if (itemRef.current) {
+            itemRef.current.style.cursor = 'grab';
+            itemRef.current.style.removeProperty('user-select');
+        }
         onPositionChange(item.id, positionRef.current);
         
         document.removeEventListener('mousemove', handleMouseMove);
@@ -122,18 +118,13 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
     return (
         <div
             ref={itemRef}
-            className="absolute text-5xl z-10 cursor-grab"
-            style={{
-                width: '64px',
-                height: '64px',
-            }}
+            className="absolute text-5xl z-10 cursor-grab w-16 h-16 flex items-center justify-center"
             onMouseDown={handleMouseDown}
         >
             {item.icon}
         </div>
     );
 };
-
 
 const getEmotionById = (id: string, emotionsList: Emotion[]) =>
   emotionsList.find((e) => e.id === id);
@@ -304,7 +295,7 @@ export function PetChatView({
   }, [userProfile]);
 
   const currentBackgroundStyle = useMemo(() => {
-    if (!activeBackground) return {};
+    if (!activeBackground || !activeBackground.value) return {};
     const styleKey = activeBackground.value;
     return backgroundStyles[styleKey] || {};
 }, [activeBackground]);
@@ -324,125 +315,129 @@ export function PetChatView({
   }
 
   return (
-    <Card className="w-full h-full shadow-lg flex flex-col max-w-4xl mx-auto p-4 md:p-6">
-      <CardHeader className="flex flex-row items-center gap-4 p-0 pb-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setView('sanctuary')}
-        >
-          <ArrowLeft />
-        </Button>
-        <div className="text-5xl">{pet.icon}</div>
-        <div>
-          <CardTitle className="text-2xl font-bold text-primary">
-            {pet.name}
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Tu compañero IA activo
-          </p>
-        </div>
-      </CardHeader>
-      <CardContent className="flex-grow overflow-hidden flex flex-col gap-4 p-0">
-        <div ref={roomContainerRef} className="rounded-lg flex-shrink-0 relative overflow-hidden h-64 border-2" >
-            <div 
-                className="absolute inset-0 transition-all duration-500"
-                style={Object.keys(currentBackgroundStyle).length > 0 ? currentBackgroundStyle : { backgroundColor: 'hsl(var(--muted) / 0.5)' }}
-            ></div>
-            <div className="relative w-full h-full flex items-center justify-center">
-                <div className="relative w-48 h-32">
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
-                        <span className="text-8xl drop-shadow-lg z-0 relative">{pet.icon}</span>
+    <div className="-m-4 md:-m-6 h-full">
+        <Card className="w-full h-full shadow-lg flex flex-col max-w-4xl mx-auto p-4 md:p-6">
+        <CardHeader className="flex flex-row items-center gap-4 p-0 pb-4">
+            <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setView('sanctuary')}
+            >
+            <ArrowLeft />
+            </Button>
+            <div className="text-5xl">{pet.icon}</div>
+            <div>
+            <CardTitle className="text-2xl font-bold text-primary">
+                {pet.name}
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+                Tu compañero IA activo
+            </p>
+            </div>
+        </CardHeader>
+        <CardContent className="flex-grow overflow-hidden flex flex-col gap-4 p-0">
+            <div ref={roomContainerRef} className="rounded-lg flex-shrink-0 relative overflow-hidden h-64 border-2" >
+                <div 
+                    className="absolute inset-0 transition-all duration-500"
+                    style={Object.keys(currentBackgroundStyle).length > 0 ? currentBackgroundStyle : { backgroundColor: 'hsl(var(--muted) / 0.5)' }}
+                ></div>
+                <div className="relative w-full h-full flex items-center justify-center">
+                    <div className="relative w-48 h-32">
+                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
+                            <span className="text-8xl drop-shadow-lg z-0 relative">{pet.icon}</span>
+                        </div>
                     </div>
                 </div>
+                {purchasedAccessories.map(item => (
+                    <DraggableItem
+                        key={item.id}
+                        item={item}
+                        initialPosition={accessoryPositions[item.id] || { x: Math.random() * 200, y: Math.random() * 100 }}
+                        onPositionChange={handlePositionChange}
+                        containerRef={roomContainerRef}
+                    />
+                ))}
             </div>
-             {purchasedAccessories.map(item => (
-                <DraggableItem
-                    key={item.id}
-                    item={item}
-                    initialPosition={accessoryPositions[item.id] || { x: Math.random() * 200, y: Math.random() * 100 }}
-                    onPositionChange={handlePositionChange}
-                    containerRef={roomContainerRef}
-                />
-            ))}
-        </div>
 
-        <ScrollArea className="h-full flex-grow" ref={scrollAreaRef}>
-          <div className="p-4 space-y-4">
-            {messages.map((msg, index) => (
-              <div
-                key={index}
-                className={cn(
-                  'flex items-end gap-2',
-                  msg.sender === 'user' ? 'justify-end' : 'justify-start'
-                )}
-              >
-                {msg.sender === 'pet' && (
-                  <div className="w-10 h-10 flex-shrink-0 text-3xl">
-                     {pet.icon}
-                  </div>
-                )}
+            <ScrollArea className="h-full flex-grow" ref={scrollAreaRef}>
+            <div className="p-4 space-y-4">
+                {messages.map((msg, index) => (
                 <div
-                  className={cn(
-                    'p-3 rounded-lg max-w-xs md:max-w-md lg:max-w-lg',
-                    msg.sender === 'user'
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted'
-                  )}
+                    key={index}
+                    className={cn(
+                    'flex items-end gap-2',
+                    msg.sender === 'user' ? 'justify-end' : 'justify-start'
+                    )}
                 >
-                  <p>{msg.text}</p>
+                    {msg.sender === 'pet' && (
+                    <div className="w-10 h-10 flex-shrink-0 text-3xl">
+                        {pet.icon}
+                    </div>
+                    )}
+                    <div
+                    className={cn(
+                        'p-3 rounded-lg max-w-xs md:max-w-md lg:max-w-lg',
+                        msg.sender === 'user'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted'
+                    )}
+                    >
+                    <p>{msg.text}</p>
+                    </div>
                 </div>
-              </div>
-            ))}
-            {initialContext &&
-              initialContext.displayFeelings.length > 0 &&
-              messages.length <= 2 && (
-                <div className="flex items-start gap-3 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg animate-fade-in">
-                  <Info className="h-5 w-5 mt-0.5 shrink-0" />
-                  <p>
-                    Para esta charla, estoy recordando que últimamente te has
-                    sentido:{' '}
-                    {initialContext.displayFeelings.map((e) => e.name).join(', ')}.
-                  </p>
+                ))}
+                {initialContext &&
+                initialContext.displayFeelings.length > 0 &&
+                messages.length <= 2 && (
+                    <div className="flex items-start gap-3 text-sm text-muted-foreground bg-muted/50 p-3 rounded-lg animate-fade-in">
+                    <Info className="h-5 w-5 mt-0.5 shrink-0" />
+                    <p>
+                        Para esta charla, estoy recordando que últimamente te has
+                        sentido:{' '}
+                        {initialContext.displayFeelings.map((e) => e.name).join(', ')}.
+                    </p>
+                    </div>
+                )}
+                {isLoading && (
+                <div className="flex items-end gap-2 justify-start">
+                    <div className="w-10 h-10 flex-shrink-0 text-3xl">
+                        {pet.icon}
+                    </div>
+                    <div className="p-3 rounded-lg bg-muted">
+                    <div className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.3s]"></span>
+                        <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.15s]"></span>
+                        <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce"></span>
+                    </div>
+                    </div>
                 </div>
-              )}
-            {isLoading && (
-              <div className="flex items-end gap-2 justify-start">
-                <div className="w-10 h-10 flex-shrink-0 text-3xl">
-                    {pet.icon}
-                </div>
-                <div className="p-3 rounded-lg bg-muted">
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.3s]"></span>
-                    <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.15s]"></span>
-                    <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce"></span>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-      </CardContent>
-      <CardFooter className="p-0 pt-4">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSendMessage();
-          }}
-          className="flex w-full items-center space-x-2"
-        >
-          <Input
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            placeholder={`Escribe un mensaje a ${pet.name}...`}
-            disabled={isLoading}
-          />
-          <Button type="submit" disabled={isLoading || !inputValue.trim()}>
-            <Send className="h-4 w-4" />
-            <span className="sr-only">Enviar</span>
-          </Button>
-        </form>
-      </CardFooter>
-    </Card>
+                )}
+            </div>
+            </ScrollArea>
+        </CardContent>
+        <CardFooter className="p-0 pt-4">
+            <form
+            onSubmit={(e) => {
+                e.preventDefault();
+                handleSendMessage();
+            }}
+            className="flex w-full items-center space-x-2"
+            >
+            <Input
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={`Escribe un mensaje a ${pet.name}...`}
+                disabled={isLoading}
+            />
+            <Button type="submit" disabled={isLoading || !inputValue.trim()}>
+                <Send className="h-4 w-4" />
+                <span className="sr-only">Enviar</span>
+            </Button>
+            </form>
+        </CardFooter>
+        </Card>
+    </div>
   );
 }
+
+    
