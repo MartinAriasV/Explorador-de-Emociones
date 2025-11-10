@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, createRef, useCallback, useMemo } from 'react';
 import type { Emotion, View, TourStepData, UserProfile, DiaryEntry, Reward, SpiritAnimal, ShopItem } from '@/lib/types';
-import { SidebarProvider } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar, MobileMenuButton } from './app-sidebar';
 import { DiaryView } from './views/diary-view';
 import { EmocionarioView } from './views/emocionario-view';
@@ -608,7 +608,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 
   const renderView = () => {
     return (
-      <div className="animate-fade-in-up h-full">
+      <div className="animate-fade-in-up h-full p-4 md:p-6">
         {(() => {
           switch (view) {
             case 'diary':
@@ -693,18 +693,16 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-screen bg-background md:pl-[--sidebar-width-icon]">
-        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} />
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <header className="p-2 md:hidden flex items-center border-b">
-             <MobileMenuButton />
-             <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
-          </header>
-          <div className="flex-1 overflow-y-auto">
+      <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} />
+      <SidebarInset>
+        <header className="p-2 md:hidden flex items-center border-b">
+            <MobileMenuButton />
+            <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
+        </header>
+        <div className="flex-1 overflow-y-auto">
             {renderView()}
-          </div>
-        </main>
-      </div>
+        </div>
+      </SidebarInset>
       
       <AddEmotionModal
         initialData={addingEmotionData}

@@ -318,7 +318,7 @@ export function PetChatView({
   }
 
   return (
-    <Card className="w-full h-full shadow-lg flex flex-col max-w-4xl mx-auto p-4 md:p-6">
+    <Card className="w-full h-full shadow-lg flex flex-col max-w-4xl mx-auto">
       <CardHeader className="flex flex-row items-center gap-4">
         <Button
           variant="ghost"
