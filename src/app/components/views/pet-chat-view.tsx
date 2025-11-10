@@ -59,27 +59,24 @@ interface DraggableItemProps {
 
 const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, onPositionChange, containerRef }) => {
     const itemRef = useRef<HTMLDivElement>(null);
-    const positionRef = useRef(initialPosition);
     const isDraggingRef = useRef(false);
-    const dragOffsetRef = useRef({ x: 0, y: 0 });
+    const dragStartPosRef = useRef({ x: 0, y: 0 });
+    const itemStartPosRef = useRef({ x: 0, y: 0 });
 
     useEffect(() => {
-        positionRef.current = initialPosition;
         if (itemRef.current) {
             itemRef.current.style.transform = `translate(${initialPosition.x}px, ${initialPosition.y}px)`;
         }
     }, [initialPosition]);
 
     const handleMouseDown = (e: React.MouseEvent) => {
-        if (!itemRef.current || !containerRef.current) return;
+        if (!itemRef.current) return;
+        e.preventDefault();
         isDraggingRef.current = true;
-        const itemRect = itemRef.current.getBoundingClientRect();
-        dragOffsetRef.current = {
-            x: e.clientX - itemRect.left,
-            y: e.clientY - itemRect.top,
-        };
-        itemRef.current.style.cursor = 'grabbing';
-        itemRef.current.style.userSelect = 'none';
+        dragStartPosRef.current = { x: e.clientX, y: e.clientY };
+
+        const currentTransform = new DOMMatrix(getComputedStyle(itemRef.current).transform);
+        itemStartPosRef.current = { x: currentTransform.m41, y: currentTransform.m42 };
         
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
@@ -88,37 +85,53 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
     const handleMouseMove = useCallback((e: MouseEvent) => {
         if (!isDraggingRef.current || !itemRef.current || !containerRef.current) return;
         
+        const dx = e.clientX - dragStartPosRef.current.x;
+        const dy = e.clientY - dragStartPosRef.current.y;
+
+        let newX = itemStartPosRef.current.x + dx;
+        let newY = itemStartPosRef.current.y + dy;
+        
         const containerRect = containerRef.current.getBoundingClientRect();
         const itemWidth = itemRef.current.offsetWidth;
         const itemHeight = itemRef.current.offsetHeight;
-
-        let newX = e.clientX - containerRect.left - dragOffsetRef.current.x;
-        let newY = e.clientY - containerRect.top - dragOffsetRef.current.y;
 
         newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
         newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
         
         itemRef.current.style.transform = `translate(${newX}px, ${newY}px)`;
-        positionRef.current = { x: newX, y: newY };
     }, [containerRef]);
 
-    const handleMouseUp = useCallback(() => {
-        if (!isDraggingRef.current) return;
+    const handleMouseUp = useCallback((e: MouseEvent) => {
+        if (!isDraggingRef.current || !itemRef.current) return;
         isDraggingRef.current = false;
-        if (itemRef.current) {
-            itemRef.current.style.cursor = 'grab';
-            itemRef.current.style.removeProperty('user-select');
-        }
-        onPositionChange(item.id, positionRef.current);
+        
+        const dx = e.clientX - dragStartPosRef.current.x;
+        const dy = e.clientY - dragStartPosRef.current.y;
+
+        let newX = itemStartPosRef.current.x + dx;
+        let newY = itemStartPosRef.current.y + dy;
+
+        const containerRect = containerRef.current!.getBoundingClientRect();
+        const itemWidth = itemRef.current.offsetWidth;
+        const itemHeight = itemRef.current.offsetHeight;
+
+        newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
+        newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
+
+        onPositionChange(item.id, { x: newX, y: newY });
         
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
-    }, [item.id, onPositionChange, handleMouseMove]);
-
+    }, [item.id, onPositionChange, handleMouseMove, containerRef]);
+    
     return (
         <div
             ref={itemRef}
             className="absolute text-5xl z-10 cursor-grab w-16 h-16 flex items-center justify-center"
+            style={{ 
+                userSelect: 'none',
+                transform: `translate(${initialPosition.x}px, ${initialPosition.y}px)`
+            }}
             onMouseDown={handleMouseDown}
         >
             {item.icon}
@@ -208,7 +221,7 @@ export function PetChatView({
       setAccessoryPositions(userProfile.petAccessoryPositions);
     }
   }, [userProfile?.petAccessoryPositions]);
-
+  
   const debouncedUpdatePositions = useCallback(
     debounce((newPositions) => {
         if (userProfileRef) {
@@ -439,5 +452,3 @@ export function PetChatView({
     </div>
   );
 }
-
-    
