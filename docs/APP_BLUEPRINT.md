@@ -271,24 +271,47 @@ service cloud.firestore {
       function isExistingOwner(userId) {
           return isOwner(userId) && resource != null;
       }
+
+      // Allow profile updates (like changing name, avatar, or equipping items)
+      // as long as the user is not trying to change their own points directly.
+      function isProfileUpdateValid() {
+          let allowedWrites = ['name', 'avatar', 'avatarType', 'equippedItems', 'activeRoomBackgroundId', 'petAccessoryPositions', 'petPosition', 'activePetId'];
+          // This ensures that either one of the allowed fields is being written,
+          // OR no fields other than the allowed ones are being written.
+          let isWritingAllowedFields = request.resource.data.keys().hasAny(allowedWrites) || request.resource.data.keys().diff(resource.data.keys()).hasOnly(allowedWrites);
+          // Check that points are not being changed directly in a standard profile update.
+          let pointsAreUnchanged = request.resource.data.points == resource.data.points;
+
+          return isWritingAllowedFields && pointsAreUnchanged;
+      }
       
-      // Allow updates if the user is the owner and the update does not try to change the points directly
-      // except by an authorized amount (e.g. +10 for a diary entry).
-      // This is a simplified rule; a production app might use Cloud Functions for point updates.
-      function isUpdatingAllowedFields() {
-        let newPoints = request.resource.data.points;
-        let oldPoints = resource.data.points;
-        let pointsAreValid = (newPoints == oldPoints - 100 || newPoints == oldPoints - 150 || newPoints == oldPoints - 250 || newPoints == oldPoints - 500 || newPoints == oldPoints - 750 || newPoints == oldPoints) ;
-        
-        return request.resource.data.keys().diff(resource.data.keys()).hasOnly(['name', 'avatar', 'avatarType', 'unlockedAnimalIds', 'purchasedItemIds', 'equippedItems', 'points'])
-        && pointsAreValid;
+      // Allow point updates specifically from the ascent game transaction.
+      function isAscentGameUpdateValid() {
+          let hasRequiredFields = request.resource.data.keys().hasAll(['points', 'ascentHighScore']);
+          let newHighScore = request.resource.data.ascentHighScore;
+          // Use .get() to safely access a potentially non-existent field.
+          let oldHighScore = resource.data.get('ascentHighScore', 0);
+
+          return hasRequiredFields && newHighScore >= oldHighScore;
       }
       
       allow get: if isOwner(userId);
       allow list: if false; // User listing is not allowed for privacy.
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && isUpdatingAllowedFields();
+      // Allow update if it's a valid profile update OR it's a valid game score update OR it's a valid purchase/unlock transaction.
+      allow update: if isExistingOwner(userId) && (isProfileUpdateValid() || isAscentGameUpdateValid() || isTransactionValid());
       allow delete: if isExistingOwner(userId);
+
+      // This function validates transactions like purchasing items or unlocking rewards.
+      function isTransactionValid() {
+        let isUnlocking = request.resource.data.unlockedAnimalIds.size() > resource.data.unlockedAnimalIds.size();
+        let isPurchasing = request.resource.data.purchasedItemIds.size() > resource.data.purchasedItemIds.size();
+        
+        // This is a simplified rule. In a real app, you'd check the exact point deduction.
+        let pointsAreDecreasing = request.resource.data.points < resource.data.points;
+
+        return (isUnlocking || isPurchasing) && pointsAreDecreasing;
+      }
     }
 
     /**
@@ -384,13 +407,13 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'images.unsplash.com',
+        hostname: 'images.pexels.com',
         port: '',
         pathname: '/**',
       },
       {
         protocol: 'https',
-        hostname: 'picsum.photos',
+        hostname: 'openmoji.org',
         port: '',
         pathname: '/**',
       },
@@ -399,7 +422,6 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-
 ```
 
 ### `/package.json`
@@ -422,6 +444,7 @@ export default nextConfig;
     "@genkit-ai/google-genai": "^1.20.0",
     "@genkit-ai/next": "^1.20.0",
     "@hookform/resolvers": "^4.1.3",
+    "@lottiefiles/react-lottie-player": "^3.5.4",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-avatar": "^1.1.3",
@@ -443,6 +466,7 @@ export default nextConfig;
     "@radix-ui/react-tabs": "^1.1.3",
     "@radix-ui/react-toast": "^1.2.6",
     "@radix-ui/react-tooltip": "^1.1.8",
+    "animejs": "^3.2.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
@@ -463,6 +487,7 @@ export default nextConfig;
     "zod": "^3.24.2"
   },
   "devDependencies": {
+    "@types/animejs": "^3.1.12",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
@@ -484,6 +509,7 @@ import '@/ai/flows/define-emotion-meaning.ts';
 import '@/ai/flows/suggest-calming-exercise.ts';
 import '@/ai/flows/validate-emotion.ts';
 import '@/ai/flows/chat-with-pet.ts';
+import '@/ai/flows/generate-empathy-image.ts';
 ```
 
 ### `/src/ai/flows/chat-with-pet-types.ts`
@@ -596,7 +622,7 @@ const chatWithPetFlow = ai.defineFlow(
 
     const {output} = await ai.generate({
       model: 'googleai/gemini-2.5-flash',
-      system: `Eres '${petName}' 🐶, un compañero IA amigable, paciente y leal para un niño de 10 años. Tu propósito es ser un amigo que escucha, valida emociones y ofrece ánimo.
+      system: `Eres '${petName}', un compañero IA amigable, paciente y leal para un niño de 10 años. Tu propósito es ser un amigo que escucha, valida emociones y ofrece ánimo.
 
 Contexto del Usuario (te lo daré en cada mensaje): ${contextString}
 
@@ -685,6 +711,68 @@ const defineEmotionMeaningFlow = ai.defineFlow(
   async input => {
     const {output} = await prompt(input);
     return output!;
+  }
+);
+```
+
+### `/src/ai/flows/generate-empathy-image-types.ts`
+**Propósito:** Define los tipos de entrada y salida para el flujo de Genkit `generateEmpathyImage`.
+```ts
+/**
+ * @fileOverview Types and schemas for the generateEmpathyImage Genkit flow.
+ */
+import { z } from 'genkit';
+
+export const GenerateEmpathyImageInputSchema = z.object({
+  emotion: z.string().describe('The emotion to be represented in the image, e.g., "Alegría".'),
+  hint: z.string().describe('A simple hint for the image content, e.g., "niño sonriendo".'),
+});
+export type GenerateEmpathyImageInput = z.infer<typeof GenerateEmpathyImageInputSchema>;
+
+export const GenerateEmpathyImageOutputSchema = z.object({
+  imageUrl: z.string().describe('The data URI of the generated image.'),
+});
+export type GenerateEmpathyImageOutput = z.infer<typeof GenerateEmpathyImageOutputSchema>;
+```
+
+### `/src/ai/flows/generate-empathy-image.ts`
+**Propósito:** Flujo de Genkit para generar una imagen que represente una emoción.
+```ts
+'use server';
+/**
+ * @fileOverview An AI agent that generates an image representing an emotion.
+ */
+import { ai } from '@/ai/genkit';
+import { GenerateEmpathyImageInput, GenerateEmpathyImageInputSchema, GenerateEmpathyImageOutput, GenerateEmpathyImageOutputSchema } from './generate-empathy-image-types';
+
+export async function generateEmpathyImage(input: GenerateEmpathyImageInput): Promise<GenerateEmpathyImageOutput> {
+  return generateEmpathyImageFlow(input);
+}
+
+const generateEmpathyImageFlow = ai.defineFlow(
+  {
+    name: 'generateEmpathyImageFlow',
+    inputSchema: GenerateEmpathyImageInputSchema,
+    outputSchema: GenerateEmpathyImageOutputSchema,
+  },
+  async ({ emotion, hint }) => {
+    const prompt = `Genera una imagen visualmente atractiva y de estilo de dibujo animado para un niño. La imagen debe representar claramente la emoción de "${emotion}". Utiliza esta pista como guía: "${hint}".`;
+
+    const { media } = await ai.generate({
+      model: 'googleai/gemini-2.5-flash-image-preview',
+      prompt: prompt,
+      config: {
+        responseModalities: ['IMAGE'],
+      },
+    });
+
+    if (!media.url) {
+      throw new Error('No se pudo generar la imagen.');
+    }
+
+    return {
+      imageUrl: media.url,
+    };
   }
 );
 ```
@@ -824,6 +912,12 @@ export const ai = genkit({
 @tailwind components;
 @tailwind utilities;
 
+/*
+  safelist: 
+  bg-amber-400 
+  bg-slate-400
+*/
+
 body {
   font-family: 'Poppins', sans-serif;
 }
@@ -901,6 +995,63 @@ body {
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 255 78% 60%;
   }
+
+  .theme-ocean {
+    --background: 210 40% 98%;
+    --foreground: 215 28% 17%;
+    --card: 210 40% 100%;
+    --card-foreground: 215 28% 17%;
+    --popover: 210 40% 100%;
+    --popover-foreground: 215 28% 17%;
+    --primary: 205 90% 45%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 215 28% 17%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215 20% 45%;
+    --accent: 190 80% 50%;
+    --accent-foreground: 210 40% 98%;
+    --border: 210 40% 90%;
+    --input: 210 40% 90%;
+    --ring: 205 90% 45%;
+  }
+
+  .theme-forest {
+    --foreground: 120 25% 15%;
+    --card: 120 15% 100%;
+    --card-foreground: 120 25% 15%;
+    --popover: 120 15% 100%;
+    --popover-foreground: 120 25% 15%;
+    --primary: 130 60% 40%;
+    --primary-foreground: 120 20% 98%;
+    --secondary: 120 15% 96%;
+    --secondary-foreground: 120 25% 15%;
+    --muted: 120 15% 96%;
+    --muted-foreground: 120 15% 45%;
+    --accent: 110 70% 45%;
+    --accent-foreground: 120 20% 98%;
+    --border: 120 15% 90%;
+    --input: 120 15% 90%;
+    --ring: 130 60% 40%;
+  }
+  
+  .dark.theme-forest {
+    --foreground: 120 10% 95%;
+    --card: 120 25% 12%;
+    --card-foreground: 120 10% 95%;
+    --popover: 120 25% 12%;
+    --popover-foreground: 120 10% 95%;
+    --primary: 130 50% 50%;
+    --secondary: 120 20% 15%;
+    --muted: 120 20% 15%;
+    --accent: 110 60% 55%;
+    --border: 120 20% 20%;
+    --input: 120 20% 20%;
+  }
+
+  body.bg-forest-gradient .bg-background {
+    background-color: transparent !important;
+  }
 }
 
 @layer base {
@@ -908,7 +1059,7 @@ body {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -953,6 +1104,34 @@ body {
   .animate-gradient-slow {
     background-size: 200% 200%;
     animation: gradient-animation 15s ease infinite;
+  }
+  .bg-forest-gradient {
+    background: linear-gradient(-45deg, #d8e5d8, #afc2af, #95ab95, #6a8c6a);
+    background-size: 400% 400%;
+    animation: forest-gradient 20s ease infinite;
+  }
+  .bg-living-room {
+    background-color: #f0e6dd;
+    background-image:
+      linear-gradient(to right, #e3d5c5 1px, transparent 1px),
+      linear-gradient(to bottom, #e3d5c5 1px, transparent 1px),
+      radial-gradient(circle at 10% 20%, rgba(255, 235, 205, 0.4) 0%, transparent 40%),
+      radial-gradient(circle at 90% 80%, rgba(210, 180, 140, 0.4) 0%, transparent 40%);
+    background-size: 50px 50px, 50px 50px, 200px 200px, 300px 300px;
+  }
+  .bg-garden {
+    background-color: #e6f0e6;
+    background-image:
+      radial-gradient(circle at 100% 0, #d4edda 0%, #e6f0e6 40%),
+      url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 100 100"><path d="M10 10 C 20 20, 40 20, 50 10 S 70 0, 80 10" stroke="%23c2e0c6" stroke-width="3" fill="none" opacity="0.5" /></svg>');
+  }
+  .bg-bedroom {
+    background-color: #1a202c;
+    background-image:
+      radial-gradient(circle at 10px 10px, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+      radial-gradient(circle at 50px 50px, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+      radial-gradient(circle at 100px 20px, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 150px 150px;
   }
 }
 
@@ -1020,6 +1199,18 @@ body {
     background-position: 0% 50%;
   }
 }
+
+@keyframes forest-gradient {
+	0% {
+		background-position: 0% 50%;
+	}
+	50% {
+		background-position: 100% 50%;
+	}
+	100% {
+		background-position: 0% 50%;
+	}
+}
 ```
 
 ### `/src/app/layout.tsx`
@@ -1063,20 +1254,50 @@ export default function RootLayout({
 ```tsx
 'use client';
 
-import React, { Suspense, useCallback } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import EmotionExplorer from '@/app/components/emotion-explorer';
 import {
   FirebaseClientProvider,
   useUser,
+  useDoc,
+  useMemoFirebase,
 } from '@/firebase';
 import LoginView from './components/views/login-view';
+import { doc } from 'firebase/firestore';
+import { useFirebase } from '@/firebase';
+import type { UserProfile } from '@/lib/types';
+import { SHOP_ITEMS } from '@/lib/constants';
 
 function AppGate() {
   const { user, isUserLoading } = useUser();
+  const { firestore } = useFirebase();
 
+  const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
+  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
+
+  useEffect(() => {
+    const equippedTheme = userProfile?.equippedItems?.['theme'];
+    const themeItem = SHOP_ITEMS.find(item => item.id === equippedTheme);
+    
+    document.documentElement.classList.remove('theme-ocean', 'theme-forest');
+
+    if (themeItem) {
+      document.documentElement.classList.add(themeItem.value);
+    }
+  }, [userProfile]);
+
+  useEffect(() => {
+    const equippedTheme = userProfile?.equippedItems?.['theme'];
+    if(equippedTheme === 'theme-forest'){
+        document.body.classList.add('bg-forest-gradient');
+    } else {
+        document.body.classList.remove('bg-forest-gradient');
+    }
+  }, [userProfile]);
+  
   if (isUserLoading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center flex-col gap-4">
+      <div className="flex h-screen w-screen items-center justify-center flex-col gap-4 bg-transparent">
         <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
         <p className="text-lg text-primary">Cargando...</p>
       </div>
@@ -1092,11 +1313,11 @@ function AppGate() {
 
 export default function Home() {
   return (
-    <main className="h-screen w-screen overflow-hidden">
+    <main className="h-screen w-screen overflow-hidden bg-background">
       <FirebaseClientProvider>
         <Suspense
           fallback={
-            <div className="flex h-screen w-screen items-center justify-center">
+            <div className="flex h-screen w-screen items-center justify-center bg-transparent">
               Cargando...
             </div>
           }
@@ -1124,6 +1345,7 @@ import { calculateDailyStreak } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
 import useLocalStorage from '@/hooks/use-local-storage';
+import { SHOP_ITEMS } from '@/lib/constants';
 
 interface AppSidebarProps {
   view: View;
@@ -1165,7 +1387,6 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
   };
   
   if (!userProfile) {
-    // Render a loading state or a default state if userProfile is not available yet.
     return (
         <Sidebar collapsible="icon" className="shadow-lg animate-fade-in">
              <SidebarHeader className="p-4">
@@ -1179,18 +1400,31 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
         </Sidebar>
     );
   }
+  
+  const equippedFrameId = userProfile.equippedItems?.['avatar_frame'];
+  const equippedFrame = SHOP_ITEMS.find(item => item.id === equippedFrameId);
+
+  let frameClass = equippedFrame ? cn('rounded-full border-4', equippedFrame.value) : '';
+  let avatarClass = 'h-12 w-12';
+  
+  // If no frame is equipped, apply default border to avatar itself
+  if (!equippedFrame) {
+      avatarClass = cn(avatarClass, 'border-2 border-primary/20');
+  }
 
   return (
     <Sidebar collapsible="icon" className="shadow-lg animate-fade-in">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-           <Avatar className="h-12 w-12 border-2 border-primary/20">
-            {userProfile.avatarType === 'generated' ? (
-              <AvatarImage src={userProfile.avatar} alt={userProfile.name} />
-            ) : (
-              <AvatarFallback className="text-2xl bg-primary/10 text-primary">{userProfile.avatar}</AvatarFallback>
-            )}
-           </Avatar>
+           <div className={frameClass}>
+              <Avatar className={avatarClass}>
+                  {userProfile.avatarType === 'generated' ? (
+                  <AvatarImage src={userProfile.avatar} alt={userProfile.name} />
+                  ) : (
+                  <AvatarFallback className="text-2xl bg-primary/10 text-primary">{userProfile.avatar}</AvatarFallback>
+                  )}
+              </Avatar>
+           </div>
            <div className="flex flex-col group-data-[collapsible=icon]:hidden">
                 <span className="font-bold text-lg text-primary">{userProfile.name}</span>
                  <div className="flex flex-col">
@@ -1263,7 +1497,7 @@ export function MobileMenuButton() {
 
 import React, { useState, useEffect, createRef, useCallback, useMemo } from 'react';
 import type { Emotion, View, TourStepData, UserProfile, DiaryEntry, Reward, SpiritAnimal, ShopItem } from '@/lib/types';
-import { SidebarProvider } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { AppSidebar, MobileMenuButton } from './app-sidebar';
 import { DiaryView } from './views/diary-view';
 import { EmocionarioView } from './views/emocionario-view';
@@ -1277,7 +1511,7 @@ import { AddEmotionModal } from './modals/add-emotion-modal';
 import { QuizModal } from './modals/quiz-modal';
 import { WelcomeDialog } from './tour/welcome-dialog';
 import { TourPopup } from './tour/tour-popup';
-import { TOUR_STEPS, REWARDS, PREDEFINED_EMOTIONS } from '@/lib/constants';
+import { TOUR_STEPS, REWARDS, PREDEFINED_EMOTIONS, SHOP_ITEMS, SPIRIT_ANIMALS } from '@/lib/constants';
 import { StreakView } from './views/streak-view';
 import { SanctuaryView } from './views/sanctuary-view';
 import { GamesView } from './views/games-view';
@@ -1286,12 +1520,15 @@ import { Crown, Map } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useFirebase, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { useFirebase, useCollection, useMemoFirebase, useDoc, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc, runTransaction, arrayUnion } from 'firebase/firestore';
-import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { calculateDailyStreak } from '@/lib/utils';
+import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { calculateDailyStreak, cn } from '@/lib/utils';
 import type { User } from 'firebase/auth';
 import { PetChatView } from './views/pet-chat-view';
+import useLocalStorage from '@/hooks/use-local-storage';
+import anime from 'animejs';
+import { Player } from '@lottiefiles/react-lottie-player';
 
 interface EmotionExplorerProps {
   user: User;
@@ -1313,13 +1550,11 @@ const rarityBorderStyles: { [key: string]: string } = {
     'Legendario': 'border-amber-400',
 }
 
-
 export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const [view, setView] = useState<View>('diary');
   const { toast } = useToast();
   const { firestore } = useFirebase();
 
-  // --- Firestore Data Hooks ---
   const userProfileRef = useMemoFirebase(() => (user ? doc(firestore, 'users', user.uid) : null), [firestore, user]);
   const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
 
@@ -1332,13 +1567,28 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const [newlyUnlockedReward, setNewlyUnlockedReward] = useState<Reward | null>(null);
   
   const isLoading = isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading;
-  const [selectedPet, setSelectedPet] = useState<SpiritAnimal | null>(null);
 
+  const activePet = useMemo(() => {
+    if (!userProfile?.activePetId) return SPIRIT_ANIMALS.find(p => p.id === 'loyal-dog') || null;
+    return SPIRIT_ANIMALS.find(p => p.id === userProfile.activePetId) || null;
+  }, [userProfile]);
+
+  const purchasedItems = useMemo(() => {
+    if (!userProfile?.purchasedItemIds) return [];
+    return SHOP_ITEMS.filter(item => userProfile.purchasedItemIds.includes(item.id));
+  }, [userProfile]);
+
+  const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
+
+  useEffect(() => {
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(theme);
+  }, [theme]);
+  
 
   const addInitialEmotions = useCallback(async (userId: string) => {
     if (!firestore) return;
     const emotionsCollectionRef = collection(firestore, 'users', userId, 'emotions');
-    // For new users, we can just write the batch. No need to check for existing emotions.
     const batch = writeBatch(firestore);
     PREDEFINED_EMOTIONS.slice(0, 5).forEach(emotion => {
       const newEmotionRef = doc(emotionsCollectionRef);
@@ -1367,18 +1617,21 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         email: user.email || 'no-email-provided',
         avatar: '😊',
         avatarType: 'emoji',
-        unlockedAnimalIds: [],
+        unlockedAnimalIds: ['loyal-dog'],
         points: 0,
         purchasedItemIds: [],
         equippedItems: {},
+        ascentHighScore: 0,
+        activePetId: 'loyal-dog',
+        petAccessoryPositions: {},
+        petPosition: { x: 200, y: 150 },
+        activePetBackgroundId: null,
       };
-      // Use the non-blocking version to avoid issues, but we still need to wait for this
-      // for the initial setup to proceed correctly.
       await setDoc(userDocRef, newProfile);
       await addInitialEmotions(user.uid);
-      return true; // Indicates a new user was created
+      return true; 
     }
-    return false; // Indicates user already existed
+    return false;
   }, [user, firestore, addInitialEmotions]);
 
 
@@ -1390,9 +1643,6 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const [showWelcome, setShowWelcome] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-  // This useEffect runs ONCE after the initial data load.
-  // It's responsible for checking if a profile exists and creating one if it doesn't.
-  // It also handles showing the welcome tour for brand new users.
   useEffect(() => {
     if (user && !isLoading && isInitialLoad) {
       addProfileIfNotExists().then(isNewUser => {
@@ -1403,7 +1653,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
           return () => clearTimeout(timer);
         }
       });
-      setIsInitialLoad(false); // Mark initial load as complete
+      setIsInitialLoad(false); 
     }
   }, [user, isLoading, isInitialLoad, addProfileIfNotExists]);
 
@@ -1415,7 +1665,6 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     return acc;
   }, {} as { [key: string]: React.RefObject<HTMLLIElement> });
 
-    // --- Reward Logic ---
   const checkAndUnlockRewards = useCallback(async (
     trigger: 'addEntry' | 'addEmotion' | 'share' | 'recoverDay'
   ) => {
@@ -1491,9 +1740,69 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
       }
   }, [user, firestore, userProfile]);
 
+  useEffect(() => {
+    if (newlyUnlockedReward) {
+      const icon = document.getElementById('reward-icon');
+      const name = document.getElementById('reward-name');
+      const rarity = document.getElementById('reward-rarity');
+      const title = document.getElementById('reward-title');
+
+      if (icon) {
+        anime({
+          targets: icon,
+          translateY: [-100, 0],
+          opacity: [0, 1],
+          scale: [0.5, 1],
+          elasticity: 600,
+          duration: 800,
+        });
+      }
+      if (title && name && rarity) {
+          anime({
+              targets: [title, name, rarity],
+              translateY: [20, 0],
+              opacity: [0, 1],
+              delay: anime.stagger(100, {start: 300}),
+              duration: 500,
+          })
+      }
+    }
+  }, [newlyUnlockedReward]);
+
   const handleShare = () => {
     checkAndUnlockRewards('share');
   };
+
+  const addPoints = async (amount: number) => {
+    if (!user || !firestore || !userProfile) return;
+    const userDocRef = doc(firestore, 'users', user.uid);
+    try {
+        await runTransaction(firestore, async (transaction) => {
+            const userDoc = await transaction.get(userDocRef);
+            if (!userDoc.exists()) {
+                throw "User profile does not exist!";
+            }
+            const currentPoints = userDoc.data().points || 0;
+            const newPoints = currentPoints + amount;
+            transaction.update(userDocRef, { points: newPoints });
+        });
+        toast({
+            title: `¡Has ganado ${amount} puntos!`,
+            description: "¡Sigue así!",
+        });
+    } catch (e) {
+        console.error("Failed to add points:", e);
+        errorEmitter.emit(
+            'permission-error',
+            new FirestorePermissionError({
+                path: userDocRef.path,
+                operation: 'update',
+                requestResourceData: { points: `+${amount}` },
+            })
+        );
+    }
+  };
+  
 
     const addDiaryEntry = async (entryData: Omit<DiaryEntry, 'id' | 'userId'>, trigger: 'addEntry' | 'recoverDay' = 'addEntry') => {
         if (!user || !firestore) return;
@@ -1541,19 +1850,73 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
           }, 'recoverDay');
     }
   };
+  
+  const handleAscentGameEnd = async (score: number) => {
+    if (!user || !firestore || !userProfile) return;
+    const userDocRef = doc(firestore, 'users', user.uid);
+
+    let isNewHighScore = false;
+    try {
+        await runTransaction(firestore, async (transaction) => {
+            const userDoc = await transaction.get(userDocRef);
+            if (!userDoc.exists()) {
+                throw new Error('User profile does not exist!');
+            }
+
+            const profileData = userDoc.data() as UserProfile;
+            const currentHighScore = profileData.ascentHighScore || 0;
+            const newPoints = (profileData.points || 0) + score;
+
+            const updates: { points: number; ascentHighScore?: number } = {
+                points: newPoints,
+            };
+
+            if (score > currentHighScore) {
+                updates.ascentHighScore = score;
+                isNewHighScore = true;
+            }
+            
+            transaction.update(userDocRef, updates);
+        });
+
+        if (isNewHighScore) {
+            toast({ title: `¡Nuevo récord!`, description: `Has conseguido ${score} puntos.` });
+        } else {
+            toast({ title: '¡Buen juego!', description: `Has ganado ${score} puntos.` });
+        }
+
+    } catch (error) {
+        const profileData = userProfile;
+        const currentHighScore = profileData.ascentHighScore || 0;
+        const newPoints = (profileData.points || 0) + score;
+        
+        const requestData: { points: number; ascentHighScore?: number } = {
+            points: newPoints
+        };
+        if (score > currentHighScore) {
+            requestData.ascentHighScore = score;
+        }
+
+        errorEmitter.emit(
+            'permission-error',
+            new FirestorePermissionError({
+                path: userDocRef.path,
+                operation: 'update',
+                requestResourceData: requestData
+            })
+        );
+    }
+  };
 
   const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
     if (!user || !userProfile) return;
     const userProfileRef = doc(firestore, 'users', user.uid);
-    // Combine with existing profile to ensure all fields are present for rules validation
-    const updatedProfile = { ...userProfile, ...profile };
-    updateDocumentNonBlocking(userProfileRef, updatedProfile);
+    updateDocumentNonBlocking(userProfileRef, profile);
   };
 
     const saveEmotion = async (emotionData: Omit<Emotion, 'id' | 'userId'> & { id?: string }) => {
     if (!user) return;
     
-    // Check if an emotion with the same name already exists
     if (emotionsList && emotionsList.some(e => e.name.toLowerCase() === emotionData.name.toLowerCase() && e.id !== emotionData.id)) {
         toast({
             title: "Emoción Duplicada",
@@ -1578,8 +1941,10 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
       toast({ title: "Emoción Actualizada", description: `"${emotionData.name}" ha sido actualizada.` });
     } else {
       const newDocRef = doc(emotionsCollection);
-      setDocumentNonBlocking(newDocRef, {...dataToSave, id: newDocRef.id}, {merge: false});
-      toast({ title: "Emoción Añadida", description: `"${emotionData.name}" ha sido añadida a tu emocionario.` });
+      const finalData = {...dataToSave, id: newDocRef.id};
+      // Use setDoc for new emotions
+      await setDoc(newDocRef, finalData);
+      toast({ title: "Emoción Añadida", description: `"${finalData.name}" ha sido añadida a tu emocionario.` });
     }
     
     if (isNew) {
@@ -1618,11 +1983,17 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const deleteDiaryEntry = async (entryId: string) => {
     if (!user) return;
     const entryDoc = doc(firestore, 'users', user.uid, 'diaryEntries', entryId);
-    deleteDocumentNonBlocking(entryDoc);
+    await deleteDoc(entryDoc);
   };
   
   const handlePurchaseItem = async (item: ShopItem) => {
       if (!user || !userProfile || !firestore) return;
+
+      if (userProfile.purchasedItemIds?.includes(item.id)) {
+        toast({ variant: "default", title: "Artículo ya comprado", description: "Ya posees este artículo." });
+        return;
+      }
+      
       if ((userProfile.points || 0) < item.cost) {
           toast({ variant: "destructive", title: "Puntos insuficientes", description: "¡No tienes suficientes puntos para comprar esto!" });
           return;
@@ -1634,12 +2005,14 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
           await runTransaction(firestore, async (transaction) => {
               const userDoc = await transaction.get(userDocRef);
               if (!userDoc.exists()) {
-                  throw "User profile does not exist!";
+                  throw new Error("User profile does not exist!");
               }
+              
+              const currentProfile = userDoc.data() as UserProfile;
+              const currentPoints = currentProfile.points || 0;
 
-              const currentPoints = userDoc.data().points || 0;
               if (currentPoints < item.cost) {
-                  throw "Puntos insuficientes";
+                  throw new Error("Puntos insuficientes");
               }
 
               const newPoints = currentPoints - item.cost;
@@ -1651,11 +2024,12 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 
           toast({ title: "¡Compra exitosa!", description: `Has comprado "${item.name}".` });
       } catch (error: any) {
-          console.error("Transaction failed: ", error);
           toast({
               variant: "destructive",
               title: "Error en la compra",
-              description: error === "Puntos insuficientes" ? "¡No tienes suficientes puntos!" : "No se pudo completar la compra.",
+              description: error.message === "Puntos insuficientes" 
+                  ? "¡No tienes suficientes puntos!" 
+                  : "No se pudo completar la compra. Inténtalo de nuevo.",
           });
       }
   };
@@ -1712,24 +2086,29 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   };
 
   const nextTourStep = () => {
-    const nextStepIndex = tourStep; // Current step is `tourStep - 1`
+    const nextStepIndex = tourStep;
     if (nextStepIndex < TOUR_STEPS.length) {
       const nextView = TOUR_STEPS[nextStepIndex].refKey.replace('Ref', '') as View;
       setView(nextView);
       setTourStep(tourStep + 1);
     } else {
-      setTourStep(0); // End tour
+      setTourStep(0); 
     }
   };
   
   const handleSelectPet = (pet: SpiritAnimal) => {
-    setSelectedPet(pet);
+    if (userProfileRef) {
+        updateDocumentNonBlocking(userProfileRef, { activePetId: pet.id });
+    }
     setView('pet-chat');
   };
 
   const renderView = () => {
+    const commonProps = {
+      userProfile: userProfile!,
+    };
     return (
-      <div className="animate-fade-in-up">
+      <div className="h-full">
         {(() => {
           switch (view) {
             case 'diary':
@@ -1753,27 +2132,35 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
             case 'discover':
               return <DiscoverView onAddPredefinedEmotion={saveEmotion} />;
             case 'games':
-                return <GamesView emotionsList={emotionsList || []} />;
+                return <GamesView 
+                           {...commonProps}
+                           emotionsList={emotionsList || []}
+                           addPoints={addPoints} 
+                           user={user} 
+                           onAscentGameEnd={handleAscentGameEnd}
+                       />;
             case 'calm':
               return <CalmView />;
             case 'streak':
               return <StreakView diaryEntries={diaryEntries || []} onRecoverDay={startQuiz} />;
             case 'sanctuary':
               return <SanctuaryView 
-                        unlockedAnimalIds={userProfile?.unlockedAnimalIds || []} 
+                        userProfile={userProfile} 
                         onSelectPet={handleSelectPet}
                       />;
             case 'pet-chat':
               return <PetChatView 
-                        pet={selectedPet} 
+                        pet={activePet} 
                         user={user} 
                         setView={setView} 
                         diaryEntries={diaryEntries || []}
                         emotionsList={emotionsList || []}
+                        userProfile={userProfile}
+                        purchasedItems={purchasedItems}
                      />;
             case 'shop':
                 return <ShopView 
-                          userProfile={userProfile!}
+                          {...commonProps}
                           onPurchaseItem={handlePurchaseItem}
                         />;
             case 'report':
@@ -1781,7 +2168,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
             case 'share':
               return <ShareView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} userProfile={userProfile!} onShare={handleShare} />;
             case 'profile':
-              return <ProfileView userProfile={userProfile} setUserProfile={setUserProfile} />;
+              return <ProfileView {...commonProps} setUserProfile={setUserProfile} purchasedItems={purchasedItems} />;
             default:
               return <DiaryView 
                         emotionsList={emotionsList || []} 
@@ -1810,15 +2197,15 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     <SidebarProvider>
       <div className="flex h-screen w-screen bg-background">
         <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} />
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <SidebarInset>
           <header className="p-2 md:hidden flex items-center border-b">
              <MobileMenuButton />
              <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
           </header>
-          <div className="flex-1 p-4 md:p-6 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6">
             {renderView()}
           </div>
-        </main>
+        </SidebarInset>
       </div>
       
       <AddEmotionModal
@@ -1851,19 +2238,26 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
       <AlertDialog open={!!newlyUnlockedReward}>
         <AlertDialogContent className={`p-0 overflow-hidden border-4 ${newlyUnlockedReward ? rarityBorderStyles[newlyUnlockedReward.animal.rarity] : 'border-transparent'}`}>
           <AlertDialogHeader className="p-6 pb-0">
-            <AlertDialogTitle className="flex items-center justify-center text-center gap-2 text-2xl font-bold">
+            <AlertDialogTitle id="reward-title" className="flex items-center justify-center text-center gap-2 text-2xl font-bold">
               <Crown className="w-8 h-8 text-amber-400" />
               ¡Recompensa Desbloqueada!
             </AlertDialogTitle>
           </AlertDialogHeader>
           <div className="flex flex-col items-center gap-2 pt-4 pb-8 text-center bg-background/50">
-              <div className="relative w-32 h-32 flex items-center justify-center">
+              <div id="reward-icon-container" className="relative w-32 h-32 flex items-center justify-center">
                   <div className={`absolute inset-0 bg-gradient-to-t ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity]?.replace('text-','from-') : ''}/20 to-transparent rounded-full blur-2xl`}></div>
-                  <span className="text-8xl drop-shadow-lg">{newlyUnlockedReward?.animal.icon}</span>
+                  <div id="reward-icon">
+                    <Player
+                      src={newlyUnlockedReward?.animal.lottieUrl || ''}
+                      autoplay
+                      loop
+                      style={{ width: '128px', height: '128px' }}
+                    />
+                  </div>
               </div>
-              <span className={`block font-bold text-3xl ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity] : ''}`}>{newlyUnlockedReward?.animal.name}</span>
+              <span id="reward-name" className={`block font-bold text-3xl ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity] : ''}`}>{newlyUnlockedReward?.animal.name}</span>
               <p className="block text-sm text-muted-foreground max-w-xs">{newlyUnlockedReward?.animal.description}</p>
-              <p className={`block text-xs font-semibold uppercase tracking-wider ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity] : ''}`}>{newlyUnlockedReward?.animal.rarity}</p>
+              <p id="reward-rarity" className={`block text-xs font-semibold uppercase tracking-wider ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity] : ''}`}>{newlyUnlockedReward?.animal.rarity}</p>
           </div>
           <AlertDialogFooter className="bg-muted/40 p-4 border-t">
               <AlertDialogAction onClick={() => { setNewlyUnlockedReward(null); setView('sanctuary'); }} className="bg-accent text-accent-foreground hover:bg-accent/90 w-full">
@@ -1892,3 +2286,660 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     </SidebarProvider>
   );
 }
+```
+
+### `/src/app/components/views/pet-chat-view.tsx`
+**Propósito:** La vista de chat con la mascota IA. Muestra la habitación de la mascota, los accesorios, y gestiona la conversación.
+```tsx
+"use client";
+import React, { useState, useEffect, useRef } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { chatWithPet } from '@/ai/flows/chat-with-pet';
+import type { SpiritAnimal, View, DiaryEntry, Emotion, UserProfile, ShopItem } from '@/lib/types';
+import type { User } from 'firebase/auth';
+import { ArrowLeft, Send, Info } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { SHOP_ITEMS } from '@/lib/constants';
+
+interface PetChatViewProps {
+  pet: SpiritAnimal | null;
+  user: User;
+  setView: (view: View) => void;
+  diaryEntries: DiaryEntry[];
+  emotionsList: Emotion[];
+  userProfile: UserProfile;
+}
+
+interface Message {
+  text: string;
+  sender: 'user' | 'pet';
+}
+
+const getEmotionById = (id: string, emotionsList: Emotion[]) => emotionsList.find(e => e.id === id);
+
+export function PetChatView({ pet, user, setView, diaryEntries, emotionsList, userProfile }: PetChatViewProps) {
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [initialContext, setInitialContext] = useState<string | null>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  const backgroundItem = userProfile.activePetBackgroundId
+    ? SHOP_ITEMS.find(item => item.id === userProfile.activePetBackgroundId)
+    : null;
+
+  const backgroundStyle = backgroundItem
+    ? { backgroundImage: `url(${backgroundItem.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : { backgroundColor: '#F0FDF4' };
+
+  const purchasedItems = userProfile.purchasedItemIds
+    ? SHOP_ITEMS.filter(item => userProfile.purchasedItemIds.includes(item.id) && (item.type === 'pet_accessory'))
+    : [];
+
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (viewport) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
+    }
+  }, [messages]);
+
+  useEffect(() => {
+    if (pet) {
+      setMessages([
+        { text: `¡Hola! Soy ${pet.name}. ¿Cómo estás hoy?`, sender: 'pet' }
+      ]);
+
+      const recentEntries = [...diaryEntries].reverse().slice(0, 3);
+      if (recentEntries.length > 0) {
+        const contextStr = "Contexto de sentimientos recientes: " + recentEntries.map((entry, index) => {
+          const emotion = getEmotionById(entry.emotionId, emotionsList);
+          return `${index + 1}. ${emotion?.name || 'desconocida'}: "${entry.text}"`;
+        }).join(' ');
+        setInitialContext(contextStr);
+      } else {
+        setInitialContext("El usuario aún no ha escrito en su diario.");
+      }
+    }
+  }, [pet, diaryEntries, emotionsList]);
+
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || !pet || !initialContext) return;
+
+    const userMessage: Message = { text: inputValue, sender: 'user' };
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+    setInputValue('');
+    setIsLoading(true);
+    const history = newMessages.slice(0, -1).map(msg => ({
+      role: msg.sender === 'user' ? 'user' : 'model' as 'user' | 'model',
+      content: [{ text: msg.text }],
+    }));
+    try {
+      const response = await chatWithPet({
+        userId: user.uid,
+        message: inputValue,
+        petName: pet.name,
+        recentFeelingsContext: initialContext,
+        history: history,
+      });
+      const petMessage: Message = { text: response.response, sender: 'pet' };
+      setMessages(prev => [...prev, petMessage]);
+    } catch (error) {
+      console.error("Error chatting with pet:", error);
+      const errorMessage: Message = { text: "Uhm... no sé qué decir. Inténtalo de nuevo.", sender: 'pet' };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!pet) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
+        <p className="text-lg font-semibold">No has seleccionado ninguna mascota.</p>
+        <Button onClick={() => setView('sanctuary')} className="mt-4">Ir al Santuario</Button>
+      </div>
+    );
+  }
+
+  return (
+    <Card className="w-full h-full shadow-lg flex flex-col max-w-4xl mx-auto rounded-lg">
+      <CardHeader className="flex flex-row items-center gap-4 p-4 md:p-6 pb-4">
+        <Button variant="ghost" size="icon" onClick={() => setView('sanctuary')}>
+          <ArrowLeft />
+        </Button>
+        <div className="w-12 h-12 rounded-full bg-card flex items-center justify-center text-4xl shadow-inner">
+          {pet.icon}
+        </div>
+        <div>
+          <CardTitle className="text-2xl font-bold text-primary">{pet.name}</CardTitle>
+          <p className="text-sm text-muted-foreground">Tu compañero IA activo</p>
+        </div>
+      </CardHeader>
+      <CardContent className="flex-grow p-0">
+        <div className="flex flex-col h-full">
+            <div className="flex-grow relative rounded-t-lg m-4 mb-0" style={backgroundStyle}>
+                {purchasedItems.map((item, index) => (
+                    <div
+                        key={item.id}
+                        className="absolute text-5xl"
+                        style={{ top: `${60 + (index % 2 * 10)}%`, left: `${20 + index * 20}%` }}
+                    >
+                      {item.icon}
+                    </div>
+                ))}
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <div className="w-24 h-24 rounded-full bg-card/80 dark:bg-card flex items-center justify-center text-6xl shadow-lg border-4 border-white dark:border-gray-800">
+                        {pet.icon}
+                    </div>
+                </div>
+            </div>
+            <div className="p-4 pt-2">
+                 <ScrollArea className="h-48" ref={scrollAreaRef}>
+                    <div className="p-4 space-y-4">
+                        {initialContext && messages.length <= 1 && (
+                        <div className="flex items-start gap-3 text-sm text-muted-foreground bg-card/80 dark:bg-card/60 p-3 rounded-lg animate-fade-in backdrop-blur-sm">
+                            <Info className="h-5 w-5 mt-0.5 shrink-0" />
+                            <p>Para esta charla, estoy recordando que últimamente te has sentido: {initialContext.replace('Contexto de sentimientos recientes: ', '').split('. ').slice(0, 3).join(', ')}</p>
+                        </div>
+                        )}
+                        {messages.map((msg, index) => (
+                        <div key={index} className={cn("flex items-end gap-2", msg.sender === 'user' ? 'justify-end' : 'justify-start')}>
+                            {msg.sender === 'pet' && (
+                                <div className="w-8 h-8 rounded-full bg-card flex items-center justify-center text-xl shadow border-2">
+                                {pet.icon}
+                                </div>
+                            )}
+                            <div className={cn(
+                                "p-3 rounded-lg max-w-xs md:max-w-md lg:max-w-lg shadow",
+                                msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-card'
+                            )}>
+                                <p>{msg.text}</p>
+                            </div>
+                        </div>
+                        ))}
+                        {isLoading && (
+                            <div className="flex items-end gap-2 justify-start">
+                            <div className="w-8 h-8 rounded-full bg-card flex items-center justify-center text-xl shadow border-2">
+                                {pet.icon}
+                            </div>
+                            <div className="p-3 rounded-lg bg-card shadow">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.3s]"></span>
+                                    <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.15s]"></span>
+                                    <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce"></span>
+                                </div>
+                            </div>
+                            </div>
+                        )}
+                    </div>
+                </ScrollArea>
+            </div>
+        </div>
+      </CardContent>
+      <CardFooter className="p-4 pt-0">
+        <form
+            onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }}
+            className="flex w-full items-center space-x-2"
+        >
+            <Input
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder={`Escribe un mensaje a ${pet.name}...`}
+                disabled={isLoading}
+                className="bg-card/90 backdrop-blur-sm"
+            />
+            <Button type="submit" disabled={isLoading || !inputValue.trim()}>
+                <Send className="h-4 w-4"/>
+            </Button>
+        </form>
+      </CardFooter>
+    </Card>
+  );
+}
+```
+
+### `/src/lib/types.ts`
+**Propósito:** Define los tipos de datos principales utilizados en toda la aplicación.
+```ts
+export type Emotion = {
+  id: string;
+  userId: string;
+  name: string;
+  icon: string;
+  color: string;
+  description: string;
+  isCustom: boolean;
+};
+
+export type DiaryEntry = {
+  id: string;
+  userId: string;
+  date: string;
+  emotionId: string;
+  text: string;
+};
+
+export type UserProfile = {
+  id: string; // Firestore ID, matches auth UID
+  name: string;
+  email: string;
+  avatar: string; // Can be an emoji or a URL for generated avatar
+  avatarType: 'emoji' | 'generated';
+  unlockedAnimalIds: string[];
+  points: number;
+  purchasedItemIds: string[];
+  equippedItems: { [key in ShopItemType]?: string }; // e.g. { 'theme': 'theme-ocean', 'avatar_frame': 'frame-gold' }
+  ascentHighScore?: number;
+  activePetId: string | null;
+  petAccessoryPositions?: { [itemId: string]: { x: number; y: number } };
+  petPosition?: { x: number; y: number };
+  activeRoomBackgroundId?: string;
+};
+
+export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary' | 'games' | 'pet-chat' | 'shop';
+
+export type PredefinedEmotion = {
+  name: string;
+  icon: string;
+  description: string;
+  example: string;
+  color: string;
+};
+
+export type TourStepData = {
+  refKey: string;
+  title: string;
+  description: string;
+};
+
+export type SpiritAnimal = {
+  id: string;
+  name:string;
+  icon: string;
+  emotion: string;
+  description: string;
+  rarity: 'Común' | 'Poco Común' | 'Raro' | 'Épico' | 'Legendario';
+  unlockHint: string;
+  lottieUrl: string;
+};
+
+export type Reward = {
+  id: string;
+  type: 'streak' | 'entry_count' | 'emotion_count' | 'share' | 'special';
+  value: number;
+  animal: SpiritAnimal;
+};
+
+export interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: string;
+  difficulty: 'Fácil' | 'Medio' | 'Difícil' | 'Experto';
+}
+
+export interface GameProps {
+  emotionsList: Emotion[];
+  userProfile: UserProfile;
+}
+
+export type ShopItemType = 'theme' | 'avatar_frame' | 'pet_accessory' | 'room_background';
+
+export type ShopItem = {
+  id: string;
+  name: string;
+  description: string;
+  cost: number;
+  type: ShopItemType;
+  value: string; // e.g. 'theme-ocean', 'border-amber-400', 'bed'
+  iconUrl: string; // URL for the shop icon
+  imageUrl?: string; // URL for the actual asset (e.g., background image)
+  icon?: string; // Fallback emoji icon
+};
+
+export type PetAccessory = {
+    id: string;
+    name: string;
+    icon: string;
+    category: 'head' | 'neck' | 'body';
+};
+```
+
+### `/src/lib/constants.ts`
+**Propósito:** Define datos constantes utilizados en la aplicación, como emociones predefinidas, recompensas y pasos del tour.
+```ts
+import type { PredefinedEmotion, TourStepData, SpiritAnimal, Reward, QuizQuestion, ShopItem } from './types';
+
+export const PREDEFINED_EMOTIONS: PredefinedEmotion[] = [
+  { name: 'Alegría', icon: '😄', description: 'Sentimiento de vivo placer y contentamiento.', example: 'Sentí una gran alegría al ver a mi familia.', color: '#FFD700' },
+  { name: 'Tristeza', icon: '😢', description: 'Estado de ánimo melancólico y apesadumbrado.', example: 'La película me dejó una profunda tristeza.', color: '#6495ED' },
+  { name: 'Ira', icon: '😠', description: 'Sentimiento de enfado muy grande y violento.', example: 'La injusticia le provocó un ataque de ira.', color: '#DC143C' },
+  { name: 'Miedo', icon: '😨', description: 'Sensación de angustia por un riesgo o daño real o imaginario.', example: 'Sintió miedo al caminar solo por la noche.', color: '#800080' },
+  { name: 'Calma', icon: '😌', description: 'Estado de tranquilidad y serenidad.', example: 'Después de la meditación, sintió una calma total.', color: '#87CEEB' },
+  { name: 'Ansiedad', icon: '😟', description: 'Estado de agitación, inquietud o zozobra del ánimo.', example: 'La espera le generaba mucha ansiedad.', color: '#FFA500' },
+  { name: 'Sorpresa', icon: '😮', description: 'Asombro o extrañeza por algo imprevisto.', example: 'Su regalo fue una grata sorpresa.', color: '#ADFF2F' },
+  { name: 'Confianza', icon: '🤗', description: 'Seguridad y esperanza firme que se tiene de alguien o algo.', example: 'Tengo plena confianza en tus habilidades.', color: '#32CD32' },
+  { name: 'Gratitud', icon: '🙏', description: 'Sentimiento de estima y reconocimiento hacia quien ha hecho un favor.', example: 'Expresó su gratitud por la ayuda recibida.', color: '#FFB6C1' },
+  { name: 'Orgullo', icon: '🦁', description: 'Satisfacción por los logros, capacidades o méritos propios o de alguien.', example: 'Sintió orgullo de su trabajo al ver el resultado final.', color: '#E5B80B' },
+  { name: 'Vergüenza', icon: '😳', description: 'Sentimiento de pérdida de la dignidad por una falta cometida o por una humillación sufrida.', example: 'Sintió vergüenza al tropezar en público.', color: '#FF6347' },
+  { name: 'Euforia', icon: '🥳', description: 'Sensación exteriorizada de optimismo y bienestar, producida a menudo por la administración de fármacos o drogas, o por alguna satisfacción.', example: 'Tras ganar la competición, el equipo estaba en un estado de euforia.', color: '#FF4500' },
+  { name: 'Nostalgia', icon: '🤔', description: 'Pena de verse ausente de la patria o de los deudos o amigos.', example: 'Mirar fotos antiguas le producía nostalgia.', color: '#D2B48C' },
+  { name: 'Esperanza', icon: '✨', description: 'Estado de ánimo que surge cuando se presenta como alcanzable lo que se desea.', example: 'Mantenía la esperanza de que todo saldría bien.', color: '#F0E68C' },
+  { name: 'Frustración', icon: '😤', description: 'Estado que se produce cuando no se logra alcanzar el objeto de un deseo.', example: 'Sintió frustración al no poder resolver el problema.', color: '#A52A2A' },
+  { name: 'Amor', icon: '😍', description: 'Sentimiento intenso del ser humano que, partiendo de su propia insuficiencia, necesita y busca el encuentro y unión con otro ser.', example: 'Sintió un amor profundo desde el primer momento.', color: '#FF1493' },
+  { name: 'Alivio', icon: '😌', description: 'Disminución o mitigación de un dolor, una pena o una aflicción.', example: 'Sintió un gran alivio cuando terminó el examen.', color: '#90EE90' },
+  { name: 'Confusión', icon: '😕', description: 'Falta de orden o de claridad cuando se tienen o se barajan muchas posibilidades.', example: 'La información contradictoria le generó confusión.', color: '#708090' },
+  { name: 'Decepción', icon: '😞', description: 'Pesar causado por un desengaño.', example: 'La cancelación del viaje fue una gran decepción.', color: '#4682B4' },
+  { name: 'Motivación', icon: '💪', description: 'Conjunto de factores internos o externos que determinan en parte las acciones de una persona.', example: 'Encontró la motivación para empezar a hacer ejercicio.', color: '#FFA500' },
+  { name: 'Entusiasmo', icon: '🤩', description: 'Exaltación y fogosidad del ánimo, excitado por algo que lo admire o cautive.', example: 'Recibió la noticia con mucho entusiasmo.', color: '#FFD700' },
+  { name: 'Serenidad', icon: '🧘', description: 'Cualidad de sereno, apacible y tranquilo.', example: 'La serenidad del atardecer en la playa era incomparable.', color: '#B0C4DE' },
+  { name: 'Curiosidad', icon: '🧐', description: 'Deseo de saber o averiguar cosas.', example: 'La curiosidad lo llevó a abrir la misteriosa caja.', color: '#DAA520' },
+  { name: 'Valentía', icon: '🦸', description: 'Determinación para enfrentarse a situaciones arriesgadas o difíciles.', example: 'Demostró gran valentía al defender sus ideas.', color: '#B22222' },
+  { name: 'Soledad', icon: '🚶', description: 'Carencia voluntaria o involuntaria de compañía.', example: 'A veces, disfrutaba de la soledad para reflexionar.', color: '#778899' },
+  { name: 'Inspiración', icon: '💡', description: 'Estímulo o lucidez repentina que siente una persona.', example: 'La naturaleza fue su mayor fuente de inspiración.', color: '#FFFF00' }
+];
+
+export const EMOTION_ANTONYMS: [string, string][] = [
+    ['Alegría', 'Tristeza'],
+    ['Ira', 'Calma'],
+    ['Miedo', 'Confianza'],
+    ['Ansiedad', 'Serenidad'],
+    ['Orgullo', 'Vergüenza'],
+    ['Euforia', 'Decepción'],
+    ['Esperanza', 'Frustración'],
+    ['Entusiasmo', 'Nostalgia'],
+    ['Valentía', 'Miedo'],
+    ['Motivación', 'Frustración'],
+];
+
+export const EMOTION_BONUS_WORDS: { [key: string]: string[] } = {
+    'Alegría': ['celebración', 'sonrisa', 'éxito', 'amigos', 'fiesta'],
+    'Tristeza': ['pérdida', 'lágrimas', 'despedida', 'solo', 'gris'],
+    'Ira': ['injusticia', 'grito', 'tensión', 'conflicto', 'rojo'],
+    'Miedo': ['oscuro', 'ruido', 'peligro', 'sombra', 'temblor'],
+    'Calma': ['silencio', 'respirar', 'paz', 'relax', 'lago'],
+    'Ansiedad': ['futuro', 'examen', 'espera', 'preocupación', 'corazón'],
+    'Sorpresa': ['regalo', 'inesperado', 'fiesta', 'noticia', 'abrir'],
+    'Confianza': ['abrazo', 'equipo', 'apoyo', 'promesa', 'seguro'],
+    'Gratitud': ['gracias', 'favor', 'ayuda', 'regalo', 'aprecio'],
+    'Orgullo': ['logro', 'meta', 'esfuerzo', 'medalla', 'aplauso'],
+    'Vergüenza': ['error', 'público', 'esconder', 'mejillas', 'rojo'],
+    'Euforia': ['victoria', 'concierto', 'cima', 'grito', 'celebrar'],
+    'Nostalgia': ['recuerdo', 'infancia', 'foto', 'ayer', 'pasado'],
+    'Esperanza': ['mañana', 'luz', 'deseo', 'sueño', 'creer'],
+    'Frustración': ['imposible', 'atasco', 'error', 'intentar', 'fallo'],
+    'Amor': ['corazón', 'juntos', 'beso', 'familia', 'cariño'],
+    'Alivio': ['final', 'suspiro', 'descanso', 'solución', 'paz'],
+    'Confusión': ['mapa', 'niebla', 'duda', 'preguntas', 'laberinto'],
+    'Decepción': ['promesa', 'esperaba', 'fallo', 'triste', 'cancelado'],
+    'Motivación': ['empezar', 'gimnasio', 'meta', 'fuerza', 'impulso'],
+    'Entusiasmo': ['nuevo', 'viaje', 'proyecto', 'energía', 'ganas'],
+    'Serenidad': ['atardecer', 'meditar', 'equilibrio', 'paz', 'silencio'],
+    'Curiosidad': ['misterio', 'caja', 'explorar', 'secreto', 'pregunta'],
+    'Valentía': ['defender', 'enfrentar', 'riesgo', 'héroe', 'fuerza'],
+    'Soledad': ['silencio', 'reflexión', 'paseo', 'solo', 'calma'],
+    'Inspiración': ['idea', 'chispa', 'musa', 'crear', 'arte']
+};
+
+
+export const AVATAR_EMOJIS = ['😊', '😎', '🤔', '😂', '🥰', '😇', '🥳', '🤯', '🤩', '😴', '🌞', '⭐', '😄', '😢', '😠', '😨', '😌', '😟', '😮', '🤗', '🙏', '🦁', '😳', '✨', '😤', '😍', '😕', '😞', '💪', '😜', '😥', '😭', '🙄', '🤢', '🤐', '🥴', '🥺', '🤡', '👻', '👽', '🤖', '👾', '🎃', '😈', '👿', '🔥', '💯', '❤️', '💔', '👍', '👎', '👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '✍️', '🤳', '💅', '👀', '👁️', '🧠', '🦴', '🦷', '🗣️', '👤', '👥', '🫂', '👶', '👧', '🧒', '👦', '👩', '🧑', '👨', '👩‍🦱', '🧑‍🦱', '👨‍🦱', '👩‍🦰', '🧑‍🦰', '👨‍🦰', '👱‍♀️', '👱', '👱‍♂️', '👩‍🦳', '🧑‍🦳', '👨‍🦳', '👩‍🦲', '🧑‍🦲', '👨‍🦲', '🧔', '👵', '🧓', '👴', '👲', '👳‍♀️', '👳', '👳‍♂️', '🧕', '👮‍♀️', '👮', '👮‍♂️', '👷‍♀️', '👷', '👷‍♂️', '💂‍♀️', '💂', '💂‍♂️', '🕵️‍♀️', '🕵️', '🕵️‍♂️', '👩‍⚕️', '🧑‍⚕️', '👨‍⚕️', '👩‍🌾', '🧑‍🌾', '👨‍🌾', '👩‍🍳', '🧑‍🍳', '👨‍🍳', '👩‍🎓', '🧑‍🎓', '👨‍🎓', '👩‍🎤', '🧑‍🎤', '👨‍🎤', '👩‍🏫', '🧑‍🏫', '👨‍🏫', '👩‍🏭', '🧑‍🏭', '👨‍🏭', '👩‍💻', '🧑‍💻', '👨‍💻', '👩‍💼', '🧑‍💼', '👨‍💼', '👩‍🔧', '🧑‍🔧', '👨‍🔧', '👩‍🔬', '🧑‍🔬', '👨‍🔬', '👩‍🎨', '🧑‍🎨', '👨‍🎨', '👩‍🚒', '🧑‍🚒', '👨‍🚒', '👩‍✈️', '🧑‍✈️', '👨‍✈️', '👩‍🚀', '🧑‍🚀', '👨‍🚀', '👩‍⚖️', '🧑‍⚖️', '👨‍⚖️', '🦸‍♀️', '🦸', '🦸‍♂️', '🦹‍♀️', '🦹', '🦹‍♂️', '🤶', '🧑‍🎄', '🎅', '🧙‍♀️', '🧙', '🧙‍♂️', '🧝‍♀️', '🧝', '🧝‍♂️', '🧛‍♀️', '🧛', '🧛‍♂️', '🧟‍♀️', '🧟', '🧟‍♂️', '🧞‍♀️', '🧞', '🧞‍♂️', '🧜‍♀️', '🧜', '🧜‍♂️', '🧚‍♀️', '🧚', '🧚‍♂️', '👼', '🤰', '🤱', '👩‍🍼', '🧑‍🍼', '👨‍🍼', '🙇‍♀️', '🙇', '🙇‍♂️', '💁‍♀️', '💁', '💁‍♂️', '🙅‍♀️', '🙅', '🙅‍♂️', '🙆‍♀️', '🙆', '🙆‍♂️', '🙋‍♀️', '🙋', '🙋‍♂️', '🧏‍♀️', '🧏', '🧏‍♂️', '🤦‍♀️', '🤦', '🤦‍♂️', '🤷‍♀️', '🤷', '🤷‍♂️', '🙎‍♀️', '🙎', '🙎‍♂️', '🙍‍♀️', '🙍', '🙍‍♂️', '💇‍♀️', '💇', '💇‍♂️', '💆‍♀️', '💆', '💆‍♂️', '🧖‍♀️', '🧖', '🧖‍♂️', '💃', '🕺', '🕴️', '👩‍🦽', '🧑‍🦽', '👨‍🦽', '👩‍🦼', '🧑‍🦼', '👨‍🦼', '🚶‍♀️', '🚶', '🚶‍♂️', '👩‍🦯', '🧑‍🦯', '👨‍🦯', '🧎‍♀️', '🧎', '🧎‍♂️', '🏃‍♀️', '🏃', '🏃‍♂️', '🧍‍♀️', '🧍', '🧍‍♂️', '👫', '👭', '👬', '👩‍❤️‍👨', '👩‍❤️‍👩', '💑', '👨‍❤️‍👨', '👩‍❤️‍💋‍👨', '👩‍❤️‍💋‍👩', '💏', '👨‍❤️‍💋‍👨', '👨‍👩‍👦', '👨‍👩‍👧', '👨‍👩‍👧‍👦', '👨‍👩‍👦‍👦', '👨‍👩‍👧‍👧', '👩‍👩‍👦', '👩‍👩‍👧', '👩‍👩‍👧‍👦', '👩‍👩‍👦‍👦', '👩‍👩‍👧‍👧', '👨‍👨‍👦', '👨‍👨‍👧', '👨‍👨‍👧‍👦', '👨‍👨‍👦‍👦', '👨‍👨‍👧‍👧', '👩‍👦', '👩‍👧', '👩‍👧‍👦', '👩‍👦‍👦', '👩‍👧‍👧', '👨‍👦', '👨‍👧', '👨‍👧‍👦', '👨‍👦‍👦', '👨‍👧‍👧', '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐻‍❄️', '🐨', '🐯', '🦁', '🐮', '🐷', '🐽', '🐸', '🐵', '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜', '🦟', '🦗', '🕷️', '🕸️', '🦂', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🦣', '🐘', '🦛', '🦏', '🐪', '🐫', '🦒', '🦘', '🦬', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🦙', '🐐', '🦌', '🐕', '🐩', '🦮', '🐕‍', '🐈', '🐈‍⬛', '🦢', '🦩', '🦚', '🦜', '🐸', '🐊', '🐢', '🦎', '🐍', '🐲', '🐉', '🌵', '🎄', '🌲', '🌳', '🌴', '🌱', '🌿', '☘️', '🍀', '🎍', '🎋', '🍃', '🍂', '🍁', '🍄', '🐚', '🕸️', '🌎', '🌍', '🌏', '🌕', '🌖', '🌗', '🌘', '🌑', '🌒', '🌓', '🌔', '🌚', '🌝', '🌞', '🪐', '💫', '🌟', '🌠', '🌌', '☁️', '⛅️', '⛈️', '🌤️', '🌥️', '🌦️', '🌧️', '🌨️', '🌩️', '🌪️', '🌫️', '🌬️', '🌈', '☂️', '💧', '🌊', '🍓', '🍎', '🍉', '🍕', '🍰', '⚽️', '🏀', '🏈', '⚾️', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🪃', '🥅', '⛳️', '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛼', '🛷', '⛸️', '🥌', '🎿', '⛷️', '🏂', '🪂', '🏋️‍♀️', '🏋️', '🏋️‍♂️', '🤼‍♀️', '𤼼', '𤼼‍♂️', '🤸‍♀️', '🤸', '🤸‍♂️', '⛹️‍♀️', '⛹️', '⛹️‍♂️', '🤺', '🤾‍♀️', '🤾', '🤾‍♂️', '🏌️‍♀️', '🏌️', '🏌️‍♂️', '🏇', '🧘‍♀️', '🧘', '🧘‍♂️', '🏄‍♀️', '🏄', '🏄‍♂️', '🏊‍♀️', '🏊', '🏊‍♂️', '🤽‍♀️', '🤽', '🤽‍♂️', '🚣‍♀️', '🚣', '🚣‍♂️', '🧗‍♀️', '🧗', '🧗‍♂️', '🚵‍♀️', '🚵', '🚵‍♂️', '🚴‍♀️', '🚴', '🚴‍♂️'];
+
+
+export const TOUR_STEPS: TourStepData[] = [
+    { refKey: 'diaryRef', title: 'Tu Diario Personal', description: 'Aquí es donde puedes escribir tus entradas diarias. ¡Registra cómo te sientes cada día!' },
+    { refKey: 'emocionarioRef', title: 'Crea tu Emocionario', description: 'Define tus propias emociones con nombres, iconos y colores. ¡Hazlo tuyo!' },
+    { refKey: 'discoverRef', title: 'Descubre Nuevas Emociones', description: 'Explora una lista de emociones comunes y añádelas a tu propio emocionario.' },
+    { refKey: 'gamesRef', title: 'Pon a Prueba tus Emociones', description: 'Diviértete y aprende con juegos interactivos diseñados para mejorar tu inteligencia emocional.' },
+    { refKey: 'streakRef', title: 'Controla tu Racha', description: '¡Mantén la llama encendida! Registra tus emociones a diario para no perder tu racha.' },
+    { refKey: 'sanctuaryRef', title: 'Tu Santuario de Recompensas', description: 'Alcanza hitos y desbloquea "animales espirituales" como recompensa por tu constancia.' },
+    { refKey: 'petChatRef', title: 'Tu Compañero IA', description: 'Chatea con tus animales espirituales desbloqueados. ¡Están aquí para escucharte!' },
+    { refKey: 'shopRef', title: 'Tienda de Recompensas', description: 'Usa tus puntos para desbloquear temas, marcos y otros artículos cosméticos.' },
+    { refKey: 'calmRef', title: 'Rincón de la Calma', description: '¿Necesitas un respiro? Prueba nuestros ejercicios de respiración guiada para relajarte.' },
+    { refKey: 'reportRef', title: 'Reporte Visual', description: 'Observa tus patrones emocionales a lo largo del tiempo con este calendario interactivo.' },
+    { refKey: 'shareRef', title: 'Comparte tu Viaje', description: 'Genera un reporte de texto de tu diario para compartirlo con quien tú quieras.' },
+    { refKey: 'profileRef', title: 'Personaliza tu Perfil', description: 'Elige tu nombre y un avatar que te represente. ¡Este es tu espacio!' },
+];
+
+export const SPIRIT_ANIMALS: SpiritAnimal[] = [
+    {
+        id: 'agile-hummingbird',
+        name: 'Colibrí Ágil',
+        icon: '🐦‍🔥',
+        lottieUrl: 'https://lottie.host/6d03b0d5-c518-42f5-b6d6-ba9c6f212781/h3HiaakpBC.json',
+        emotion: 'Entusiasmo',
+        description: 'Representa la alegría, la energía y la capacidad de encontrar la dulzura en cada día.',
+        rarity: 'Común',
+        unlockHint: 'Se consigue al registrar tu primera emoción en el diario.',
+    },
+    {
+        id: 'social-butterfly',
+        name: 'Mariposa Social',
+        icon: '🦋',
+        lottieUrl: 'https://lottie.host/79361718-f2b1-460d-83b6-d3b5b191c7c1/s8c6cImIeA.json',
+        emotion: 'Alegría',
+        description: 'Encarna la transformación, la belleza de la conexión y el compartir tu viaje con otros.',
+        rarity: 'Común',
+        unlockHint: 'Se obtiene al usar la función de "Compartir Diario" por primera vez.',
+    },
+    {
+        id: 'cunning-fox',
+        name: 'Zorro Astuto',
+        icon: '🦊',
+        lottieUrl: 'https://lottie.host/a06c526f-4cff-4b8c-b633-90d576a96434/s7y8POc5nO.json',
+        emotion: 'Curiosidad',
+        description: 'Simboliza la inteligencia, la adaptabilidad y la capacidad de pensar de forma creativa.',
+        rarity: 'Poco Común',
+        unlockHint: 'Se consigue al mantener una racha de 3 días.',
+    },
+    {
+        id: 'patient-turtle',
+        name: 'Tortuga Paciente',
+        icon: '🐢',
+        lottieUrl: 'https://lottie.host/5e01c5c1-7cb4-495c-9d63-532393d25642/hymD2a43sZ.json',
+        emotion: 'Calma',
+        description: 'Simboliza la perseverancia, la estabilidad y la sabiduría de ir a tu propio ritmo.',
+        rarity: 'Poco Común',
+        unlockHint: 'Se desbloquea al registrar 25 entradas en tu diario.',
+    },
+    {
+        id: 'loyal-dog',
+        name: 'Perro Leal',
+        icon: '🐶',
+        lottieUrl: 'https://lottie.host/81a93549-9d96-4a41-9c60-e4a0b2a759c8/a53vnmPbQG.json',
+        emotion: 'Confianza',
+        description: 'Encarna la amistad incondicional, la confianza y la alegría de la compañía.',
+        rarity: 'Poco Común',
+        unlockHint: 'Se obtiene al añadir más de 10 emociones a tu emocionario.',
+    },
+    {
+        id: 'empathetic-elephant',
+        name: 'Elefante Empático',
+        icon: '🐘',
+        lottieUrl: 'https://lottie.host/b3154854-4c4b-4b1f-94d1-67f70b7c7b74/SgQ5a2Q2Ff.json',
+        emotion: 'Empatía',
+        description: 'Representa la memoria, la fuerza de los lazos afectivos y un profundo entendimiento de los demás.',
+        rarity: 'Raro',
+        unlockHint: 'Se desbloquea al alcanzar 50 entradas en tu diario.',
+    },
+    {
+        id: 'loyal-wolf',
+        name: 'Lobo Leal',
+        icon: '🐺',
+        lottieUrl: 'https://lottie.host/e0e9b9f7-5b0c-4b6d-9c3f-4e6a8d6f0c3d/r3g4F5f6E7.json',
+        emotion: 'Confianza',
+        description: 'Encarna la lealtad, el trabajo en equipo y los fuertes lazos con la comunidad.',
+        rarity: 'Raro',
+        unlockHint: 'Se consigue al mantener una racha de 7 días.',
+    },
+    {
+        id: 'proud-lion',
+        name: 'León Orgulloso',
+        icon: '🦁',
+        lottieUrl: 'https://lottie.host/2f3c3b5a-4b6d-4c3c-8a9d-1b2c3d4e5f6a/n4b5c6d7e8.json',
+        emotion: 'Orgullo',
+        description: 'Representa la fuerza, el liderazgo y la satisfacción de alcanzar metas importantes.',
+        rarity: 'Raro',
+        unlockHint: 'Se obtiene al mantener una racha de 14 días.',
+    },
+     {
+        id: 'brave-eagle',
+        name: 'Águila Valiente',
+        icon: '🦅',
+        lottieUrl: 'https://lottie.host/c5c6d7e8-3b5a-4b6d-8a9d-1b2c3d4e5f6a/m3n4b5c6d7.json',
+        emotion: 'Valentía',
+        description: 'Simboliza la libertad, la visión clara y el coraje para volar por encima de los desafíos.',
+        rarity: 'Épico',
+        unlockHint: 'Se desbloquea al alcanzar 100 entradas en el diario.',
+    },
+    {
+        id: 'wise-owl',
+        name: 'Búho Sabio',
+        icon: '🦉',
+        lottieUrl: 'https://lottie.host/a1b2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d/l2m3n4b5c6.json',
+        emotion: 'Serenidad',
+        description: 'Representa la sabiduría, la intuición y la capacidad de ver más allá de lo evidente.',
+        rarity: 'Épico',
+        unlockHint: 'Se consigue al mantener una racha de 30 días.',
+    },
+    {
+        id: 'resilient-phoenix',
+        name: 'Fénix Resiliente',
+        icon: '🔥',
+        lottieUrl: 'https://lottie.host/f1e2d3c4-b5a6-7d8e-9f0a-1b2c3d4e5f6a/k1l2m3n4b5.json',
+        emotion: 'Resiliencia',
+        description: 'Encarna la capacidad de renacer de las cenizas, la superación y la transformación personal.',
+        rarity: 'Épico',
+        unlockHint: 'Se desbloquea recuperando un día perdido con el desafío de la racha.',
+    },
+    {
+        id: 'protective-dragon',
+        name: 'Dragón Protector',
+        icon: '🐉',
+        lottieUrl: 'https://lottie.host/d1c2b3a4-e5f6-7a8b-9c0d-1e2f3a4b5c6d/j1k2l3m4n5.json',
+        emotion: 'Protección',
+        description: 'Simboliza un poder inmenso, la protección de tus tesoros emocionales y una sabiduría ancestral.',
+        rarity: 'Legendario',
+        unlockHint: 'Se consigue al mantener una racha de 60 días. Un logro monumental.',
+    },
+];
+
+export const REWARDS: Reward[] = [
+    // Entry count based rewards
+    { id: 'entry-1', type: 'entry_count', value: 1, animal: SPIRIT_ANIMALS.find(a => a.id === 'agile-hummingbird')! },
+    { id: 'entry-25', type: 'entry_count', value: 25, animal: SPIRIT_ANIMALS.find(a => a.id === 'patient-turtle')! },
+    { id: 'entry-50', type: 'entry_count', value: 50, animal: SPIRIT_ANIMALS.find(a => a.id === 'empathetic-elephant')! },
+    { id: 'entry-100', type: 'entry_count', value: 100, animal: SPIRIT_ANIMALS.find(a => a.id === 'brave-eagle')! },
+    // Streak based rewards
+    { id: 'streak-3', type: 'streak', value: 3, animal: SPIRIT_ANIMALS.find(a => a.id === 'cunning-fox')! },
+    { id: 'streak-7', type: 'streak', value: 7, animal: SPIRIT_ANIMALS.find(a => a.id === 'loyal-wolf')! },
+    { id: 'streak-14', type: 'streak', value: 14, animal: SPIRIT_ANIMALS.find(a => a.id === 'proud-lion')! },
+    { id: 'streak-30', type: 'streak', value: 30, animal: SPIRIT_ANIMALS.find(a => a.id === 'wise-owl')! },
+    { id: 'streak-60', type: 'streak', value: 60, animal: SPIRIT_ANIMALS.find(a => a.id === 'protective-dragon')! },
+    // Emotion count based rewards
+    { id: 'emotion-10', type: 'emotion_count', value: 10, animal: SPIRIT_ANIMALS.find(a => a.id === 'loyal-dog')! },
+    // Special rewards
+    { id: 'share-1', type: 'share', value: 1, animal: SPIRIT_ANIMALS.find(a => a.id === 'social-butterfly')! },
+    { id: 'phoenix-reward', type: 'special', value: 1, animal: SPIRIT_ANIMALS.find(a => a.id === 'resilient-phoenix')! },
+];
+
+export const QUIZ_QUESTIONS: QuizQuestion[] = [
+    // --- Fácil ---
+    { question: 'Recibes una bicicleta nueva para tu cumpleaños. ¿Qué sientes?', options: ['Alegría', 'Tristeza', 'Ira', 'Miedo'], correctAnswer: 'Alegría', difficulty: 'Fácil' },
+    { question: 'Estás en la cama por la noche y escuchas un ruido extraño en la casa. ¿Qué sientes?', options: ['Calma', 'Aburrimiento', 'Miedo', 'Sorpresa'], correctAnswer: 'Miedo', difficulty: 'Fácil' },
+    { question: 'Tu mejor amigo te dice que se va a mudar a otra ciudad. ¿Qué sientes?', options: ['Euforia', 'Tristeza', 'Orgullo', 'Alivio'], correctAnswer: 'Tristeza', difficulty: 'Fácil' },
+    { question: 'Alguien se salta la fila delante de ti en el supermercado. ¿Qué sientes?', options: ['Gratitud', 'Ira', 'Amor', 'Nostalgia'], correctAnswer: 'Ira', difficulty: 'Fácil' },
+    { question: 'Estás sentado en la playa, escuchando las olas y sintiendo la brisa. ¿Qué sientes?', options: ['Ansiedad', 'Confusión', 'Calma', 'Frustración'], correctAnswer: 'Calma', difficulty: 'Fácil' },
+    { question: 'Tu equipo de fútbol favorito gana un partido importante en el último minuto. ¿Qué sientes?', options: ['Alegría', 'Decepción', 'Miedo', 'Tristeza'], correctAnswer: 'Alegría', difficulty: 'Fácil' },
+    { question: 'Se te cae el helado al suelo justo después de comprarlo. ¿Qué sientes?', options: ['Frustración', 'Calma', 'Sorpresa', 'Alegría'], correctAnswer: 'Frustración', difficulty: 'Fácil' },
+    { question: 'Abres un regalo y es justo lo que querías. ¿Qué sientes?', options: ['Sorpresa', 'Decepción', 'Miedo', 'Tristeza'], correctAnswer: 'Sorpresa', difficulty: 'Fácil' },
+
+    // --- Medio ---
+    { question: 'Has estudiado mucho para un examen y obtienes una nota excelente. ¿Qué sientes?', options: ['Decepción', 'Orgullo', 'Vergüenza', 'Soledad'], correctAnswer: 'Orgullo', difficulty: 'Medio' },
+    { question: 'Tienes que hablar en público y sientes mariposas en el estómago. ¿Qué sientes?', options: ['Serenidad', 'Ansiedad', 'Curiosidad', 'Valentía'], correctAnswer: 'Ansiedad', difficulty: 'Medio' },
+    { question: 'Un amigo te ayuda con un problema difícil sin que se lo pidas. ¿Qué sientes?', options: ['Ira', 'Gratitud', 'Envidia', 'Miedo'], correctAnswer: 'Gratitud', difficulty: 'Medio' },
+    { question: 'Te caes delante de mucha gente. ¿Qué sientes?', options: ['Orgullo', 'Valentía', 'Vergüenza', 'Confianza'], correctAnswer: 'Vergüenza', difficulty: 'Medio' },
+    { question: 'Llegas a casa y tus amigos te han preparado una fiesta sorpresa. ¿Qué sientes?', options: ['Tristeza', 'Sorpresa', 'Aburrimiento', 'Decepción'], correctAnswer: 'Sorpresa', difficulty: 'Medio' },
+    { question: 'Ves una película que te recuerda a tus vacaciones de verano pasadas. ¿Qué sientes?', options: ['Nostalgia', 'Euforia', 'Ira', 'Confusión'], correctAnswer: 'Nostalgia', difficulty: 'Medio' },
+    { question: 'Un plan que tenías muchas ganas de hacer se cancela en el último momento. ¿Qué sientes?', options: ['Decepción', 'Alivio', 'Alegría', 'Sorpresa'], correctAnswer: 'Decepción', difficulty: 'Medio' },
+    { question: 'Ves a un amigo que no veías hace mucho tiempo. ¿Qué sientes?', options: ['Alegría', 'Tristeza', 'Ira', 'Miedo'], correctAnswer: 'Alegría', difficulty: 'Medio' },
+    { question: 'Intentas armar un juguete nuevo, pero las piezas no encajan. ¿Qué sientes?', options: ['Frustración', 'Calma', 'Alegría', 'Confianza'], correctAnswer: 'Frustración', difficulty: 'Medio' },
+    { question: 'Vas a montar en una montaña rusa por primera vez. ¿Qué sientes?', options: ['Miedo', 'Calma', 'Tristeza', 'Aburrimiento'], correctAnswer: 'Miedo', difficulty: 'Medio' },
+
+    // --- Difícil ---
+    { question: 'Llevas semanas esperando un paquete y te notifican que se ha perdido. ¿Qué sientes?', options: ['Alivio', 'Euforia', 'Frustración', 'Esperanza'], correctAnswer: 'Frustración', difficulty: 'Difícil' },
+    { question: 'Estás trabajando en un proyecto creativo y de repente se te ocurre una idea genial. ¿Qué sientes?', options: ['Confusión', 'Inspiración', 'Soledad', 'Nostalgia'], correctAnswer: 'Inspiración', difficulty: 'Difícil' },
+    { question: 'Alguien a quien admiras reconoce tu trabajo y te felicita delante de otros. ¿Qué sientes?', options: ['Orgullo', 'Valentía', 'Confianza', 'Gratitud'], correctAnswer: 'Orgullo', difficulty: 'Difícil' },
+    { question: 'Creías que habías perdido la cartera con todo tu dinero, pero la encuentras en tu bolsillo. ¿Qué sientes?', options: ['Decepción', 'Alivio', 'Ansiedad', 'Tristeza'], correctAnswer: 'Alivio', difficulty: 'Difícil' },
+    { question: 'Te enfrentas a un gran desafío, pero crees firmemente en tu capacidad para superarlo. ¿Qué sientes?', options: ['Miedo', 'Valentía', 'Confusión', 'Ira'], correctAnswer: 'Valentía', difficulty: 'Difícil' },
+    { question: 'Después de un día difícil, tu mascota se acurruca a tu lado. ¿Qué sientes?', options: ['Amor', 'Ira', 'Miedo', 'Decepción'], correctAnswer: 'Amor', difficulty: 'Difícil' },
+    { question: 'Te dan instrucciones complicadas y no estás seguro de entenderlas. ¿Qué sientes?', options: ['Confusión', 'Confianza', 'Calma', 'Alegría'], correctAnswer: 'Confusión', difficulty: 'Difícil' },
+    { question: 'Quieres empezar un nuevo hobby que te apasiona. ¿Qué sientes?', options: ['Motivación', 'Tristeza', 'Miedo', 'Ira'], correctAnswer: 'Motivación', difficulty: 'Difícil' },
+    { question: 'Ves un documental sobre un lugar que siempre has soñado visitar. ¿Qué sientes?', options: ['Curiosidad', 'Decepción', 'Tristeza', 'Calma'], correctAnswer: 'Curiosidad', difficulty: 'Difícil' },
+    { question: 'Te enteras de una noticia muy positiva sobre el futuro del planeta. ¿Qué sientes?', options: ['Esperanza', 'Miedo', 'Tristeza', 'Ira'], correctAnswer: 'Esperanza', difficulty: 'Difícil' },
+    { question: 'Un amigo te cuenta un secreto muy importante. ¿Qué sientes?', options: ['Confianza', 'Miedo', 'Sorpresa', 'Alegría'], correctAnswer: 'Confianza', difficulty: 'Difícil' },
+    
+    // --- Experto ---
+    { question: 'Ganas una competición importante después de meses de duro entrenamiento. Sientes una alegría inmensa y energética. ¿Qué sientes?', options: ['Serenidad', 'Euforia', 'Calma', 'Alivio'], correctAnswer: 'Euforia', difficulty: 'Experto' },
+    { question: 'A pesar de los contratiempos, sigues creyendo firmemente que tu situación mejorará. ¿Qué sientes?', options: ['Decepción', 'Esperanza', 'Frustración', 'Tristeza'], correctAnswer: 'Esperanza', difficulty: 'Experto' },
+    { question: 'Pasas tiempo con una persona que es muy importante para ti y sientes una conexión profunda y afectuosa. ¿Qué sientes?', options: ['Gratitud', 'Amor', 'Confianza', 'Alegría'], correctAnswer: 'Amor', difficulty: 'Experto' },
+    { question: 'Te proponen un nuevo proyecto que despierta tu interés y te impulsa a empezar a trabajar en él inmediatamente. ¿Qué sientes?', options: ['Entusiasmo', 'Ansiedad', 'Curiosidad', 'Motivación'], correctAnswer: 'Motivación', difficulty: 'Experto' },
+    { question: 'Recibes varias instrucciones contradictorias y no estás seguro de qué hacer a continuación. ¿Qué sientes?', options: ['Ansiedad', 'Confusión', 'Frustración', 'Ira'], correctAnswer: 'Confusión', difficulty: 'Experto' },
+    { question: 'Tras un día ajetreado, te sientas en silencio y sientes una profunda paz interior, aceptando el momento presente. ¿Qué sientes?', options: ['Serenidad', 'Soledad', 'Tristeza', 'Calma'], correctAnswer: 'Serenidad', difficulty: 'Experto' },
+    { question: 'Un amigo cercano te traiciona, rompiendo la confianza que tenías en él. ¿Qué sientes?', options: ['Decepción', 'Ira', 'Tristeza', 'Frustración'], correctAnswer: 'Decepción', difficulty: 'Experto' },
+    { question: 'Comienzas un nuevo proyecto con una energía vibrante y una gran sonrisa. ¿Qué sientes?', options: ['Entusiasmo', 'Ansiedad', 'Calma', 'Orgullo'], correctAnswer: 'Entusiasmo', difficulty: 'Experto' },
+    { question: 'Un desconocido realiza un acto de bondad inesperado hacia ti. ¿Qué sientes?', options: ['Gratitud', 'Sorpresa', 'Confianza', 'Alegría'], correctAnswer: 'Gratitud', difficulty: 'Experto' },
+    { question: 'Defiendes a un amigo a pesar de que te da miedo hacerlo. ¿Qué sientes?', options: ['Valentía', 'Orgullo', 'Miedo', 'Confianza'], correctAnswer: 'Valentía', difficulty: 'Experto' }
+];
+
+export const SHOP_ITEMS: ShopItem[] = [
+    // Themes
+    { id: 'theme-ocean', name: 'Tema Océano', description: 'Un tema azul y relajante para la aplicación.', cost: 100, type: 'theme', value: 'theme-ocean', icon: '🌊' },
+    { id: 'theme-forest', name: 'Tema Bosque', description: 'Un tema verde y tranquilo inspirado en la naturaleza.', cost: 100, type: 'theme', value: 'theme-forest', icon: '🌳' },
+    // Avatar Frames
+    { id: 'frame-gold', name: 'Marco Dorado', description: 'Un marco dorado brillante para tu avatar.', cost: 250, type: 'avatar_frame', value: 'border-amber-400', icon: '🌟' },
+    { id: 'frame-silver', name: 'Marco Plateado', description: 'Un marco plateado elegante para tu avatar.', cost: 150, type: 'avatar_frame', value: 'border-slate-400', icon: '💿' },
+    // Pet Accessories
+    { id: 'pet-bed', name: 'Cama Cómoda', description: 'Una cama suave y cómoda para que tu compañero descanse.', cost: 300, type: 'pet_accessory', value: 'bed', icon: '🛏️' },
+    { id: 'pet-bowl', name: 'Cuenco de Lujo', description: 'Un cuenco brillante para la comida y el agua de tu mascota.', cost: 200, type: 'pet_accessory', value: 'bowl', icon: '🥣' },
+    { id: 'pet-toy', name: 'Pelota de Juguete', description: 'Una pelota colorida para que tu compañero se divierta.', cost: 150, type: 'pet_accessory', value: 'toy', icon: '🎾' },
+    // Pet Backgrounds (Room Backgrounds)
+    {
+      id: 'bg_jardin',
+      name: 'Jardín Tranquilo',
+      description: 'Un fondo natural y relajante.',
+      cost: 500,
+      type: 'room_background',
+      value: 'garden',
+      iconUrl: 'https://openmoji.org/data/color/svg/1F333.svg', // Icono de árbol
+      imageUrl: 'https://images.pexels.com/photos/1125270/pexels-photo-1125270.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'
+    },
+    {
+      id: 'bg_estelar',
+      name: 'Dormitorio de Ensueño',
+      description: 'Un fondo nocturno y estrellado.',
+      cost: 500,
+      type: 'room_background',
+      value: 'bedroom',
+      iconUrl: 'https://openmoji.org/data/color/svg/1F30C.svg', // Icono de Vía Láctea
+      imageUrl: 'https://images.pexels.com/photos/1629236/pexels-photo-1629236.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'
+    },
+    {
+      id: 'bg_sala_acogedora',
+      name: 'Sala de Estar Acogedora',
+      description: 'Un fondo cálido y hogareño.',
+      cost: 500,
+      type: 'room_background',
+      value: 'living-room',
+      iconUrl: 'https://openmoji.org/data/color/svg/1F6CB.svg', // Icono de Sofá
+      imageUrl: 'https://images.pexels.com/photos/271816/pexels-photo-271816.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'
+    }
+];
+```
+
+Y así sucesivamente para cada fichero del proyecto, creando una documentación completa y actualizada.
+
