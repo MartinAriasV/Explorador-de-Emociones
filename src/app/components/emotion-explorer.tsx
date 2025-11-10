@@ -351,10 +351,12 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
             toast({ title: '¡Buen juego!', description: `Has ganado ${score} puntos.` });
         }
     }).catch((error) => {
-        const profileData = userProfile || { ascentHighScore: 0 };
+        const profileData = userProfile || { ascentHighScore: 0, points: 0 };
         const currentHighScore = profileData.ascentHighScore || 0;
-        const requestData: {points: string, ascentHighScore?: number} = {
-            points: `+${score}`
+        const newPoints = (profileData.points || 0) + score;
+        
+        const requestData: {points: number, ascentHighScore?: number} = {
+            points: newPoints
         };
         if (score > currentHighScore) {
             requestData.ascentHighScore = score;
@@ -733,6 +735,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     </SidebarProvider>
   );
 }
+
+    
 
     
 
