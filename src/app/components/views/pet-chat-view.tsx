@@ -59,70 +59,61 @@ interface DraggableItemProps {
 
 const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, onPositionChange, containerRef }) => {
     const itemRef = useRef<HTMLDivElement>(null);
-    const isDraggingRef = useRef(false);
-    const dragStartPosRef = useRef({ x: 0, y: 0 });
-    const itemStartPosRef = useRef({ x: 0, y: 0 });
+    const [position, setPosition] = useState(initialPosition);
 
     useEffect(() => {
-        if (itemRef.current) {
-            itemRef.current.style.transform = `translate(${initialPosition.x}px, ${initialPosition.y}px)`;
-        }
+        setPosition(initialPosition);
     }, [initialPosition]);
 
-    const handleMouseDown = (e: React.MouseEvent) => {
-        if (!itemRef.current) return;
-        e.preventDefault();
-        isDraggingRef.current = true;
-        dragStartPosRef.current = { x: e.clientX, y: e.clientY };
-
-        const currentTransform = new DOMMatrix(getComputedStyle(itemRef.current).transform);
-        itemStartPosRef.current = { x: currentTransform.m41, y: currentTransform.m42 };
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        if (!itemRef.current || !containerRef.current) return;
         
+        e.preventDefault();
+        const startPos = { x: e.clientX, y: e.clientY };
+        const startItemPos = { ...position };
+
+        const handleMouseMove = (moveEvent: MouseEvent) => {
+            const dx = moveEvent.clientX - startPos.x;
+            const dy = moveEvent.clientY - startPos.y;
+            
+            let newX = startItemPos.x + dx;
+            let newY = startItemPos.y + dy;
+
+            const containerRect = containerRef.current!.getBoundingClientRect();
+            const itemWidth = itemRef.current!.offsetWidth;
+            const itemHeight = itemRef.current!.offsetHeight;
+
+            newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
+            newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
+            
+            if(itemRef.current) {
+                itemRef.current.style.transform = `translate(${newX}px, ${newY}px)`;
+            }
+        };
+
+        const handleMouseUp = (upEvent: MouseEvent) => {
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            
+            const dx = upEvent.clientX - startPos.x;
+            const dy = upEvent.clientY - startPos.y;
+
+            let finalX = startItemPos.x + dx;
+            let finalY = startItemPos.y + dy;
+
+            const containerRect = containerRef.current!.getBoundingClientRect();
+            const itemWidth = itemRef.current!.offsetWidth;
+            const itemHeight = itemRef.current!.offsetHeight;
+            
+            finalX = Math.max(0, Math.min(finalX, containerRect.width - itemWidth));
+            finalY = Math.max(0, Math.min(finalY, containerRect.height - itemHeight));
+            
+            onPositionChange(item.id, { x: finalX, y: finalY });
+        };
+
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
-    };
-
-    const handleMouseMove = useCallback((e: MouseEvent) => {
-        if (!isDraggingRef.current || !itemRef.current || !containerRef.current) return;
-        
-        const dx = e.clientX - dragStartPosRef.current.x;
-        const dy = e.clientY - dragStartPosRef.current.y;
-
-        let newX = itemStartPosRef.current.x + dx;
-        let newY = itemStartPosRef.current.y + dy;
-        
-        const containerRect = containerRef.current.getBoundingClientRect();
-        const itemWidth = itemRef.current.offsetWidth;
-        const itemHeight = itemRef.current.offsetHeight;
-
-        newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
-        newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
-        
-        itemRef.current.style.transform = `translate(${newX}px, ${newY}px)`;
-    }, [containerRef]);
-
-    const handleMouseUp = useCallback((e: MouseEvent) => {
-        if (!isDraggingRef.current || !itemRef.current) return;
-        isDraggingRef.current = false;
-        
-        const dx = e.clientX - dragStartPosRef.current.x;
-        const dy = e.clientY - dragStartPosRef.current.y;
-
-        let newX = itemStartPosRef.current.x + dx;
-        let newY = itemStartPosRef.current.y + dy;
-
-        const containerRect = containerRef.current!.getBoundingClientRect();
-        const itemWidth = itemRef.current.offsetWidth;
-        const itemHeight = itemRef.current.offsetHeight;
-
-        newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
-        newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
-
-        onPositionChange(item.id, { x: newX, y: newY });
-        
-        document.removeEventListener('mousemove', handleMouseMove);
-        document.removeEventListener('mouseup', handleMouseUp);
-    }, [item.id, onPositionChange, handleMouseMove, containerRef]);
+    }, [position, onPositionChange, item.id, containerRef]);
     
     return (
         <div
@@ -130,7 +121,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
             className="absolute text-5xl z-10 cursor-grab w-16 h-16 flex items-center justify-center"
             style={{ 
                 userSelect: 'none',
-                transform: `translate(${initialPosition.x}px, ${initialPosition.y}px)`
+                transform: `translate(${position.x}px, ${position.y}px)`
             }}
             onMouseDown={handleMouseDown}
         >
@@ -138,6 +129,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
         </div>
     );
 };
+
 
 const getEmotionById = (id: string, emotionsList: Emotion[]) =>
   emotionsList.find((e) => e.id === id);
@@ -349,7 +341,7 @@ export function PetChatView({
             </div>
         </CardHeader>
         <CardContent className="flex-grow overflow-hidden flex flex-col gap-4 p-0">
-            <div ref={roomContainerRef} className="rounded-lg flex-shrink-0 relative overflow-hidden h-64 border-2" >
+            <div ref={roomContainerRef} className="relative rounded-lg flex-shrink-0 overflow-hidden h-64 border-2" >
                 <div 
                     className="absolute inset-0 transition-all duration-500"
                     style={Object.keys(currentBackgroundStyle).length > 0 ? currentBackgroundStyle : { backgroundColor: 'hsl(var(--muted) / 0.5)' }}
