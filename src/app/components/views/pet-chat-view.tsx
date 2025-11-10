@@ -78,7 +78,7 @@ const getRecentFeelingsContext = (
 const PetAccessory = ({ item }: { item: ShopItem }) => {
     if (!item) return null;
   
-    const baseClasses = "text-5xl absolute";
+    const baseClasses = "text-5xl absolute z-10";
     let positionClass = "";
   
     // Define positions based on the item's `value` (id)
@@ -227,17 +227,20 @@ export function PetChatView({
       </CardHeader>
       <CardContent className="flex-grow overflow-hidden flex flex-col gap-4">
 
-        <div className={cn(
-            "rounded-lg p-4 flex-shrink-0 flex items-center justify-center relative overflow-hidden h-48",
-            activeBackground ? activeBackground.value : 'bg-muted/50'
-        )}>
-            <div className="relative w-48 h-32">
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
-                    <span className="text-8xl drop-shadow-lg">{pet.icon}</span>
+        <div className="rounded-lg p-4 flex-shrink-0 relative overflow-hidden h-48">
+            <div className={cn(
+                "absolute inset-0",
+                activeBackground ? activeBackground.value : 'bg-muted/50'
+            )}></div>
+            <div className="relative w-full h-full flex items-center justify-center">
+                <div className="relative w-48 h-32">
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
+                        <span className="text-8xl drop-shadow-lg z-20 relative">{pet.icon}</span>
+                    </div>
+                    {purchasedAccessories.map(item => (
+                        <PetAccessory key={item.id} item={item} />
+                    ))}
                 </div>
-                {purchasedAccessories.map(item => (
-                    <PetAccessory key={item.id} item={item} />
-                ))}
             </div>
         </div>
 
@@ -320,5 +323,3 @@ export function PetChatView({
     </Card>
   );
 }
-
-    
