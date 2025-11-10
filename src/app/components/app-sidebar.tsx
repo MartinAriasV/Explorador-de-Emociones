@@ -77,7 +77,7 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
         <div className="flex items-center gap-3">
            <div className={cn(
              "rounded-full transition-colors",
-             equippedFrame ? `p-1 ${equippedFrame.value}` : ''
+             equippedFrame && `p-1 ${equippedFrame.value}`
            )}>
               <Avatar className={cn(
                 'h-12 w-12', 
