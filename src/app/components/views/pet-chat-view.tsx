@@ -76,7 +76,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
         if (!itemRef.current || !containerRef.current) return;
         
         const currentItem = itemRef.current;
-        anime.remove(currentItem); // Stop any ongoing animation
+        anime.remove(currentItem); 
 
         const containerRect = containerRef.current.getBoundingClientRect();
         
@@ -84,7 +84,6 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
             let newX = moveEvent.clientX - containerRect.left - (currentItem.offsetWidth / 2);
             let newY = moveEvent.clientY - containerRect.top - (currentItem.offsetHeight / 2);
 
-            // Constrain within container bounds
             newX = Math.max(0, Math.min(newX, containerRect.width - currentItem.offsetWidth));
             newY = Math.max(0, Math.min(newY, containerRect.height - currentItem.offsetHeight));
 
