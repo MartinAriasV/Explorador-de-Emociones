@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, createRef, useCallback, useMemo } from 'react';
@@ -28,11 +29,12 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useFirebase, useCollection, useMemoFirebase, useDoc, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc, runTransaction, arrayUnion } from 'firebase/firestore';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { calculateDailyStreak, cn } from '@/lib/utils';
+import { calculateDailyStreak, cn, normalizeDate } from '@/lib/utils';
 import type { User } from 'firebase/auth';
 import { PetChatView } from './views/pet-chat-view';
 import useLocalStorage from '@/hooks/use-local-storage';
 import anime from 'animejs';
+import { Player } from '@lottiefiles/react-lottie-player';
 
 interface EmotionExplorerProps {
   user: User;
@@ -129,7 +131,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         activePetId: 'loyal-dog',
         petAccessoryPositions: {},
         petPosition: { x: 200, y: 150 },
-        activePetBackgroundId: null,
+        activeRoomBackgroundId: null,
       };
       await setDoc(userDocRef, newProfile);
       await addInitialEmotions(user.uid);
@@ -750,7 +752,14 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
           <div className="flex flex-col items-center gap-2 pt-4 pb-8 text-center bg-background/50">
               <div id="reward-icon-container" className="relative w-32 h-32 flex items-center justify-center">
                   <div className={`absolute inset-0 bg-gradient-to-t ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity]?.replace('text-','from-') : ''}/20 to-transparent rounded-full blur-2xl`}></div>
-                  <span id="reward-icon" className="text-8xl drop-shadow-lg">{newlyUnlockedReward?.animal.icon}</span>
+                  <div id="reward-icon">
+                    <Player
+                      src={newlyUnlockedReward?.animal.lottieUrl || ''}
+                      autoplay
+                      loop
+                      style={{ width: '128px', height: '128px' }}
+                    />
+                  </div>
               </div>
               <span id="reward-name" className={`block font-bold text-3xl ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity] : ''}`}>{newlyUnlockedReward?.animal.name}</span>
               <p className="block text-sm text-muted-foreground max-w-xs">{newlyUnlockedReward?.animal.description}</p>
@@ -783,5 +792,3 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     </SidebarProvider>
   );
 }
-
-    
