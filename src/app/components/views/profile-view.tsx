@@ -8,8 +8,8 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { UserProfile, ShopItem } from '@/lib/types'; // ¡Asegúrate de importar ShopItem!
-import { AVATAR_EMOJIS, SHOP_ITEMS } from '@/lib/constants'; // ¡Asegúrate de importar SHOP_ITEMS!
+import type { UserProfile, ShopItem } from '@/lib/types';
+import { AVATAR_EMOJIS, SHOP_ITEMS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Check } from 'lucide-react';
 import Image from 'next/image';
@@ -32,9 +32,9 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
   const [localAvatarType, setLocalAvatarType] = useState(userProfile?.avatarType || 'emoji');
   
   // ¡ESTOS ERAN LOS QUE FALTABAN!
-  const [selectedAvatarFrameId, setSelectedAvatarFrameId] = useState(userProfile?.equippedItems?.['avatar_frame'] || null);
+  const [selectedAvatarFrameId, setSelectedAvatarFrameId] = useState(userProfile?.activeAvatarFrameId || null);
   const [selectedRoomBackgroundId, setSelectedRoomBackgroundId] = useState(userProfile?.activeRoomBackgroundId || null);
-  const [selectedAppThemeId, setSelectedAppThemeId] = useState(userProfile?.equippedItems?.['theme'] || 'theme_original');
+  const [selectedAppThemeId, setSelectedAppThemeId] = useState(userProfile?.activeAppThemeId || 'theme_original');
 
   const [saved, setSaved] = useState(false);
 
@@ -44,9 +44,9 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
       setLocalName(userProfile.name);
       setLocalAvatar(userProfile.avatar);
       setLocalAvatarType(userProfile.avatarType);
-      setSelectedAvatarFrameId(userProfile.equippedItems?.['avatar_frame'] || null);
+      setSelectedAvatarFrameId(userProfile.activeAvatarFrameId || null);
       setSelectedRoomBackgroundId(userProfile.activeRoomBackgroundId || null);
-      setSelectedAppThemeId(userProfile.equippedItems?.['theme'] || 'theme_original');
+      setSelectedAppThemeId(userProfile.activeAppThemeId || 'theme_original');
     }
   }, [userProfile]);
 
@@ -63,11 +63,8 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
       avatar: localAvatar, 
       avatarType: localAvatarType,
       activeRoomBackgroundId: selectedRoomBackgroundId, // <-- ¡Guardado Correctamente!
-      equippedItems: { // <-- Guarda todos los ítems equipados
-        ...userProfile?.equippedItems,
-        'avatar_frame': selectedAvatarFrameId,
-        'theme': selectedAppThemeId,
-      }
+      activeAvatarFrameId: selectedAvatarFrameId, // <-- ¡Guardado Correctamente!
+      activeAppThemeId: selectedAppThemeId // <-- ¡Guardado Correctamente!
     });
     
     setSaved(true);
