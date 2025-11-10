@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  safelist: 
+  bg-amber-400 
+  bg-slate-400
+*/
+
 body {
   font-family: 'Poppins', sans-serif;
 }
@@ -81,80 +87,60 @@ body {
   }
 
   .theme-ocean {
-    --background: 210 40% 96%;
+    --background: 210 40% 98%;
     --foreground: 215 28% 17%;
     --card: 210 40% 100%;
     --card-foreground: 215 28% 17%;
     --popover: 210 40% 100%;
     --popover-foreground: 215 28% 17%;
     --primary: 205 90% 45%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 210 40% 92%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
     --secondary-foreground: 215 28% 17%;
-    --muted: 210 40% 92%;
+    --muted: 210 40% 96.1%;
     --muted-foreground: 215 20% 45%;
     --accent: 190 80% 50%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 210 40% 88%;
-    --input: 210 40% 88%;
+    --accent-foreground: 210 40% 98%;
+    --border: 210 40% 90%;
+    --input: 210 40% 90%;
     --ring: 205 90% 45%;
   }
 
-  .dark.theme-ocean {
-    --background: 210 30% 10%;
-    --foreground: 210 40% 98%;
-    --card: 210 30% 15%;
-    --card-foreground: 210 40% 98%;
-    --popover: 210 30% 15%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 205 80% 55%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 210 30% 20%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 210 30% 20%;
-    --muted-foreground: 210 30% 60%;
-    --accent: 190 70% 60%;
-    --accent-foreground: 0 0% 98%;
-    --border: 210 30% 25%;
-    --input: 210 30% 25%;
-    --ring: 205 80% 55%;
-  }
-
   .theme-forest {
-    --background: 110 25% 96%;
     --foreground: 120 25% 15%;
-    --card: 110 15% 100%;
+    --card: 120 15% 100%;
     --card-foreground: 120 25% 15%;
-    --popover: 110 15% 100%;
+    --popover: 120 15% 100%;
     --popover-foreground: 120 25% 15%;
     --primary: 130 60% 40%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 110 15% 92%;
+    --primary-foreground: 120 20% 98%;
+    --secondary: 120 15% 96%;
     --secondary-foreground: 120 25% 15%;
-    --muted: 110 15% 92%;
+    --muted: 120 15% 96%;
     --muted-foreground: 120 15% 45%;
-    --accent: 100 70% 45%;
-    --accent-foreground: 0 0% 98%;
-    --border: 110 15% 88%;
-    --input: 110 15% 88%;
+    --accent: 110 70% 45%;
+    --accent-foreground: 120 20% 98%;
+    --border: 120 15% 90%;
+    --input: 120 15% 90%;
     --ring: 130 60% 40%;
   }
   
   .dark.theme-forest {
-    --background: 120 25% 10%;
-    --foreground: 110 10% 95%;
+    --foreground: 120 10% 95%;
     --card: 120 25% 12%;
-    --card-foreground: 110 10% 95%;
+    --card-foreground: 120 10% 95%;
     --popover: 120 25% 12%;
-    --popover-foreground: 110 10% 95%;
+    --popover-foreground: 120 10% 95%;
     --primary: 130 50% 50%;
     --secondary: 120 20% 15%;
     --muted: 120 20% 15%;
-    --accent: 100 60% 55%;
+    --accent: 110 60% 55%;
     --border: 120 20% 20%;
     --input: 120 20% 20%;
+  }
+
+  body.bg-forest-gradient .bg-background {
+    background-color: transparent !important;
   }
 }
 
@@ -162,11 +148,8 @@ body {
   * {
     @apply border-border;
   }
-  html.theme-forest {
-    @apply bg-forest-gradient;
-  }
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -213,9 +196,9 @@ body {
     animation: gradient-animation 15s ease infinite;
   }
   .bg-forest-gradient {
-    background: linear-gradient(-45deg, hsl(var(--secondary)), hsl(var(--primary)), hsl(var(--accent)), hsl(var(--muted)));
+    background: linear-gradient(-45deg, #d8e5d8, #afc2af, #95ab95, #6a8c6a);
     background-size: 400% 400%;
-    animation: gradient-animation 20s ease infinite;
+    animation: forest-gradient 20s ease infinite;
   }
 }
 
@@ -282,4 +265,16 @@ body {
   100% {
     background-position: 0% 50%;
   }
+}
+
+@keyframes forest-gradient {
+	0% {
+		background-position: 0% 50%;
+	}
+	50% {
+		background-position: 100% 50%;
+	}
+	100% {
+		background-position: 0% 50%;
+	}
 }
