@@ -29,7 +29,6 @@ import { doc } from 'firebase/firestore';
 import { useFirebase } from '@/firebase';
 import { SHOP_ITEMS } from '@/lib/constants';
 import anime from 'animejs';
-import Image from 'next/image';
 import { Player } from '@lottiefiles/react-lottie-player';
 
 
@@ -125,6 +124,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
         <div
             ref={itemRef}
             className="absolute text-5xl cursor-grab w-16 h-16 flex items-center justify-center"
+            onMouseDown={handleMouseDown}
         >
             {item.icon}
         </div>
@@ -545,5 +545,3 @@ export function PetChatView({
     </div>
   );
 }
-
-    
