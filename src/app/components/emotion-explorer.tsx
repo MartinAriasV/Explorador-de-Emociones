@@ -27,7 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFirebase, useCollection, useMemoFirebase, useDoc, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc, runTransaction, arrayUnion } from 'firebase/firestore';
-import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak, cn } from '@/lib/utils';
 import type { User } from 'firebase/auth';
 import { PetChatView } from './views/pet-chat-view';
@@ -444,8 +444,10 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
       toast({ title: "Emoción Actualizada", description: `"${emotionData.name}" ha sido actualizada.` });
     } else {
       const newDocRef = doc(emotionsCollection);
-      setDocumentNonBlocking(newDocRef, {...dataToSave, id: newDocRef.id}, {merge: false});
-      toast({ title: "Emoción Añadida", description: `"${emotionData.name}" ha sido añadida a tu emocionario.` });
+      const finalData = {...dataToSave, id: newDocRef.id};
+      // Use setDoc for new emotions
+      await setDoc(newDocRef, finalData);
+      toast({ title: "Emoción Añadida", description: `"${finalData.name}" ha sido añadida a tu emocionario.` });
     }
     
     if (isNew) {
@@ -484,7 +486,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const deleteDiaryEntry = async (entryId: string) => {
     if (!user) return;
     const entryDoc = doc(firestore, 'users', user.uid, 'diaryEntries', entryId);
-    deleteDocumentNonBlocking(entryDoc);
+    await deleteDoc(entryDoc);
   };
   
   const handlePurchaseItem = async (item: ShopItem) => {
@@ -609,7 +611,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
       userProfile: userProfile!,
     };
     return (
-      <div className="animate-fade-in-up h-full">
+      <div className="h-full">
         {(() => {
           switch (view) {
             case 'diary':
