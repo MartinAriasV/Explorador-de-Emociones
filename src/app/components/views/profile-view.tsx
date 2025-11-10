@@ -153,7 +153,7 @@ export function ProfileView({
           la tienda.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow flex flex-col gap-6 overflow-hidden">
+      <CardContent className="flex-grow flex flex-col gap-6 overflow-hidden p-4 md:p-6">
         <ScrollArea className="h-full pr-4 -mr-4">
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row items-center gap-6">

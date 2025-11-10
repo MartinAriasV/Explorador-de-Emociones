@@ -59,14 +59,12 @@ interface DraggableItemProps {
 }
 
 const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, onPositionChange, containerRef }) => {
-    const [position, setPosition] = useState(initialPosition);
     const itemRef = useRef<HTMLDivElement>(null);
-    const isDraggingRef = useRef(false);
-    const dragStartPosRef = useRef({ x: 0, y: 0 });
-    const itemStartPosRef = useRef({ x: 0, y: 0 });
+    const positionRef = useRef(initialPosition);
+    const dragStartRef = useRef({ x: 0, y: 0, itemX: 0, itemY: 0 });
 
     useEffect(() => {
-        setPosition(initialPosition);
+        positionRef.current = initialPosition;
         if (itemRef.current) {
             itemRef.current.style.transform = `translate(${initialPosition.x}px, ${initialPosition.y}px)`;
         }
@@ -74,12 +72,14 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
 
     const handleMouseDown = (e: React.MouseEvent) => {
         if (!itemRef.current) return;
-        isDraggingRef.current = true;
-        dragStartPosRef.current = { x: e.clientX, y: e.clientY };
-        itemStartPosRef.current = { ...position };
-        itemRef.current.style.transition = 'none'; // Disable transition during drag
+        dragStartRef.current = {
+            x: e.clientX,
+            y: e.clientY,
+            itemX: positionRef.current.x,
+            itemY: positionRef.current.y,
+        };
         itemRef.current.style.cursor = 'grabbing';
-        itemRef.current.style.zIndex = '20';
+        itemRef.current.style.userSelect = 'none';
         
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
@@ -87,62 +87,45 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
     };
 
     const handleMouseMove = useCallback((e: MouseEvent) => {
-        if (!isDraggingRef.current || !containerRef.current || !itemRef.current) return;
+        if (!itemRef.current || !containerRef.current) return;
 
-        const dx = e.clientX - dragStartPosRef.current.x;
-        const dy = e.clientY - dragStartPosRef.current.y;
-
+        const dx = e.clientX - dragStartRef.current.x;
+        const dy = e.clientY - dragStartRef.current.y;
+        
         const containerRect = containerRef.current.getBoundingClientRect();
         const itemWidth = itemRef.current.offsetWidth;
         const itemHeight = itemRef.current.offsetHeight;
 
-        let newX = itemStartPosRef.current.x + dx;
-        let newY = itemStartPosRef.current.y + dy;
+        let newX = dragStartRef.current.itemX + dx;
+        let newY = dragStartRef.current.itemY + dy;
 
         newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
         newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
         
         itemRef.current.style.transform = `translate(${newX}px, ${newY}px)`;
+        positionRef.current = { x: newX, y: newY };
+
     }, [containerRef]);
 
-    const handleMouseUp = useCallback((e: MouseEvent) => {
-        if (!isDraggingRef.current || !containerRef.current || !itemRef.current) return;
+    const handleMouseUp = useCallback(() => {
+        if (!itemRef.current) return;
         
-        isDraggingRef.current = false;
-        
-        const dx = e.clientX - dragStartPosRef.current.x;
-        const dy = e.clientY - dragStartPosRef.current.y;
-
-        const containerRect = containerRef.current.getBoundingClientRect();
-        const itemWidth = itemRef.current.offsetWidth;
-        const itemHeight = itemRef.current.offsetHeight;
-
-        let finalX = itemStartPosRef.current.x + dx;
-        let finalY = itemStartPosRef.current.y + dy;
-
-        finalX = Math.max(0, Math.min(finalX, containerRect.width - itemWidth));
-        finalY = Math.max(0, Math.min(finalY, containerRect.height - itemHeight));
-        
-        setPosition({ x: finalX, y: finalY });
-        onPositionChange(item.id, { x: finalX, y: finalY });
-
-        itemRef.current.style.transition = 'transform 0.2s';
         itemRef.current.style.cursor = 'grab';
-        itemRef.current.style.zIndex = '10';
+        itemRef.current.style.removeProperty('user-select');
 
+        onPositionChange(item.id, positionRef.current);
+        
         document.removeEventListener('mousemove', handleMouseMove);
         document.removeEventListener('mouseup', handleMouseUp);
-    }, [containerRef, item.id, onPositionChange, handleMouseMove]);
+    }, [item.id, onPositionChange, handleMouseMove]);
 
     return (
         <div
             ref={itemRef}
             className="absolute text-5xl z-10 cursor-grab"
             style={{
-                transform: `translate(${position.x}px, ${position.y}px)`,
                 width: '64px',
                 height: '64px',
-                userSelect: 'none',
             }}
             onMouseDown={handleMouseDown}
         >
