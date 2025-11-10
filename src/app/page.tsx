@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { Suspense, useEffect } from 'react';
@@ -29,6 +30,15 @@ function AppGate() {
 
     if (themeItem) {
       document.documentElement.classList.add(themeItem.value);
+    }
+  }, [userProfile]);
+
+  useEffect(() => {
+    const equippedTheme = userProfile?.equippedItems?.['theme'];
+    if(equippedTheme === 'theme-forest'){
+        document.body.classList.add('bg-forest-gradient');
+    } else {
+        document.body.classList.remove('bg-forest-gradient');
     }
   }, [userProfile]);
   

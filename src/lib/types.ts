@@ -1,3 +1,4 @@
+
 export type Emotion = {
   id: string;
   userId: string;
@@ -29,6 +30,7 @@ export type UserProfile = {
   ascentHighScore?: number;
   activePetId: string | null;
   equippedPetAccessories?: { [key: string]: string }; // e.g. { 'hat-cowboy': '🤠', 'scarf-gryffindor': '🧣' }
+  activePetBackgroundId?: string | null;
 };
 
 export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary' | 'games' | 'pet-chat' | 'shop';
@@ -76,7 +78,7 @@ export interface GameProps {
   userProfile: UserProfile;
 }
 
-export type ShopItemType = 'theme' | 'avatar_frame' | 'pet_accessory';
+export type ShopItemType = 'theme' | 'avatar_frame' | 'pet_accessory' | 'pet_background';
 
 export type ShopItem = {
   id: string;
@@ -84,7 +86,7 @@ export type ShopItem = {
   description: string;
   cost: number;
   type: ShopItemType;
-  value: string; // e.g. 'theme-ocean', 'border-amber-400', 'hat-cowboy'
+  value: string; // e.g. 'theme-ocean', 'border-amber-400', 'bed'
   icon: string; // Emoji or identifier for the item
 };
 

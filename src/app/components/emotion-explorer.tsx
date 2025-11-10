@@ -73,7 +73,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const isLoading = isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading;
 
   const activePet = useMemo(() => {
-    if (!userProfile?.activePetId) return null;
+    if (!userProfile?.activePetId) return SPIRIT_ANIMALS.find(p => p.id === 'loyal-dog') || null;
     return SPIRIT_ANIMALS.find(p => p.id === userProfile.activePetId) || null;
   }, [userProfile]);
 
@@ -122,13 +122,14 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         email: user.email || 'no-email-provided',
         avatar: '😊',
         avatarType: 'emoji',
-        unlockedAnimalIds: [],
+        unlockedAnimalIds: ['loyal-dog'],
         points: 0,
         purchasedItemIds: [],
         equippedItems: {},
         ascentHighScore: 0,
-        activePetId: null,
+        activePetId: 'loyal-dog',
         equippedPetAccessories: {},
+        activePetBackgroundId: null,
       };
       await setDoc(userDocRef, newProfile);
       await addInitialEmotions(user.uid);

@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { UserProfile, ShopItem, ShopItemType } from '@/lib/types';
-import { AVATAR_EMOJIS, SPIRIT_ANIMALS, SHOP_ITEMS } from '@/lib/constants';
+import { AVATAR_EMOJIS, SHOP_ITEMS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Check, X } from 'lucide-react';
 import Image from 'next/image';
@@ -39,6 +39,7 @@ export function ProfileView({
   const [localEquippedItems, setLocalEquippedItems] = useState(
     userProfile?.equippedItems || {}
   );
+  const [localActiveBg, setLocalActiveBg] = useState(userProfile?.activePetBackgroundId || null);
   
   const [hasChanges, setHasChanges] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -50,6 +51,7 @@ export function ProfileView({
       setLocalAvatar(userProfile.avatar);
       setLocalAvatarType(userProfile.avatarType);
       setLocalEquippedItems(userProfile.equippedItems || {});
+      setLocalActiveBg(userProfile.activePetBackgroundId || null);
     }
   }, [userProfile]);
 
@@ -60,14 +62,16 @@ export function ProfileView({
     const itemsChanged =
       JSON.stringify(localEquippedItems) !==
       JSON.stringify(userProfile.equippedItems || {});
+    const bgChanged = localActiveBg !== userProfile.activePetBackgroundId;
 
     setHasChanges(
-      nameChanged || avatarChanged || itemsChanged
+      nameChanged || avatarChanged || itemsChanged || bgChanged
     );
   }, [
     localName,
     localAvatar,
     localEquippedItems,
+    localActiveBg,
     userProfile,
   ]);
 
@@ -86,6 +90,7 @@ export function ProfileView({
       avatar: localAvatar,
       avatarType: localAvatarType,
       equippedItems: localEquippedItems,
+      activePetBackgroundId: localActiveBg,
     });
     setSaved(true);
     setHasChanges(false);
@@ -103,6 +108,10 @@ export function ProfileView({
       [item.type]: item.id,
     }));
   };
+  
+  const handleEquipBackground = (item: ShopItem) => {
+    setLocalActiveBg(item.id);
+  }
 
   const handleUnequipItem = (itemType: ShopItemType) => {
     const newItems = { ...localEquippedItems };
@@ -116,6 +125,9 @@ export function ProfileView({
   const purchasedThemes = purchasedItems.filter(
     (item) => item.type === 'theme'
   );
+  const purchasedBackgrounds = purchasedItems.filter(
+    (item) => item.type === 'pet_background'
+  );
 
   if (!userProfile) {
     return (
@@ -127,7 +139,7 @@ export function ProfileView({
   }
 
   const equippedFrame = SHOP_ITEMS.find(item => item.id === localEquippedItems['avatar_frame']);
-  const frameClass = equippedFrame ? cn('rounded-full border-4 p-1', equippedFrame.value) : '';
+  const frameClass = equippedFrame ? cn('rounded-full p-1', equippedFrame.value) : '';
   const avatarClass = 'h-24 w-24 text-6xl';
 
   return (
@@ -145,7 +157,7 @@ export function ProfileView({
         <ScrollArea className="h-full pr-4 -mr-4">
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row items-center gap-6">
-                <div className={cn('flex items-center justify-center', frameClass)}>
+                <div className={cn('flex items-center justify-center rounded-full', frameClass)}>
                     {localAvatarType === 'emoji' ? (
                         <div className={cn('rounded-full bg-muted flex items-center justify-center', avatarClass, !equippedFrame && 'border-2 border-primary/20')}>
                            {localAvatar}
@@ -236,6 +248,40 @@ export function ProfileView({
                         'h-16 w-16 text-4xl flex items-center justify-center',
                         localEquippedItems['avatar_frame'] === item.id &&
                           'ring-2 ring-primary'
+                      )}
+                    >
+                      {item.icon}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {purchasedBackgrounds.length > 0 && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Fondos para la Habitación de tu Mascota
+                </label>
+                <div className="flex flex-wrap gap-4 items-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => setLocalActiveBg(null)}
+                    className={cn(
+                      'h-16 w-16 text-muted-foreground flex flex-col gap-1 items-center justify-center',
+                      !localActiveBg && 'ring-2 ring-primary'
+                    )}
+                  >
+                    <X />
+                    <span className="text-xs">Por Defecto</span>
+                  </Button>
+                  {purchasedBackgrounds.map((item) => (
+                    <Button
+                      key={item.id}
+                      variant="outline"
+                      onClick={() => handleEquipBackground(item)}
+                      className={cn(
+                        'h-16 w-16 text-4xl flex items-center justify-center',
+                        localActiveBg === item.id && 'ring-2 ring-primary'
                       )}
                     >
                       {item.icon}

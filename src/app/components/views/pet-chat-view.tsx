@@ -81,15 +81,16 @@ const PetAccessory = ({ item }: { item: ShopItem }) => {
     const baseClasses = "text-5xl absolute";
     let positionClass = "";
   
+    // Define positions based on the item's `value` (id)
     switch(item.value) {
       case 'bed':
         positionClass = "bottom-0 -right-4";
         break;
       case 'bowl':
-        positionClass = "bottom-1 left-0";
+        positionClass = "bottom-1 -left-4";
         break;
       case 'toy':
-        positionClass = "bottom-1 right-2";
+        positionClass = "bottom-1 right-12";
         break;
     }
   
@@ -186,6 +187,11 @@ export function PetChatView({
       return SHOP_ITEMS.filter(item => item.type === 'pet_accessory' && userProfile.purchasedItemIds.includes(item.id));
   }, [userProfile]);
 
+  const activeBackground = useMemo(() => {
+      if (!userProfile?.activePetBackgroundId) return null;
+      return SHOP_ITEMS.find(item => item.id === userProfile.activePetBackgroundId);
+  }, [userProfile]);
+
   if (!pet) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
@@ -221,7 +227,10 @@ export function PetChatView({
       </CardHeader>
       <CardContent className="flex-grow overflow-hidden flex flex-col gap-4">
 
-        <div className="bg-muted/50 rounded-lg p-4 flex-shrink-0 flex items-center justify-center">
+        <div className={cn(
+            "rounded-lg p-4 flex-shrink-0 flex items-center justify-center relative overflow-hidden h-48",
+            activeBackground ? activeBackground.value : 'bg-muted/50'
+        )}>
             <div className="relative w-48 h-32">
                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
                     <span className="text-8xl drop-shadow-lg">{pet.icon}</span>
