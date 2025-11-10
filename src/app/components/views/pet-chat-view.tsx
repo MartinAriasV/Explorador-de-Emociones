@@ -27,6 +27,7 @@ import { useDoc, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useFirebase } from '@/firebase';
 import { SHOP_ITEMS } from '@/lib/constants';
+import anime from 'animejs';
 
 interface PetChatViewProps {
   pet: SpiritAnimal | null;
@@ -50,101 +51,75 @@ function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
 }
 
 interface DraggableItemProps {
-  item: ShopItem;
-  initialPosition: { x: number; y: number };
-  onPositionChange: (itemId: string, pos: { x: number; y: number }) => void;
-  containerRef: React.RefObject<HTMLDivElement>;
+    item: ShopItem;
+    initialPosition: { x: number; y: number };
+    onPositionChange: (itemId: string, pos: { x: number; y: number }) => void;
+    containerRef: React.RefObject<HTMLDivElement>;
 }
 
 const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, onPositionChange, containerRef }) => {
     const itemRef = useRef<HTMLDivElement>(null);
-    const [isDragging, setIsDragging] = useState(false);
-    const dragStartPos = useRef({ x: 0, y: 0 });
-    const itemStartPos = useRef({ x: 0, y: 0 });
 
     useEffect(() => {
         const currentItem = itemRef.current;
         if (currentItem) {
-            currentItem.style.transform = `translate(${initialPosition.x}px, ${initialPosition.y}px)`;
+            anime({
+                targets: currentItem,
+                translateX: initialPosition.x,
+                translateY: initialPosition.y,
+                duration: 0,
+            });
         }
     }, [initialPosition]);
 
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
-        if (!itemRef.current) return;
-        setIsDragging(true);
-        itemRef.current.style.transition = 'none'; 
-        itemRef.current.style.cursor = 'grabbing';
-        document.body.style.cursor = 'grabbing';
-        document.body.style.userSelect = 'none';
+        if (!itemRef.current || !containerRef.current) return;
         
-        dragStartPos.current = { x: e.clientX, y: e.clientY };
-        
-        const transform = itemRef.current.style.transform;
-        const translateValues = transform.match(/translate\(([^,]+)px, ([^,]+)px\)/);
-        if (translateValues) {
-            itemStartPos.current = { x: parseFloat(translateValues[1]), y: parseFloat(translateValues[2]) };
-        } else {
-            itemStartPos.current = { x: 0, y: 0 };
-        }
-        
-        e.preventDefault();
-    }, []);
+        const currentItem = itemRef.current;
+        anime.remove(currentItem); // Stop any ongoing animation
 
-    const handleMouseMove = useCallback((e: MouseEvent) => {
-        if (!isDragging || !itemRef.current || !containerRef.current) return;
-        
-        const dx = e.clientX - dragStartPos.current.x;
-        const dy = e.clientY - dragStartPos.current.y;
-        
         const containerRect = containerRef.current.getBoundingClientRect();
-        const itemRect = itemRef.current.getBoundingClientRect();
-
-        let newX = itemStartPos.current.x + dx;
-        let newY = itemStartPos.current.y + dy;
         
-        newX = Math.max(0, Math.min(newX, containerRect.width - itemRect.width));
-        newY = Math.max(0, Math.min(newY, containerRect.height - itemRect.height));
-        
-        itemRef.current.style.transform = `translate(${newX}px, ${newY}px)`;
+        const onMouseMove = (moveEvent: MouseEvent) => {
+            let newX = moveEvent.clientX - containerRect.left - (currentItem.offsetWidth / 2);
+            let newY = moveEvent.clientY - containerRect.top - (currentItem.offsetHeight / 2);
 
-    }, [isDragging, containerRef]);
+            // Constrain within container bounds
+            newX = Math.max(0, Math.min(newX, containerRect.width - currentItem.offsetWidth));
+            newY = Math.max(0, Math.min(newY, containerRect.height - currentItem.offsetHeight));
 
-    const handleMouseUp = useCallback(() => {
-        if (!isDragging || !itemRef.current) return;
-
-        setIsDragging(false);
-        itemRef.current.style.transition = '';
-        itemRef.current.style.cursor = 'grab';
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-
-        const transform = itemRef.current.style.transform;
-        const translateValues = transform.match(/translate\(([^,]+)px, ([^,]+)px\)/);
-        if (translateValues) {
-            const finalX = parseFloat(translateValues[1]);
-            const finalY = parseFloat(translateValues[2]);
-            onPositionChange(item.id, { x: finalX, y: finalY });
-        }
-    }, [isDragging, item.id, onPositionChange]);
-
-    useEffect(() => {
-        if (isDragging) {
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp, { once: true });
-        }
-        return () => {
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
+            anime({
+                targets: currentItem,
+                translateX: newX,
+                translateY: newY,
+                duration: 0,
+                easing: 'linear'
+            });
         };
-    }, [isDragging, handleMouseMove, handleMouseUp]);
+
+        const onMouseUp = (upEvent: MouseEvent) => {
+            let finalX = upEvent.clientX - containerRect.left - (currentItem.offsetWidth / 2);
+            let finalY = upEvent.clientY - containerRect.top - (currentItem.offsetHeight / 2);
+            
+            finalX = Math.max(0, Math.min(finalX, containerRect.width - currentItem.offsetWidth));
+            finalY = Math.max(0, Math.min(finalY, containerRect.height - currentItem.offsetHeight));
+
+            onPositionChange(item.id, { x: finalX, y: finalY });
+            
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+
+        e.preventDefault();
+    }, [containerRef, item.id, onPositionChange]);
     
     return (
         <div
             ref={itemRef}
-            className={cn(
-                "absolute text-5xl z-10 w-16 h-16 flex items-center justify-center cursor-grab select-none",
-                isDragging && 'cursor-grabbing'
-            )}
+            className="absolute text-5xl cursor-grab w-16 h-16 flex items-center justify-center"
             onMouseDown={handleMouseDown}
         >
             {item.icon}
