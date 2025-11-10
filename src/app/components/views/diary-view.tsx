@@ -38,6 +38,8 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
   const { toast } = useToast();
   const recognitionRef = useRef<any>(null);
 
+  const todayString = new Date().toISOString().split('T')[0];
+
   useEffect(() => {
     if (editingEntry) {
         const entryDate = new Date(editingEntry.date);
@@ -167,6 +169,7 @@ export function DiaryView({ emotionsList = [], diaryEntries = [], addDiaryEntry,
                             type="date"
                             value={date}
                             onChange={(e) => setDate(e.target.value)}
+                            max={todayString}
                             className="w-full"
                             required
                         />
