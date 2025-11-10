@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -9,8 +10,6 @@ import type { SpiritAnimal, UserProfile } from '@/lib/types';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, Star } from 'lucide-react';
-import { Player } from '@lottiefiles/react-lottie-player';
-
 
 interface SanctuaryViewProps {
   userProfile: UserProfile | null;
@@ -53,17 +52,12 @@ function AnimalCard({ animal, isUnlocked, onSelectPet, isActivePet }: { animal: 
           <div className="flex-grow flex flex-col items-center justify-center text-center gap-2">
             {isUnlocked ? (
               <>
-                <div className="relative w-24 h-24">
-                  <Player src={animal.lottieUrl} autoplay loop />
-                </div>
+                <span className="text-7xl">{animal.icon}</span>
                 <h3 className="text-xl font-bold text-foreground">{animal.name}</h3>
               </>
             ) : (
               <>
-                <div className="relative w-24 h-24">
-                  <Player src={animal.lottieUrl} loop />
-                   <div className="absolute inset-0 bg-background/50 backdrop-grayscale"></div>
-                </div>
+                <span className="text-7xl grayscale opacity-60">{animal.icon}</span>
                 <h3 className="text-xl font-bold text-muted-foreground">Bloqueado</h3>
               </>
             )}
@@ -79,9 +73,7 @@ function AnimalCard({ animal, isUnlocked, onSelectPet, isActivePet }: { animal: 
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="text-2xl text-primary flex items-center gap-3">
-             <div className="relative w-16 h-16">
-                <Player src={animal.lottieUrl} autoplay loop className={cn(!isUnlocked && "grayscale opacity-60")} />
-             </div>
+             <span className={cn("text-5xl", !isUnlocked && "grayscale opacity-60")}>{animal.icon}</span>
              {isUnlocked ? animal.name : 'Animal Bloqueado'}
           </DialogTitle>
           <DialogDescription asChild>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -28,7 +29,6 @@ import { doc } from 'firebase/firestore';
 import { useFirebase } from '@/firebase';
 import { SHOP_ITEMS } from '@/lib/constants';
 import anime from 'animejs';
-import { Player } from '@lottiefiles/react-lottie-player';
 
 
 interface PetChatViewProps {
@@ -201,12 +201,9 @@ const DraggablePet: React.FC<DraggablePetProps> = ({ pet, initialPosition, onPos
             className="absolute cursor-grab w-36 h-36 flex items-center justify-center"
             onMouseDown={handleMouseDown}
         >
-            <Player
-                src={pet.lottieUrl}
-                autoplay
-                loop
-                style={{ width: '150px', height: '150px' }}
-            />
+             <div className="w-24 h-24 rounded-full bg-card flex items-center justify-center text-6xl shadow-lg border-4 border-white dark:border-gray-800">
+                <span className="drop-shadow-lg">{pet.icon}</span>
+            </div>
         </div>
     );
 };
@@ -415,13 +412,7 @@ export function PetChatView({
             >
             <ArrowLeft />
             </Button>
-            <div className="w-12 h-12 relative">
-                <Player
-                    src={pet.lottieUrl}
-                    autoplay
-                    loop
-                />
-            </div>
+            <span className="text-4xl">{pet.icon}</span>
             <div>
             <CardTitle className="text-2xl font-bold text-primary">
                 {pet.name}
@@ -467,13 +458,9 @@ export function PetChatView({
                     )}
                 >
                     {msg.sender === 'pet' && (
-                    <div className="w-10 h-10 flex-shrink-0 relative">
-                         <Player
-                            src={pet.lottieUrl}
-                            autoplay
-                            loop
-                        />
-                    </div>
+                    <span className="text-3xl w-10 h-10 flex-shrink-0">
+                        {pet.icon}
+                    </span>
                     )}
                     <div
                     className={cn(
@@ -501,13 +488,9 @@ export function PetChatView({
                 )}
                 {isLoading && (
                 <div className="flex items-end gap-2 justify-start">
-                    <div className="w-10 h-10 flex-shrink-0 relative">
-                        <Player
-                            src={pet.lottieUrl}
-                            autoplay
-                            loop
-                        />
-                    </div>
+                    <span className="text-3xl w-10 h-10 flex-shrink-0">
+                        {pet.icon}
+                    </span>
                     <div className="p-3 rounded-lg bg-muted">
                     <div className="flex items-center gap-1.5">
                         <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.3s]"></span>
