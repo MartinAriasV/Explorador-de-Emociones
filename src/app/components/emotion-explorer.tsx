@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, createRef, useCallback, useMemo } from 'react';
@@ -693,9 +692,9 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-screen bg-background md:pl-[--sidebar-width-icon]">
+      <div className="flex h-screen w-screen bg-background">
         <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} />
-        <main className="flex-1 flex flex-col overflow-hidden">
+        <SidebarInset>
           <header className="p-2 md:hidden flex items-center border-b">
              <MobileMenuButton />
              <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
@@ -703,7 +702,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
           <div className="flex-1 p-4 md:p-6 overflow-y-auto">
             {renderView()}
           </div>
-        </main>
+        </SidebarInset>
       </div>
       
       <AddEmotionModal
