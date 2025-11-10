@@ -142,7 +142,7 @@ export function ProfileView({
   const avatarClass = 'h-24 w-24 text-6xl';
 
   return (
-    <Card className="w-full max-w-2xl mx-auto shadow-lg flex flex-col">
+    <Card className="w-full max-w-2xl mx-auto shadow-lg flex flex-col h-full">
     <CardHeader>
         <CardTitle className="text-2xl font-bold text-primary">
         Mi Perfil
@@ -152,7 +152,7 @@ export function ProfileView({
         la tienda.
         </CardDescription>
     </CardHeader>
-    <CardContent className="flex-grow flex flex-col gap-6">
+    <CardContent className="flex-grow flex flex-col gap-6 overflow-hidden">
         <ScrollArea className="h-full pr-4 -mr-4">
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row items-center gap-6">

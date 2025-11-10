@@ -74,6 +74,8 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
         setIsDragging(true);
         itemRef.current.style.transition = 'none'; 
         itemRef.current.style.cursor = 'grabbing';
+        document.body.style.cursor = 'grabbing';
+        document.body.style.userSelect = 'none';
         
         dragStartPos.current = { x: e.clientX, y: e.clientY };
         
@@ -113,6 +115,8 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
         setIsDragging(false);
         itemRef.current.style.transition = '';
         itemRef.current.style.cursor = 'grab';
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
 
         const transform = itemRef.current.style.transform;
         const translateValues = transform.match(/translate\(([^,]+)px, ([^,]+)px\)/);
@@ -338,7 +342,7 @@ export function PetChatView({
   }
 
   return (
-    <div className="-m-4 md:-m-6 h-full">
+    <div className="h-full -m-4 md:-m-6">
       <Card className="w-full h-full shadow-lg flex flex-col max-w-4xl mx-auto rounded-none md:rounded-lg">
         <CardHeader className="flex flex-row items-center gap-4 p-4 md:p-6 pb-4">
             <Button
