@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   Card,
   CardContent,
@@ -24,7 +24,7 @@ import type {
 import type { User } from 'firebase/auth';
 import { ArrowLeft, Send, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useDoc, useMemoFirebase } from '@/firebase';
+import { useDoc, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useFirebase } from '@/firebase';
 import { SHOP_ITEMS } from '@/lib/constants';
@@ -41,6 +41,81 @@ interface Message {
   text: string;
   sender: 'user' | 'pet';
 }
+
+interface DraggableItemProps {
+    item: ShopItem;
+    initialPosition: { x: number; y: number };
+    onPositionChange: (itemId: string, pos: { x: number; y: number }) => void;
+    containerRef: React.RefObject<HTMLDivElement>;
+}
+
+const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, onPositionChange, containerRef }) => {
+    const [position, setPosition] = useState(initialPosition);
+    const [isDragging, setIsDragging] = useState(false);
+    const dragOffset = useRef({ x: 0, y: 0 });
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        setIsDragging(true);
+        dragOffset.current = {
+            x: e.clientX - position.x,
+            y: e.clientY - position.y,
+        };
+        e.preventDefault();
+    };
+
+    const handleMouseMove = useCallback((e: MouseEvent) => {
+        if (!isDragging || !containerRef.current) return;
+        const containerRect = containerRef.current.getBoundingClientRect();
+        let newX = e.clientX - dragOffset.current.x;
+        let newY = e.clientY - dragOffset.current.y;
+
+        // Constrain movement within the container
+        newX = Math.max(0, Math.min(newX, containerRect.width - 64)); // Assuming item width is approx 64px
+        newY = Math.max(0, Math.min(newY, containerRect.height - 64)); // Assuming item height is approx 64px
+
+        setPosition({ x: newX, y: newY });
+    }, [isDragging, containerRef]);
+
+    const handleMouseUp = useCallback(() => {
+        if (!isDragging) return;
+        setIsDragging(false);
+        onPositionChange(item.id, position);
+    }, [isDragging, item.id, position, onPositionChange]);
+
+    useEffect(() => {
+        if (isDragging) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        } else {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [isDragging, handleMouseMove, handleMouseUp]);
+    
+    useEffect(() => {
+        setPosition(initialPosition);
+    }, [initialPosition]);
+
+    return (
+        <div
+            className="absolute text-5xl z-10 cursor-grab"
+            style={{
+                left: `${position.x}px`,
+                top: `${position.y}px`,
+                transform: isDragging ? 'scale(1.1)' : 'scale(1)',
+                transition: 'transform 0.1s ease-in-out',
+            }}
+            onMouseDown={handleMouseDown}
+        >
+            {item.icon}
+        </div>
+    );
+};
+
 
 const getEmotionById = (id: string, emotionsList: Emotion[]) =>
   emotionsList.find((e) => e.id === id);
@@ -75,32 +150,23 @@ const getRecentFeelingsContext = (
   return { contextString, displayFeelings };
 };
 
-const PetAccessory = ({ item }: { item: ShopItem }) => {
-    if (!item) return null;
-  
-    const baseClasses = "text-5xl absolute z-10";
-    let positionClass = "";
-  
-    // Define positions based on the item's `value` (id)
-    switch(item.value) {
-      case 'bed':
-        positionClass = "bottom-0 -right-4";
-        break;
-      case 'bowl':
-        positionClass = "bottom-1 -left-4";
-        break;
-      case 'toy':
-        positionClass = "bottom-1 right-12";
-        break;
+const backgroundStyles: { [key: string]: React.CSSProperties } = {
+    'bg-living-room': {
+        backgroundColor: '#f0e6dd',
+        backgroundImage: 'linear-gradient(to right, #e3d5c5 1px, transparent 1px), linear-gradient(to bottom, #e3d5c5 1px, transparent 1px), radial-gradient(circle at 10% 20%, rgba(255, 235, 205, 0.4) 0%, transparent 40%), radial-gradient(circle at 90% 80%, rgba(210, 180, 140, 0.4) 0%, transparent 40%)',
+        backgroundSize: '50px 50px, 50px 50px, 200px 200px, 300px 300px',
+    },
+    'bg-garden': {
+        backgroundColor: '#e6f0e6',
+        backgroundImage: 'radial-gradient(circle at 100% 0, #d4edda 0%, #e6f0e6 40%)',
+    },
+    'bg-bedroom': {
+        backgroundColor: '#1a202c',
+        backgroundImage: 'radial-gradient(circle at 10px 10px, rgba(255, 255, 255, 0.1) 1px, transparent 1px), radial-gradient(circle at 50px 50px, rgba(255, 255, 255, 0.08) 1px, transparent 1px), radial-gradient(circle at 100px 20px, rgba(255, 255, 255, 0.05) 1px, transparent 1px)',
+        backgroundSize: '150px 150px',
     }
-  
-    return (
-      <div className={cn(baseClasses, positionClass)}>
-        {item.icon}
-      </div>
-    );
 };
-  
+
 
 export function PetChatView({
   pet,
@@ -117,13 +183,33 @@ export function PetChatView({
     displayFeelings: Emotion[];
   } | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const roomContainerRef = useRef<HTMLDivElement>(null);
   const { firestore } = useFirebase();
 
   const userProfileRef = useMemoFirebase(
     () => (user ? doc(firestore, 'users', user.uid) : null),
     [firestore, user]
   );
-  const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
+  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
+
+  const [accessoryPositions, setAccessoryPositions] = useState(userProfile?.petAccessoryPositions || {});
+
+  useEffect(() => {
+    if (userProfile?.petAccessoryPositions) {
+      setAccessoryPositions(userProfile.petAccessoryPositions);
+    }
+  }, [userProfile?.petAccessoryPositions]);
+
+  const handlePositionChange = useCallback((itemId: string, pos: { x: number; y: number }) => {
+    if (!userProfileRef) return;
+    const newPositions = {
+      ...accessoryPositions,
+      [itemId]: pos
+    };
+    setAccessoryPositions(newPositions);
+    updateDocumentNonBlocking(userProfileRef, { petAccessoryPositions: newPositions });
+  }, [userProfileRef, accessoryPositions]);
+
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -192,15 +278,18 @@ export function PetChatView({
       return SHOP_ITEMS.find(item => item.id === userProfile.activePetBackgroundId);
   }, [userProfile]);
 
-  if (!pet) {
+  const currentBackgroundStyle = activeBackground ? backgroundStyles[activeBackground.value] : {};
+
+
+  if (!pet || isProfileLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
         <p className="text-lg font-semibold">
-          No has seleccionado ninguna mascota.
+          {isProfileLoading ? "Cargando compañero..." : "No has seleccionado ninguna mascota."}
         </p>
-        <Button onClick={() => setView('sanctuary')} className="mt-4">
+        {!isProfileLoading && <Button onClick={() => setView('sanctuary')} className="mt-4">
           Ir al Santuario
-        </Button>
+        </Button>}
       </div>
     );
   }
@@ -227,18 +316,24 @@ export function PetChatView({
       </CardHeader>
       <CardContent className="flex-grow overflow-hidden flex flex-col gap-4">
 
-        <div className="rounded-lg p-4 flex-shrink-0 relative overflow-hidden h-48">
-            <div className={cn(
-                "absolute inset-0",
-                activeBackground ? activeBackground.value : 'bg-muted/50'
-            )}></div>
+        <div className="rounded-lg p-4 flex-shrink-0 relative overflow-hidden h-48" ref={roomContainerRef}>
+            <div 
+                className="absolute inset-0"
+                style={activeBackground ? currentBackgroundStyle : { backgroundColor: 'hsl(var(--muted) / 0.5)' }}
+            ></div>
             <div className="relative w-full h-full flex items-center justify-center">
                 <div className="relative w-48 h-32">
                     <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
                         <span className="text-8xl drop-shadow-lg z-20 relative">{pet.icon}</span>
                     </div>
                     {purchasedAccessories.map(item => (
-                        <PetAccessory key={item.id} item={item} />
+                        <DraggableItem
+                            key={item.id}
+                            item={item}
+                            initialPosition={accessoryPositions[item.id] || { x: Math.random() * 100, y: Math.random() * 50 }}
+                            onPositionChange={handlePositionChange}
+                            containerRef={roomContainerRef}
+                        />
                     ))}
                 </div>
             </div>

@@ -29,7 +29,7 @@ export type UserProfile = {
   equippedItems: { [key in ShopItemType]?: string }; // e.g. { 'theme': 'theme-ocean', 'avatar_frame': 'frame-gold' }
   ascentHighScore?: number;
   activePetId: string | null;
-  equippedPetAccessories?: { [key: string]: string }; // e.g. { 'hat-cowboy': '🤠', 'scarf-gryffindor': '🧣' }
+  petAccessoryPositions?: { [itemId: string]: { x: number; y: number } };
   activePetBackgroundId?: string | null;
 };
 
