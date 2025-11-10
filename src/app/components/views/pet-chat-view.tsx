@@ -59,26 +59,33 @@ interface DraggableItemProps {
 
 const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, onPositionChange, containerRef }) => {
     const itemRef = useRef<HTMLDivElement>(null);
-    const [position, setPosition] = useState(initialPosition);
+    const [isDragging, setIsDragging] = useState(false);
 
     useEffect(() => {
-        setPosition(initialPosition);
+        const currentItem = itemRef.current;
+        if (currentItem) {
+            currentItem.style.transform = `translate(${initialPosition.x}px, ${initialPosition.y}px)`;
+        }
     }, [initialPosition]);
 
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
         if (!itemRef.current || !containerRef.current) return;
         
-        e.preventDefault();
+        setIsDragging(true);
+        
         const startPos = { x: e.clientX, y: e.clientY };
-        const startItemPos = { ...position };
+        const startTranslate = { 
+            x: parseFloat(itemRef.current.style.transform.split('(')[1]) || 0,
+            y: parseFloat(itemRef.current.style.transform.split(',')[1]) || 0
+        };
 
         const handleMouseMove = (moveEvent: MouseEvent) => {
             const dx = moveEvent.clientX - startPos.x;
             const dy = moveEvent.clientY - startPos.y;
             
-            let newX = startItemPos.x + dx;
-            let newY = startItemPos.y + dy;
-
+            let newX = startTranslate.x + dx;
+            let newY = startTranslate.y + dy;
+            
             const containerRect = containerRef.current!.getBoundingClientRect();
             const itemWidth = itemRef.current!.offsetWidth;
             const itemHeight = itemRef.current!.offsetHeight;
@@ -92,14 +99,15 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
         };
 
         const handleMouseUp = (upEvent: MouseEvent) => {
+            setIsDragging(false);
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
             
             const dx = upEvent.clientX - startPos.x;
             const dy = upEvent.clientY - startPos.y;
 
-            let finalX = startItemPos.x + dx;
-            let finalY = startItemPos.y + dy;
+            let finalX = startTranslate.x + dx;
+            let finalY = startTranslate.y + dy;
 
             const containerRect = containerRef.current!.getBoundingClientRect();
             const itemWidth = itemRef.current!.offsetWidth;
@@ -113,15 +121,17 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
 
         document.addEventListener('mousemove', handleMouseMove);
         document.addEventListener('mouseup', handleMouseUp);
-    }, [position, onPositionChange, item.id, containerRef]);
+    }, [item.id, onPositionChange, containerRef]);
     
     return (
         <div
             ref={itemRef}
-            className="absolute text-5xl z-10 cursor-grab w-16 h-16 flex items-center justify-center"
+            className={cn(
+                "absolute text-5xl z-10 w-16 h-16 flex items-center justify-center",
+                isDragging ? 'cursor-grabbing' : 'cursor-grab'
+            )}
             style={{ 
                 userSelect: 'none',
-                transform: `translate(${position.x}px, ${position.y}px)`
             }}
             onMouseDown={handleMouseDown}
         >
@@ -321,7 +331,7 @@ export function PetChatView({
 
   return (
     <div className="-m-4 md:-m-6 h-full">
-        <Card className="w-full h-full shadow-lg flex flex-col max-w-4xl mx-auto p-4 md:p-6">
+      <Card className="w-full h-full shadow-lg flex flex-col max-w-4xl mx-auto p-4 md:p-6">
         <CardHeader className="flex flex-row items-center gap-4 p-0 pb-4">
             <Button
             variant="ghost"
@@ -440,7 +450,7 @@ export function PetChatView({
             </Button>
             </form>
         </CardFooter>
-        </Card>
+      </Card>
     </div>
   );
 }
