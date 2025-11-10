@@ -38,10 +38,11 @@ service cloud.firestore {
 
       // Allow profile updates (like changing name, avatar, or equipping items)
       // as long as the user is not trying to change their own points directly.
-      // Point changes are handled by separate, more secure transaction rules.
       function isProfileUpdateValid() {
           let allowedWrites = ['name', 'avatar', 'avatarType', 'equippedItems'];
-          let isWritingAllowedFields = request.resource.data.keys().hasAny(allowedWrites);
+          // This ensures that either one of the allowed fields is being written,
+          // OR no fields other than the allowed ones are being written.
+          let isWritingAllowedFields = request.resource.data.keys().hasAny(allowedWrites) || request.resource.data.keys().diff(resource.data.keys()).hasOnly(allowedWrites);
           // Check that points are not being changed directly in a standard profile update.
           let pointsAreUnchanged = request.resource.data.points == resource.data.points;
 
@@ -52,7 +53,8 @@ service cloud.firestore {
       function isAscentGameUpdateValid() {
           let hasRequiredFields = request.resource.data.keys().hasAll(['points', 'ascentHighScore']);
           let newHighScore = request.resource.data.ascentHighScore;
-          let oldHighScore = resource.data.ascentHighScore;
+          // Use .get() to safely access a potentially non-existent field.
+          let oldHighScore = resource.data.get('ascentHighScore', 0);
 
           return hasRequiredFields && newHighScore >= oldHighScore;
       }
