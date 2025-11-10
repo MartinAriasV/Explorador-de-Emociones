@@ -64,24 +64,29 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
     const dragOffset = useRef({ x: 0, y: 0 });
 
     const handleMouseDown = (e: React.MouseEvent) => {
-        if (!containerRef.current) return;
         setIsDragging(true);
-        const containerRect = containerRef.current.getBoundingClientRect();
+        // Calculate the offset from the element's top-left corner to the mouse click point
         dragOffset.current = {
-            x: e.clientX - containerRect.left - position.x,
-            y: e.clientY - containerRect.top - position.y,
+            x: e.clientX - e.currentTarget.getBoundingClientRect().left,
+            y: e.clientY - e.currentTarget.getBoundingClientRect().top,
         };
         e.preventDefault();
+        e.stopPropagation();
     };
 
     const handleMouseMove = useCallback((e: MouseEvent) => {
         if (!isDragging || !containerRef.current) return;
+        
         const containerRect = containerRef.current.getBoundingClientRect();
+        
+        // Calculate new position based on mouse position relative to the container, adjusted by the initial click offset
         let newX = e.clientX - containerRect.left - dragOffset.current.x;
         let newY = e.clientY - containerRect.top - dragOffset.current.y;
 
         const itemWidth = 64; 
-        const itemHeight = 64; 
+        const itemHeight = 64;
+        
+        // Constrain the new position within the container's bounds
         newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
         newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
 
@@ -91,8 +96,8 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
     const handleMouseUp = useCallback(() => {
         if (!isDragging) return;
         setIsDragging(false);
-        onPositionChange(item.id, position);
-    }, [isDragging, item.id, position, onPositionChange]);
+        // Final position update is sent via `position` state change in the useEffect below
+    }, [isDragging]);
 
     useEffect(() => {
         if (isDragging) {
@@ -107,7 +112,16 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
             window.removeEventListener('mouseup', handleMouseUp);
         };
     }, [isDragging, handleMouseMove, handleMouseUp]);
+
+    // When dragging stops, call onPositionChange with the final position
+    useEffect(() => {
+        if (!isDragging) {
+            onPositionChange(item.id, position);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isDragging]);
     
+    // Update local position if initialPosition prop changes from outside
     useEffect(() => {
         setPosition(initialPosition);
     }, [initialPosition]);
@@ -120,6 +134,8 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
                 top: `${position.y}px`,
                 transform: isDragging ? 'scale(1.1)' : 'scale(1)',
                 transition: 'transform 0.1s ease-in-out',
+                width: '64px',
+                height: '64px',
             }}
             onMouseDown={handleMouseDown}
         >
