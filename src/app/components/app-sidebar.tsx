@@ -69,27 +69,26 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
   
   const equippedFrameId = userProfile.equippedItems?.['avatar_frame'];
   const equippedFrame = SHOP_ITEMS.find(item => item.id === equippedFrameId);
-  
-  const frameWrapperClasses = equippedFrame 
-    ? cn('rounded-full p-1 transition-colors', equippedFrame.value) 
-    : '';
-
-  const avatarClasses = !equippedFrame ? 'border-2 border-primary/20' : '';
-
 
   return (
     <Sidebar collapsible="icon" className="shadow-lg animate-fade-in">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-            <div className={frameWrapperClasses}>
-                <Avatar className={cn('h-12 w-12', avatarClasses)}>
-                    {userProfile.avatarType === 'generated' ? (
-                    <AvatarImage src={userProfile.avatar} alt={userProfile.name} />
-                    ) : (
-                    <AvatarFallback className="text-2xl bg-primary/10 text-primary">{userProfile.avatar}</AvatarFallback>
-                    )}
-                </Avatar>
-            </div>
+           <div className={cn(
+             "rounded-full transition-colors",
+             equippedFrame ? `p-1 ${equippedFrame.value}` : ''
+           )}>
+              <Avatar className={cn(
+                'h-12 w-12', 
+                !equippedFrame && 'border-2 border-primary/20'
+              )}>
+                  {userProfile.avatarType === 'generated' ? (
+                  <AvatarImage src={userProfile.avatar} alt={userProfile.name} />
+                  ) : (
+                  <AvatarFallback className="text-2xl bg-primary/10 text-primary">{userProfile.avatar}</AvatarFallback>
+                  )}
+              </Avatar>
+           </div>
            <div className="flex flex-col group-data-[collapsible=icon]:hidden">
                 <span className="font-bold text-lg text-primary">{userProfile.name}</span>
                  <div className="flex flex-col">
