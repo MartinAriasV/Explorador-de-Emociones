@@ -658,6 +658,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
                         setView={setView} 
                         diaryEntries={diaryEntries || []}
                         emotionsList={emotionsList || []}
+                        userProfile={userProfile}
+                        purchasedItems={purchasedItems}
                      />;
             case 'shop':
                 return <ShopView 
@@ -703,7 +705,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
              <MobileMenuButton />
              <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
           </header>
-          <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="flex-1 overflow-y-auto">
             {renderView()}
           </div>
         </SidebarInset>

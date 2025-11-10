@@ -35,6 +35,8 @@ interface PetChatViewProps {
   setView: (view: View) => void;
   diaryEntries: DiaryEntry[];
   emotionsList: Emotion[];
+  userProfile: UserProfile | null;
+  purchasedItems: ShopItem[];
 }
 
 interface Message {
@@ -184,6 +186,8 @@ export function PetChatView({
   setView,
   diaryEntries,
   emotionsList,
+  userProfile,
+  purchasedItems,
 }: PetChatViewProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -200,8 +204,7 @@ export function PetChatView({
     () => (user ? doc(firestore, 'users', user.uid) : null),
     [firestore, user]
   );
-  const { data: userProfile, isLoading: isProfileLoading } = useDoc<UserProfile>(userProfileRef);
-
+  
   const [accessoryPositions, setAccessoryPositions] = useState(userProfile?.petAccessoryPositions || {});
 
   useEffect(() => {
@@ -286,9 +289,9 @@ export function PetChatView({
   };
 
   const purchasedAccessories = useMemo(() => {
-      if (!userProfile?.purchasedItemIds) return [];
-      return SHOP_ITEMS.filter(item => item.type === 'pet_accessory' && userProfile.purchasedItemIds.includes(item.id));
-  }, [userProfile]);
+      if (!purchasedItems) return [];
+      return purchasedItems.filter(item => item.type === 'pet_accessory');
+  }, [purchasedItems]);
 
   const activeBackground = useMemo(() => {
       if (!userProfile?.activePetBackgroundId) return null;
@@ -302,13 +305,13 @@ export function PetChatView({
 }, [activeBackground]);
 
 
-  if (!pet || isProfileLoading) {
+  if (!pet || !userProfile) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
         <p className="text-lg font-semibold">
-          {isProfileLoading ? "Cargando compañero..." : "No has seleccionado ninguna mascota."}
+          { !userProfile ? "Cargando compañero..." : "No has seleccionado ninguna mascota."}
         </p>
-        {!isProfileLoading && <Button onClick={() => setView('sanctuary')} className="mt-4">
+        {userProfile && <Button onClick={() => setView('sanctuary')} className="mt-4">
           Ir al Santuario
         </Button>}
       </div>
@@ -316,7 +319,7 @@ export function PetChatView({
   }
 
   return (
-    <div className="h-full -m-4 md:-m-6">
+    <div className="-m-4 md:-m-6 h-full">
       <Card className="w-full h-full shadow-lg flex flex-col max-w-4xl mx-auto rounded-none md:rounded-lg">
         <CardHeader className="flex flex-row items-center gap-4 p-4 md:p-6 pb-4">
             <Button
