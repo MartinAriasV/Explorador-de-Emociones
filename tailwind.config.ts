@@ -2,21 +2,16 @@ import type {Config} from 'tailwindcss';
 
 export default {
   darkMode: ['class'],
-  content: {
-    files: [
+  content: [
       './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
       './src/components/**/*.{js,ts,jsx,tsx,mdx}',
       './src/app/**/*.{js,ts,jsx,tsx,mdx}',
-    ],
-    // This safelist ensures that Tailwind CSS always includes these classes in the final build,
-    // even if they are applied dynamically and not immediately visible to the static analyzer.
-    // This is crucial for dynamic features like the pet room backgrounds.
-    safelist: [
-      'bg-living-room',
-      'bg-garden',
-      'bg-bedroom',
-    ],
-  },
+  ],
+  safelist: [
+    'bg-living-room',
+    'bg-garden',
+    'bg-bedroom',
+  ],
   theme: {
     extend: {
       fontFamily: {
