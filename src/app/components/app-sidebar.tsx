@@ -74,11 +74,11 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
   let avatarStyle: string;
 
   if (equippedFrame) {
-    frameStyle = cn('rounded-full p-1', equippedFrame.value);
-    avatarStyle = 'h-12 w-12';
+    frameStyle = cn('p-1 rounded-full', equippedFrame.value);
+    avatarStyle = 'h-12 w-12'; // No border when frame is active
   } else {
     frameStyle = '';
-    avatarStyle = 'h-12 w-12 border-2 border-primary/20';
+    avatarStyle = 'h-12 w-12 border-2 border-primary/20'; // Default border
   }
 
   return (
