@@ -44,10 +44,9 @@ interface Message {
 
 function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
   let timeout: NodeJS.Timeout;
-
-  return function (this: ThisParameterType<F>, ...args: Parameters<F>): void {
+  return (...args: Parameters<F>): void => {
     clearTimeout(timeout);
-    timeout = setTimeout(() => func.apply(this, args), waitFor);
+    timeout = setTimeout(() => func(...args), waitFor);
   };
 }
 
@@ -223,13 +222,12 @@ export function PetChatView({
   );
 
   const handlePositionChange = useCallback((itemId: string, pos: { x: number; y: number }) => {
-    const newPositions = {
-      ...accessoryPositions,
-      [itemId]: pos
-    };
-    setAccessoryPositions(newPositions);
-    debouncedUpdatePositions(newPositions);
-  }, [accessoryPositions, debouncedUpdatePositions]);
+    setAccessoryPositions(prev => {
+        const newPositions = { ...prev, [itemId]: pos };
+        debouncedUpdatePositions(newPositions);
+        return newPositions;
+    });
+  }, [debouncedUpdatePositions]);
 
 
   useEffect(() => {
@@ -320,7 +318,7 @@ export function PetChatView({
   }
 
   return (
-    <Card className="w-full h-full shadow-lg flex flex-col max-w-3xl mx-auto p-4 md:p-6">
+    <Card className="w-full h-full shadow-lg flex flex-col max-w-4xl mx-auto p-4 md:p-6">
       <CardHeader className="flex flex-row items-center gap-4">
         <Button
           variant="ghost"
@@ -340,7 +338,7 @@ export function PetChatView({
         </div>
       </CardHeader>
       <CardContent className="flex-grow overflow-hidden flex flex-col gap-4">
-        <div className="rounded-lg flex-shrink-0 relative overflow-hidden h-48" ref={roomContainerRef}>
+        <div className="rounded-lg flex-shrink-0 relative overflow-hidden h-64 border-2" ref={roomContainerRef}>
             <div 
                 className="absolute inset-0 transition-all duration-500"
                 style={Object.keys(currentBackgroundStyle).length > 0 ? currentBackgroundStyle : { backgroundColor: 'hsl(var(--muted) / 0.5)' }}
@@ -442,7 +440,3 @@ export function PetChatView({
     </Card>
   );
 }
-
-    
-
-    
