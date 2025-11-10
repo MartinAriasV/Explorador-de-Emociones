@@ -135,7 +135,7 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
             }}
             onMouseDown={handleMouseDown}
         >
-            {item.icon}
+          {item.icon}
         </div>
     );
 };
