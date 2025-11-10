@@ -345,12 +345,8 @@ export function PetChatView({
                     className="absolute inset-0 transition-all duration-500"
                     style={Object.keys(currentBackgroundStyle).length > 0 ? currentBackgroundStyle : { backgroundColor: 'hsl(var(--muted) / 0.5)' }}
                 ></div>
-                <div className="relative w-full h-full flex items-center justify-center">
-                    <div className="relative w-48 h-32">
-                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
-                            <span className="text-8xl drop-shadow-lg z-0 relative">{pet.icon}</span>
-                        </div>
-                    </div>
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
+                    <span className="text-8xl drop-shadow-lg z-0 relative">{pet.icon}</span>
                 </div>
                 {purchasedAccessories.map(item => (
                     <DraggableItem
