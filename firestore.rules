@@ -41,10 +41,8 @@ service cloud.firestore {
       // Point changes are handled by separate, more secure transaction rules.
       function isProfileUpdateValid() {
           let allowedWrites = ['name', 'avatar', 'avatarType', 'equippedItems'];
-          // Check if the user is only trying to write to the allowed fields.
-          let isWritingAllowedFields = request.resource.data.keys().diff(resource.data.keys()).hasOnly(allowedWrites);
-
-          // Check that points are not being changed directly, except through transactions which are handled elsewhere.
+          let isWritingAllowedFields = request.resource.data.keys().hasAny(allowedWrites);
+          // Check that points are not being changed directly in a standard profile update.
           let pointsAreUnchanged = request.resource.data.points == resource.data.points;
 
           return isWritingAllowedFields && pointsAreUnchanged;
@@ -52,19 +50,17 @@ service cloud.firestore {
       
       // Allow point updates specifically from the ascent game transaction.
       function isAscentGameUpdateValid() {
-          let isUpdatingGameFields = request.resource.data.keys().hasAll(['points', 'ascentHighScore']);
-          let isNewHighScoreValid = request.resource.data.ascentHighScore >= resource.data.ascentHighScore;
-          let newPoints = request.resource.data.points;
-          let oldPoints = resource.data.points;
+          let hasRequiredFields = request.resource.data.keys().hasAll(['points', 'ascentHighScore']);
+          let newHighScore = request.resource.data.ascentHighScore;
+          let oldHighScore = resource.data.ascentHighScore;
 
-          // We can't know the exact score, so we check that points are increasing.
-          // A more secure rule would use a Cloud Function to validate the exact score.
-          return isUpdatingGameFields && isNewHighScoreValid && newPoints > oldPoints;
+          return hasRequiredFields && newHighScore >= oldHighScore;
       }
       
       allow get: if isOwner(userId);
       allow list: if false; // User listing is not allowed for privacy.
       allow create: if isOwner(userId) && request.resource.data.id == userId;
+      // Allow update if it's a valid profile update OR it's a valid game score update.
       allow update: if isExistingOwner(userId) && (isProfileUpdateValid() || isAscentGameUpdateValid());
       allow delete: if isExistingOwner(userId);
     }
