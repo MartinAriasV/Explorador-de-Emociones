@@ -76,7 +76,7 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
   if (equippedFrame) {
     // If a frame is equipped, the outer div gets padding and the frame's color.
     // The inner avatar has no border of its own.
-    frameStyle = cn('rounded-full transition-colors p-1', equippedFrame.value);
+    frameStyle = cn('rounded-full p-1', equippedFrame.value);
     avatarStyle = 'h-12 w-12';
   } else {
     // If no frame is equipped, the outer div has no special style.
