@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { chatWithPet } from '@/ai/flows/chat-with-pet';
-import type { SpiritAnimal, View, DiaryEntry, Emotion, UserProfile, PetAccessory, ShopItem } from '@/lib/types';
+import type { SpiritAnimal, View, DiaryEntry, Emotion, UserProfile, ShopItem } from '@/lib/types';
 import type { User } from 'firebase/auth';
 import { ArrowLeft, Send, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
