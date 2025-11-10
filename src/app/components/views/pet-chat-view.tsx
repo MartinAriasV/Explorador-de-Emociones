@@ -196,7 +196,7 @@ const DraggablePet: React.FC<DraggablePetProps> = ({ pet, initialPosition, onPos
     return (
         <div
             ref={itemRef}
-            className="absolute text-7xl cursor-grab w-24 h-24 flex items-center justify-center bg-white/10 rounded-full"
+            className="absolute text-7xl cursor-grab w-24 h-24 flex items-center justify-center bg-muted border-2 border-border rounded-full"
             onMouseDown={handleMouseDown}
         >
             <span className="drop-shadow-lg">{pet.icon}</span>
