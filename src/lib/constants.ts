@@ -96,6 +96,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
         id: 'agile-hummingbird',
         name: 'Colibrí Ágil',
         icon: '🐦‍🔥',
+        lottieUrl: 'https://lottie.host/6d03b0d5-c518-42f5-b6d6-ba9c6f212781/h3HiaakpBC.json',
         emotion: 'Entusiasmo',
         description: 'Representa la alegría, la energía y la capacidad de encontrar la dulzura en cada día.',
         rarity: 'Común',
@@ -105,6 +106,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
         id: 'social-butterfly',
         name: 'Mariposa Social',
         icon: '🦋',
+        lottieUrl: 'https://lottie.host/79361718-f2b1-460d-83b6-d3b5b191c7c1/s8c6cImIeA.json',
         emotion: 'Alegría',
         description: 'Encarna la transformación, la belleza de la conexión y el compartir tu viaje con otros.',
         rarity: 'Común',
@@ -114,6 +116,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
         id: 'cunning-fox',
         name: 'Zorro Astuto',
         icon: '🦊',
+        lottieUrl: 'https://lottie.host/a06c526f-4cff-4b8c-b633-90d576a96434/s7y8POc5nO.json',
         emotion: 'Curiosidad',
         description: 'Simboliza la inteligencia, la adaptabilidad y la capacidad de pensar de forma creativa.',
         rarity: 'Poco Común',
@@ -123,6 +126,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
         id: 'patient-turtle',
         name: 'Tortuga Paciente',
         icon: '🐢',
+        lottieUrl: 'https://lottie.host/5e01c5c1-7cb4-495c-9d63-532393d25642/hymD2a43sZ.json',
         emotion: 'Calma',
         description: 'Simboliza la perseverancia, la estabilidad y la sabiduría de ir a tu propio ritmo.',
         rarity: 'Poco Común',
@@ -132,6 +136,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
         id: 'loyal-dog',
         name: 'Perro Leal',
         icon: '🐶',
+        lottieUrl: 'https://lottie.host/81a93549-9d96-4a41-9c60-e4a0b2a759c8/a53vnmPbQG.json',
         emotion: 'Confianza',
         description: 'Encarna la amistad incondicional, la confianza y la alegría de la compañía.',
         rarity: 'Poco Común',
@@ -141,6 +146,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
         id: 'empathetic-elephant',
         name: 'Elefante Empático',
         icon: '🐘',
+        lottieUrl: 'https://lottie.host/b3154854-4c4b-4b1f-94d1-67f70b7c7b74/SgQ5a2Q2Ff.json',
         emotion: 'Empatía',
         description: 'Representa la memoria, la fuerza de los lazos afectivos y un profundo entendimiento de los demás.',
         rarity: 'Raro',
@@ -150,6 +156,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
         id: 'loyal-wolf',
         name: 'Lobo Leal',
         icon: '🐺',
+        lottieUrl: 'https://lottie.host/e0e9b9f7-5b0c-4b6d-9c3f-4e6a8d6f0c3d/r3g4F5f6E7.json',
         emotion: 'Confianza',
         description: 'Encarna la lealtad, el trabajo en equipo y los fuertes lazos con la comunidad.',
         rarity: 'Raro',
@@ -159,6 +166,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
         id: 'proud-lion',
         name: 'León Orgulloso',
         icon: '🦁',
+        lottieUrl: 'https://lottie.host/2f3c3b5a-4b6d-4c3c-8a9d-1b2c3d4e5f6a/n4b5c6d7e8.json',
         emotion: 'Orgullo',
         description: 'Representa la fuerza, el liderazgo y la satisfacción de alcanzar metas importantes.',
         rarity: 'Raro',
@@ -168,6 +176,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
         id: 'brave-eagle',
         name: 'Águila Valiente',
         icon: '🦅',
+        lottieUrl: 'https://lottie.host/c5c6d7e8-3b5a-4b6d-8a9d-1b2c3d4e5f6a/m3n4b5c6d7.json',
         emotion: 'Valentía',
         description: 'Simboliza la libertad, la visión clara y el coraje para volar por encima de los desafíos.',
         rarity: 'Épico',
@@ -177,6 +186,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
         id: 'wise-owl',
         name: 'Búho Sabio',
         icon: '🦉',
+        lottieUrl: 'https://lottie.host/a1b2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d/l2m3n4b5c6.json',
         emotion: 'Serenidad',
         description: 'Representa la sabiduría, la intuición y la capacidad de ver más allá de lo evidente.',
         rarity: 'Épico',
@@ -186,6 +196,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
         id: 'resilient-phoenix',
         name: 'Fénix Resiliente',
         icon: '🔥',
+        lottieUrl: 'https://lottie.host/f1e2d3c4-b5a6-7d8e-9f0a-1b2c3d4e5f6a/k1l2m3n4b5.json',
         emotion: 'Resiliencia',
         description: 'Encarna la capacidad de renacer de las cenizas, la superación y la transformación personal.',
         rarity: 'Épico',
@@ -195,6 +206,7 @@ export const SPIRIT_ANIMALS: SpiritAnimal[] = [
         id: 'protective-dragon',
         name: 'Dragón Protector',
         icon: '🐉',
+        lottieUrl: 'https://lottie.host/d1c2b3a4-e5f6-7a8b-9c0d-1e2f3a4b5c6d/j1k2l3m4n5.json',
         emotion: 'Protección',
         description: 'Simboliza un poder inmenso, la protección de tus tesoros emocionales y una sabiduría ancestral.',
         rarity: 'Legendario',
@@ -281,16 +293,38 @@ export const SHOP_ITEMS: ShopItem[] = [
     { id: 'pet-bed', name: 'Cama Cómoda', description: 'Una cama suave y cómoda para que tu compañero descanse.', cost: 300, type: 'pet_accessory', value: 'bed', icon: '🛏️' },
     { id: 'pet-bowl', name: 'Cuenco de Lujo', description: 'Un cuenco brillante para la comida y el agua de tu mascota.', cost: 200, type: 'pet_accessory', value: 'bowl', icon: '🥣' },
     { id: 'pet-toy', name: 'Pelota de Juguete', description: 'Una pelota colorida para que tu compañero se divierta.', cost: 150, type: 'pet_accessory', value: 'toy', icon: '🎾' },
-    // Pet Backgrounds
-    { id: 'bg-living-room', name: 'Sala de Estar Acogedora', description: 'Un fondo cálido y hogareño para tu mascota.', cost: 500, type: 'pet_background', value: 'living-room', icon: '🛋️', imageUrl: '/images/backgrounds/living-room.png' },
-    { id: 'bg-garden', name: 'Jardín Tranquilo', description: 'Un fondo natural y relajante al aire libre.', cost: 500, type: 'pet_background', value: 'garden', icon: '🏞️', imageUrl: '/images/backgrounds/garden.png' },
-    { id: 'bg-bedroom', name: 'Dormitorio de Ensueño', description: 'Un fondo nocturno y estrellado para descansar.', cost: 500, type: 'pet_background', value: 'bedroom', icon: '🛌', imageUrl: '/images/backgrounds/bedroom.png' },
+    // Room Backgrounds
+    {
+      id: 'bg_jardin',
+      name: 'Jardín Tranquilo',
+      description: 'Un fondo natural y relajante.',
+      cost: 500,
+      type: 'room_background',
+      value: 'garden',
+      iconUrl: 'https://openmoji.org/data/color/svg/1F333.svg',
+      icon: '🌳',
+      imageUrl: 'https://images.pexels.com/photos/1125270/pexels-photo-1125270.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'
+    },
+    {
+      id: 'bg_estelar',
+      name: 'Dormitorio de Ensueño',
+      description: 'Un fondo nocturno y estrellado.',
+      cost: 500,
+      type: 'room_background',
+      value: 'bedroom',
+      iconUrl: 'https://openmoji.org/data/color/svg/1F30C.svg',
+      icon: '🌌',
+      imageUrl: 'https://images.pexels.com/photos/1629236/pexels-photo-1629236.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'
+    },
+    {
+      id: 'bg_sala_acogedora',
+      name: 'Sala de Estar Acogedora',
+      description: 'Un fondo cálido y hogareño.',
+      cost: 500,
+      type: 'room_background',
+      value: 'living-room',
+      iconUrl: 'https://openmoji.org/data/color/svg/1F6CB.svg',
+      icon: '🛋️',
+      imageUrl: 'https://images.pexels.com/photos/271816/pexels-photo-271816.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1'
+    }
 ];
-
-    
-
-    
-
-    
-
-    

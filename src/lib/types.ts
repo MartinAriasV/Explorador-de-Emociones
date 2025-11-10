@@ -31,7 +31,7 @@ export type UserProfile = {
   activePetId: string | null;
   petAccessoryPositions?: { [itemId: string]: { x: number; y: number } };
   petPosition?: { x: number; y: number };
-  activePetBackgroundId?: string | null;
+  activeRoomBackgroundId: string | null;
 };
 
 export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary' | 'games' | 'pet-chat' | 'shop';
@@ -58,6 +58,7 @@ export type SpiritAnimal = {
   description: string;
   rarity: 'Común' | 'Poco Común' | 'Raro' | 'Épico' | 'Legendario';
   unlockHint: string;
+  lottieUrl: string;
 };
 
 export type Reward = {
@@ -79,7 +80,7 @@ export interface GameProps {
   userProfile: UserProfile;
 }
 
-export type ShopItemType = 'theme' | 'avatar_frame' | 'pet_accessory' | 'pet_background';
+export type ShopItemType = 'theme' | 'avatar_frame' | 'pet_accessory' | 'room_background';
 
 export type ShopItem = {
   id: string;
@@ -88,8 +89,9 @@ export type ShopItem = {
   cost: number;
   type: ShopItemType;
   value: string; // e.g. 'theme-ocean', 'border-amber-400', 'bed'
-  icon: string; // Emoji or identifier for the item
+  icon: string;
   imageUrl?: string;
+  iconUrl?: string;
 };
 
 export type PetAccessory = {
@@ -98,5 +100,3 @@ export type PetAccessory = {
     icon: string;
     category: 'head' | 'neck' | 'body';
 };
-
-    
