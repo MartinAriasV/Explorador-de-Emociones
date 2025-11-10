@@ -75,9 +75,9 @@ const getRecentFeelingsContext = (
 };
 
 const accessoryPositions: { [key: string]: React.CSSProperties } = {
-    'hat-cowboy': { top: '-25px', transform: 'translateX(-50%) rotate(-15deg)', left: '40%' },
-    'hat-wizard': { top: '-30px', transform: 'translateX(-50%)', left: '50%' },
-    'glasses-nerd': { top: '10px', left: '50%', transform: 'translateX(-50%)', fontSize: '1.75rem' },
+    'hat-cowboy': { top: '-25px', transform: 'translateX(-50%) rotate(-15deg)', left: '40%', fontSize: '2.5rem' },
+    'hat-wizard': { top: '-30px', transform: 'translateX(-50%)', left: '50%', fontSize: '3rem' },
+    'glasses-sun': { top: '8px', left: '50%', transform: 'translateX(-50%)', fontSize: '2.5rem' },
     'scarf-gryffindor': { bottom: '-5px', left: '50%', transform: 'translateX(-50%)', fontSize: '2.5rem' },
 };
 
@@ -320,5 +320,3 @@ export function PetChatView({
     </Card>
   );
 }
-
-    
