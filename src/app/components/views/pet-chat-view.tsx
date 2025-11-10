@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { chatWithPet } from '@/ai/flows/chat-with-pet';
-import type { SpiritAnimal, View, DiaryEntry, Emotion, UserProfile } from '@/lib/types';
+import type { SpiritAnimal, View, DiaryEntry, Emotion, UserProfile, PetAccessory, ShopItem } from '@/lib/types';
 import type { User } from 'firebase/auth';
 import { ArrowLeft, Send, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useDoc, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useFirebase } from '@/firebase';
+import { SHOP_ITEMS } from '@/lib/constants';
 
 interface PetChatViewProps {
   pet: SpiritAnimal | null;
@@ -48,21 +49,30 @@ const getRecentFeelingsContext = (diaryEntries: DiaryEntry[], emotionsList: Emot
     return { contextString, displayFeelings };
 };
 
+const accessoryPositions: { [key: string]: React.CSSProperties } = {
+    'hat-cowboy': { top: '-25px', transform: 'translateX(-50%) rotate(-15deg)', left: '40%' },
+    'hat-wizard': { top: '-30px', transform: 'translateX(-50%)', left: '50%' },
+    'glasses-nerd': { top: '10px', left: '50%', transform: 'translateX(-50%)', fontSize: '1.75rem' },
+    'scarf-gryffindor': { bottom: '-5px', left: '50%', transform: 'translateX(-50%)', fontSize: '2.5rem' },
+};
+
 function PetAvatar({ pet, equippedAccessories }: { pet: SpiritAnimal, equippedAccessories: { [key: string]: string } | undefined }) {
-  if (!equippedAccessories || Object.keys(equippedAccessories).length === 0) {
-    return <span className="text-5xl">{pet.icon}</span>;
-  }
-  
-  return (
-    <div className="relative w-12 h-12 flex items-center justify-center">
-      <span className="text-5xl">{pet.icon}</span>
-      {Object.entries(equippedAccessories).map(([id, icon]) => (
-        <span key={id} className="absolute text-2xl" style={{top: "-15px", right: "-15px"}}>
-          {icon}
-        </span>
-      ))}
-    </div>
-  );
+    const accessories = equippedAccessories 
+      ? Object.entries(equippedAccessories)
+            .map(([id, icon]) => ({ id, icon, item: SHOP_ITEMS.find(i => i.id === id) }))
+            .filter(item => item.item) as { id: string, icon: string, item: ShopItem }[]
+      : [];
+      
+    return (
+        <div className="relative w-16 h-16 flex items-center justify-center">
+            <span className="text-6xl">{pet.icon}</span>
+            {accessories.map(({ id, icon, item }) => (
+                 <span key={id} className="absolute" style={{...accessoryPositions[item.value]}}>
+                    {icon}
+                </span>
+            ))}
+        </div>
+    );
 }
 
 export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: PetChatViewProps) {
@@ -149,7 +159,7 @@ export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: 
         <PetAvatar pet={pet} equippedAccessories={userProfile?.equippedPetAccessories} />
         <div>
             <CardTitle className="text-2xl font-bold text-primary">{pet.name}</CardTitle>
-            <p className="text-sm text-muted-foreground">Tu compañero IA</p>
+            <p className="text-sm text-muted-foreground">Tu compañero IA activo</p>
         </div>
       </CardHeader>
       <CardContent className="flex-grow overflow-hidden">
@@ -157,7 +167,7 @@ export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: 
             <div className="p-4 space-y-4">
                 {messages.map((msg, index) => (
                     <div key={index} className={cn("flex items-end gap-2", msg.sender === 'user' ? 'justify-end' : 'justify-start')}>
-                        {msg.sender === 'pet' && <div className="w-12 h-12 flex-shrink-0"><PetAvatar pet={pet} equippedAccessories={userProfile?.equippedPetAccessories} /></div>}
+                        {msg.sender === 'pet' && <div className="w-16 h-16 flex-shrink-0"><PetAvatar pet={pet} equippedAccessories={userProfile?.equippedPetAccessories} /></div>}
                         <div className={cn(
                             "p-3 rounded-lg max-w-xs md:max-w-md lg:max-w-lg",
                              msg.sender === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
@@ -174,7 +184,7 @@ export function PetChatView({ pet, user, setView, diaryEntries, emotionsList }: 
                 )}
                 {isLoading && (
                      <div className="flex items-end gap-2 justify-start">
-                        <div className="w-12 h-12 flex-shrink-0"><PetAvatar pet={pet} equippedAccessories={userProfile?.equippedPetAccessories} /></div>
+                        <div className="w-16 h-16 flex-shrink-0"><PetAvatar pet={pet} equippedAccessories={userProfile?.equippedPetAccessories} /></div>
                         <div className="p-3 rounded-lg bg-muted">
                            <div className="flex items-center gap-1.5">
                                <span className="h-2 w-2 rounded-full bg-slate-400 animate-bounce [animation-delay:-0.3s]"></span>

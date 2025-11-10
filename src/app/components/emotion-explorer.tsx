@@ -17,7 +17,7 @@ import { AddEmotionModal } from './modals/add-emotion-modal';
 import { QuizModal } from './modals/quiz-modal';
 import { WelcomeDialog } from './tour/welcome-dialog';
 import { TourPopup } from './tour/tour-popup';
-import { TOUR_STEPS, REWARDS, PREDEFINED_EMOTIONS, SHOP_ITEMS } from '@/lib/constants';
+import { TOUR_STEPS, REWARDS, PREDEFINED_EMOTIONS, SHOP_ITEMS, SPIRIT_ANIMALS } from '@/lib/constants';
 import { StreakView } from './views/streak-view';
 import { SanctuaryView } from './views/sanctuary-view';
 import { GamesView } from './views/games-view';
@@ -71,7 +71,11 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const [newlyUnlockedReward, setNewlyUnlockedReward] = useState<Reward | null>(null);
   
   const isLoading = isProfileLoading || areEmotionsLoading || areDiaryEntriesLoading;
-  const [selectedPet, setSelectedPet] = useState<SpiritAnimal | null>(null);
+
+  const activePet = useMemo(() => {
+    if (!userProfile?.activePetId) return null;
+    return SPIRIT_ANIMALS.find(p => p.id === userProfile.activePetId) || null;
+  }, [userProfile]);
 
 
   const purchasedItems = useMemo(() => {
@@ -123,6 +127,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         purchasedItemIds: [],
         equippedItems: {},
         ascentHighScore: 0,
+        activePetId: null,
+        equippedPetAccessories: {},
       };
       await setDoc(userDocRef, newProfile);
       await addInitialEmotions(user.uid);
@@ -563,7 +569,9 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   };
   
   const handleSelectPet = (pet: SpiritAnimal) => {
-    setSelectedPet(pet);
+    if (userProfileRef) {
+        updateDocumentNonBlocking(userProfileRef, { activePetId: pet.id });
+    }
     setView('pet-chat');
   };
 
@@ -606,12 +614,12 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
               return <StreakView diaryEntries={diaryEntries || []} onRecoverDay={startQuiz} />;
             case 'sanctuary':
               return <SanctuaryView 
-                        unlockedAnimalIds={userProfile?.unlockedAnimalIds || []} 
+                        userProfile={userProfile} 
                         onSelectPet={handleSelectPet}
                       />;
             case 'pet-chat':
               return <PetChatView 
-                        pet={selectedPet} 
+                        pet={activePet} 
                         user={user} 
                         setView={setView} 
                         diaryEntries={diaryEntries || []}
@@ -738,9 +746,3 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     </SidebarProvider>
   );
 }
-
-    
-
-    
-
-    

@@ -5,14 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SPIRIT_ANIMALS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import type { SpiritAnimal } from '@/lib/types';
+import type { SpiritAnimal, UserProfile } from '@/lib/types';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { MessageCircle } from 'lucide-react';
+import { MessageCircle, Star } from 'lucide-react';
 
 
 interface SanctuaryViewProps {
-  unlockedAnimalIds: string[];
+  userProfile: UserProfile | null;
   onSelectPet: (pet: SpiritAnimal) => void;
 }
 
@@ -32,16 +32,23 @@ const rarityTextStyles = {
     'Legendario': 'text-amber-500 dark:text-amber-400',
 }
 
-function AnimalCard({ animal, isUnlocked, onSelectPet }: { animal: SpiritAnimal; isUnlocked: boolean, onSelectPet: (pet: SpiritAnimal) => void; }) {
+function AnimalCard({ animal, isUnlocked, onSelectPet, isActivePet }: { animal: SpiritAnimal; isUnlocked: boolean, onSelectPet: (pet: SpiritAnimal) => void; isActivePet: boolean; }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
         <Card 
           className={cn(
-              "flex flex-col items-center justify-center p-6 aspect-square transition-all duration-300 border-4 cursor-pointer",
-              isUnlocked ? cn('shadow-lg hover:shadow-2xl hover:scale-105', rarityStyles[animal.rarity]) : 'bg-muted/50 border-dashed'
+              "flex flex-col items-center justify-center p-6 aspect-square transition-all duration-300 border-4 cursor-pointer relative",
+              isUnlocked ? cn('shadow-lg hover:shadow-2xl hover:scale-105', rarityStyles[animal.rarity]) : 'bg-muted/50 border-dashed',
+              isActivePet && 'ring-4 ring-offset-2 ring-accent'
           )}
         >
+          {isActivePet && (
+            <div className="absolute top-2 right-2 bg-accent text-accent-foreground px-2 py-1 text-xs font-bold rounded-full flex items-center gap-1">
+                <Star className="h-3 w-3" />
+                Activo
+            </div>
+          )}
           <div className="flex-grow flex flex-col items-center justify-center text-center gap-2">
             {isUnlocked ? (
               <>
@@ -77,7 +84,7 @@ function AnimalCard({ animal, isUnlocked, onSelectPet }: { animal: SpiritAnimal;
                       <div className="text-sm text-muted-foreground mt-1">{animal.description}</div>
                       <Button onClick={() => onSelectPet(animal)} className="w-full">
                           <MessageCircle className="mr-2 h-4 w-4"/>
-                          Chatear con {animal.name}
+                          Chatear y establecer como activo
                       </Button>
                   </div>
               ) : (
@@ -95,20 +102,21 @@ function AnimalCard({ animal, isUnlocked, onSelectPet }: { animal: SpiritAnimal;
 }
 
 
-export function SanctuaryView({ unlockedAnimalIds, onSelectPet }: SanctuaryViewProps) {
+export function SanctuaryView({ userProfile, onSelectPet }: SanctuaryViewProps) {
   return (
     <Card className="w-full h-full shadow-lg flex flex-col">
       <CardHeader>
         <CardTitle className="text-3xl font-bold text-primary">Mi Santuario</CardTitle>
-        <CardDescription>Tu colección de animales espirituales desbloqueados. Cada uno representa un hito en tu viaje emocional. ¡Haz clic en uno para saber más o chatear con él!</CardDescription>
+        <CardDescription>Tu colección de animales espirituales. Haz clic en uno para establecerlo como tu compañero IA activo y chatear con él.</CardDescription>
       </CardHeader>
       <CardContent className="flex-grow overflow-hidden">
         <ScrollArea className="h-full pr-4 -mr-4">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 {SPIRIT_ANIMALS.map((animal) => {
-                  const isUnlocked = unlockedAnimalIds.includes(animal.id);
+                  const isUnlocked = userProfile?.unlockedAnimalIds?.includes(animal.id) ?? false;
+                  const isActivePet = userProfile?.activePetId === animal.id;
                   return (
-                    <AnimalCard key={animal.id} animal={animal} isUnlocked={isUnlocked} onSelectPet={onSelectPet} />
+                    <AnimalCard key={animal.id} animal={animal} isUnlocked={isUnlocked} onSelectPet={onSelectPet} isActivePet={isActivePet} />
                   );
                 })}
               </div>
