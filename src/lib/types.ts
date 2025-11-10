@@ -1,9 +1,11 @@
-
+//
+// 📍 ARCHIVO: src/lib/types.ts
+//
 export type Emotion = {
   id: string;
   userId: string;
   name: string;
-  icon: string;
+  icon: string; // Emoji
   color: string;
   description: string;
   isCustom: boolean;
@@ -12,29 +14,84 @@ export type Emotion = {
 export type DiaryEntry = {
   id: string;
   userId: string;
-  date: string;
+  date: string; // ISO String
   emotionId: string;
   text: string;
 };
 
-export type UserProfile = {
-  id: string; // Firestore ID, matches auth UID
-  name: string;
-  email: string;
-  avatar: string; // Can be an emoji or a URL for generated avatar
-  avatarType: 'emoji' | 'generated';
-  unlockedAnimalIds: string[];
-  points: number;
-  purchasedItemIds: string[];
-  equippedItems: { [key in ShopItemType]?: string }; // e.g. { 'theme': 'theme-ocean', 'avatar_frame': 'frame-gold' }
-  ascentHighScore?: number;
-  activePetId: string | null;
-  petAccessoryPositions?: { [itemId: string]: { x: number; y: number } };
-  petPosition?: { x: number; y: number };
-  activeRoomBackgroundId: string | null;
+// --- ¡NUEVOS TIPOS PARA LA TIENDA! ---
+export type ItemPosition = {
+  itemId: string;
+  x: number;
+  y: number;
 };
 
-export type View = 'diary' | 'emocionario' | 'discover' | 'calm' | 'report' | 'share' | 'profile' | 'streak' | 'sanctuary' | 'games' | 'pet-chat' | 'shop';
+export type ShopItemType = 'theme' | 'avatar_frame' | 'room_background' | 'room_furniture' | 'pet_toy' | 'pet_food';
+
+export type ShopItem = {
+  id: string;
+  name: string;
+  description: string;
+  cost: number;
+  type: ShopItemType;
+  value: string; // ej. 'theme-ocean', 'border-amber-400'
+  iconUrl: string; // URL para el icono de la tienda
+  imageUrl?: string; // URL para la imagen real (ej. fondo)
+  icon?: string; // Fallback de emoji
+};
+// --- FIN DE NUEVOS TIPOS ---
+
+export type SpiritAnimal = {
+  id: string;
+  name: string;
+  icon: string; // <-- ¡AÑADIDO!
+  emotion: string;
+  description: string;
+  rarity: 'Común' | 'Poco Común' | 'Raro' | 'Épico' | 'Legendario';
+  unlockHint: string;
+  lottieUrl: string; // (Lo mantenemos por si lo usamos en el futuro)
+};
+
+export type UserProfile = {
+  id: string; // Coincide con el Auth UID
+  name: string;
+  email: string;
+  avatar: string; // Emoji
+  avatarType: 'emoji' | 'generated';
+  
+  // --- ¡CAMPOS DE GAMIFICACIÓN AÑADIDOS! ---
+  unlockedAnimalIds: string[]; // Logros (ej. 'colibri-agil')
+  points: number; // Moneda de la app
+  currentStreak: number;
+  lastEntryDate?: string; // ISO String
+  entryCount?: number;
+  purchasedItemIds: string[]; // Ítems de la tienda (ej. 'bg_jardin')
+  
+  // --- Campos de Personalización Activos ---
+  activePetId: string | null; // ID de la mascota activa (ej. 'perro-leal')
+  activeAvatarFrameId?: string | null;
+  activeRoomBackgroundId?: string | null;
+  activeAppThemeId?: string;
+  
+  // --- Posiciones de los Muebles ---
+  itemPositions?: ItemPosition[];
+};
+
+// --- VISTAS AÑADIDAS ---
+export type View = 
+  | 'diary' 
+  | 'emocionario' 
+  | 'discover' 
+  | 'games'
+  | 'streak' 
+  | 'sanctuary' // "Mi Habitación"
+  | 'collection' // "Mi Colección" (el reemplazo del viejo Santuario)
+  | 'pet-chat'   // "Compañero IA"
+  | 'shop'       // "Tienda"
+  | 'calm' 
+  | 'report' 
+  | 'share' 
+  | 'profile';
 
 export type PredefinedEmotion = {
   name: string;
@@ -48,17 +105,6 @@ export type TourStepData = {
   refKey: string;
   title: string;
   description: string;
-};
-
-export type SpiritAnimal = {
-  id: string;
-  name:string;
-  icon: string;
-  emotion: string;
-  description: string;
-  rarity: 'Común' | 'Poco Común' | 'Raro' | 'Épico' | 'Legendario';
-  unlockHint: string;
-  lottieUrl: string;
 };
 
 export type Reward = {
@@ -78,25 +124,7 @@ export interface QuizQuestion {
 export interface GameProps {
   emotionsList: Emotion[];
   userProfile: UserProfile;
+  addPoints: (amount: number) => Promise<void>;
+  user: User;
+  onAscentGameEnd: (score: number) => Promise<void>;
 }
-
-export type ShopItemType = 'theme' | 'avatar_frame' | 'pet_accessory' | 'room_background';
-
-export type ShopItem = {
-  id: string;
-  name: string;
-  description: string;
-  cost: number;
-  type: ShopItemType;
-  value: string; // e.g. 'theme-ocean', 'border-amber-400', 'bed'
-  icon: string;
-  imageUrl?: string;
-  iconUrl?: string;
-};
-
-export type PetAccessory = {
-    id: string;
-    name: string;
-    icon: string;
-    category: 'head' | 'neck' | 'body';
-};
