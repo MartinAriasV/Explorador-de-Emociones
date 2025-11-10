@@ -50,16 +50,17 @@ function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
 }
 
 interface DraggableItemProps {
-    item: ShopItem;
-    initialPosition: { x: number; y: number };
-    onPositionChange: (itemId: string, pos: { x: number; y: number }) => void;
-    containerRef: React.RefObject<HTMLDivElement>;
+  item: ShopItem;
+  initialPosition: { x: number; y: number };
+  onPositionChange: (itemId: string, pos: { x: number; y: number }) => void;
+  containerRef: React.RefObject<HTMLDivElement>;
 }
 
 const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, onPositionChange, containerRef }) => {
     const itemRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
-    const dragOffset = useRef({ x: 0, y: 0 });
+    const dragStartPos = useRef({ x: 0, y: 0 });
+    const itemStartPos = useRef({ x: 0, y: 0 });
 
     useEffect(() => {
         const currentItem = itemRef.current;
@@ -69,39 +70,49 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
     }, [initialPosition]);
 
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
-        if (!itemRef.current || !containerRef.current) return;
-        
+        if (!itemRef.current) return;
         setIsDragging(true);
-        const itemRect = itemRef.current.getBoundingClientRect();
-        dragOffset.current = {
-            x: e.clientX - itemRect.left,
-            y: e.clientY - itemRect.top
-        };
+        itemRef.current.style.transition = 'none'; 
+        itemRef.current.style.cursor = 'grabbing';
+        
+        dragStartPos.current = { x: e.clientX, y: e.clientY };
+        
+        const transform = itemRef.current.style.transform;
+        const translateValues = transform.match(/translate\(([^,]+)px, ([^,]+)px\)/);
+        if (translateValues) {
+            itemStartPos.current = { x: parseFloat(translateValues[1]), y: parseFloat(translateValues[2]) };
+        } else {
+            itemStartPos.current = { x: 0, y: 0 };
+        }
+        
         e.preventDefault();
+    }, []);
 
-    }, [containerRef]);
-    
     const handleMouseMove = useCallback((e: MouseEvent) => {
         if (!isDragging || !itemRef.current || !containerRef.current) return;
         
-        const containerRect = containerRef.current.getBoundingClientRect();
-
-        let newX = e.clientX - containerRect.left - dragOffset.current.x;
-        let newY = e.clientY - containerRect.top - dragOffset.current.y;
+        const dx = e.clientX - dragStartPos.current.x;
+        const dy = e.clientY - dragStartPos.current.y;
         
-        const itemWidth = itemRef.current.offsetWidth;
-        const itemHeight = itemRef.current.offsetHeight;
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const itemRect = itemRef.current.getBoundingClientRect();
 
-        newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
-        newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
+        let newX = itemStartPos.current.x + dx;
+        let newY = itemStartPos.current.y + dy;
+        
+        newX = Math.max(0, Math.min(newX, containerRect.width - itemRect.width));
+        newY = Math.max(0, Math.min(newY, containerRect.height - itemRect.height));
         
         itemRef.current.style.transform = `translate(${newX}px, ${newY}px)`;
+
     }, [isDragging, containerRef]);
 
     const handleMouseUp = useCallback(() => {
         if (!isDragging || !itemRef.current) return;
-        
+
         setIsDragging(false);
+        itemRef.current.style.transition = '';
+        itemRef.current.style.cursor = 'grab';
 
         const transform = itemRef.current.style.transform;
         const translateValues = transform.match(/translate\(([^,]+)px, ([^,]+)px\)/);
@@ -113,33 +124,26 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
     }, [isDragging, item.id, onPositionChange]);
 
     useEffect(() => {
-        if(isDragging) {
+        if (isDragging) {
             document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
-        } else {
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
+            document.addEventListener('mouseup', handleMouseUp, { once: true });
         }
-        
         return () => {
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
-        }
+        };
     }, [isDragging, handleMouseMove, handleMouseUp]);
     
     return (
         <div
             ref={itemRef}
             className={cn(
-                "absolute text-5xl z-10 w-16 h-16 flex items-center justify-center",
-                isDragging ? 'cursor-grabbing' : 'cursor-grab'
+                "absolute text-5xl z-10 w-16 h-16 flex items-center justify-center cursor-grab select-none",
+                isDragging && 'cursor-grabbing'
             )}
-            style={{ 
-                userSelect: 'none',
-            }}
             onMouseDown={handleMouseDown}
         >
-          {item.icon}
+            {item.icon}
         </div>
     );
 };
@@ -335,7 +339,7 @@ export function PetChatView({
 
   return (
     <div className="-m-4 md:-m-6 h-full">
-      <Card className="w-full h-full shadow-lg flex flex-col max-w-4xl mx-auto">
+      <Card className="w-full h-full shadow-lg flex flex-col max-w-4xl mx-auto rounded-none md:rounded-lg">
         <CardHeader className="flex flex-row items-center gap-4 p-4 md:p-6 pb-4">
             <Button
             variant="ghost"
@@ -458,3 +462,5 @@ export function PetChatView({
     </div>
   );
 }
+
+    
