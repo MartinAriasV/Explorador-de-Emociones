@@ -319,43 +319,46 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     }
   };
   
-  const handleAscentGameEnd = (score: number) => {
-    if (!user || !firestore) return;
+  const handleAscentGameEnd = async (score: number) => {
+    if (!user || !firestore || !userProfile) return;
     const userDocRef = doc(firestore, 'users', user.uid);
 
-    runTransaction(firestore, async (transaction) => {
-      const userDoc = await transaction.get(userDocRef);
-      if (!userDoc.exists()) {
-        throw new Error('User profile does not exist!');
-      }
+    let isNewHighScore = false;
+    try {
+        await runTransaction(firestore, async (transaction) => {
+            const userDoc = await transaction.get(userDocRef);
+            if (!userDoc.exists()) {
+                throw new Error('User profile does not exist!');
+            }
 
-      const profileData = userDoc.data() as UserProfile;
-      const currentHighScore = profileData.ascentHighScore || 0;
-      const newPoints = (profileData.points || 0) + score;
+            const profileData = userDoc.data() as UserProfile;
+            const currentHighScore = profileData.ascentHighScore || 0;
+            const newPoints = (profileData.points || 0) + score;
 
-      const updates: {points: number, ascentHighScore?: number} = {
-        points: newPoints,
-      };
+            const updates: { points: number; ascentHighScore?: number } = {
+                points: newPoints,
+            };
 
-      if (score > currentHighScore) {
-        updates.ascentHighScore = score;
-      }
-      
-      transaction.update(userDocRef, updates);
-      
-      return { isNewHighScore: score > currentHighScore };
-    }).then(({ isNewHighScore }) => {
+            if (score > currentHighScore) {
+                updates.ascentHighScore = score;
+                isNewHighScore = true;
+            }
+            
+            transaction.update(userDocRef, updates);
+        });
+
         if (isNewHighScore) {
             toast({ title: `¡Nuevo récord!`, description: `Has conseguido ${score} puntos.` });
         } else {
             toast({ title: '¡Buen juego!', description: `Has ganado ${score} puntos.` });
         }
-    }).catch((error) => {
-        const profileData = userProfile || { ascentHighScore: 0, points: 0 };
+
+    } catch (error) {
+        const profileData = userProfile;
         const currentHighScore = profileData.ascentHighScore || 0;
         const newPoints = (profileData.points || 0) + score;
         
-        const requestData: {points: number, ascentHighScore?: number} = {
+        const requestData: { points: number; ascentHighScore?: number } = {
             points: newPoints
         };
         if (score > currentHighScore) {
@@ -370,7 +373,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
                 requestResourceData: requestData
             })
         );
-    });
+    }
   };
 
   const setUserProfile = (profile: Partial<Omit<UserProfile, 'id'>>) => {
@@ -652,7 +655,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   return (
     <SidebarProvider>
       <div className="flex h-screen w-screen bg-background">
-        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
+        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} />
         <main className="flex-1 flex flex-col overflow-hidden">
           <header className="p-2 md:hidden flex items-center border-b">
              <MobileMenuButton />

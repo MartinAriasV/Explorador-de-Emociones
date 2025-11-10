@@ -18,8 +18,6 @@ interface AppSidebarProps {
   userProfile: UserProfile | null;
   diaryEntries: DiaryEntry[];
   refs: { [key: string]: React.RefObject<HTMLLIElement> };
-  theme: 'dark' | 'light';
-  setTheme: (theme: 'dark' | 'light') => void;
 }
 
 const navItems = [
@@ -37,10 +35,16 @@ const navItems = [
   { id: 'profile', icon: UserCircle, text: 'Mi Perfil', refKey: 'profileRef' },
 ] as const;
 
-export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs, theme, setTheme }: AppSidebarProps) {
+export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs }: AppSidebarProps) {
   const { setOpenMobile } = useSidebar();
   const { auth } = useFirebase();
   const dailyStreak = calculateDailyStreak(diaryEntries);
+  const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
+
+  useEffect(() => {
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(theme);
+  }, [theme]);
 
   const handleItemClick = (newView: View) => {
     setView(newView);
