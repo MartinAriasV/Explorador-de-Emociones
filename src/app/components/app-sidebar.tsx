@@ -70,23 +70,20 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
   const equippedFrameId = userProfile.equippedItems?.['avatar_frame'];
   const equippedFrame = SHOP_ITEMS.find(item => item.id === equippedFrameId);
 
-  let frameStyle: string;
-  let avatarStyle: string;
-
-  if (equippedFrame) {
-    frameStyle = cn('p-1 rounded-full', equippedFrame.value);
-    avatarStyle = 'h-12 w-12'; // No border when frame is active
-  } else {
-    frameStyle = '';
-    avatarStyle = 'h-12 w-12 border-2 border-primary/20'; // Default border
+  let frameClass = equippedFrame ? cn('rounded-full border-4', equippedFrame.value) : '';
+  let avatarClass = 'h-12 w-12';
+  
+  // If no frame is equipped, apply default border to avatar itself
+  if (!equippedFrame) {
+      avatarClass = cn(avatarClass, 'border-2 border-primary/20');
   }
 
   return (
     <Sidebar collapsible="icon" className="shadow-lg animate-fade-in">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-           <div className={frameStyle}>
-              <Avatar className={avatarStyle}>
+           <div className={frameClass}>
+              <Avatar className={avatarClass}>
                   {userProfile.avatarType === 'generated' ? (
                   <AvatarImage src={userProfile.avatar} alt={userProfile.name} />
                   ) : (
