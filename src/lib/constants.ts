@@ -275,8 +275,9 @@ export const SHOP_ITEMS: ShopItem[] = [
     { id: 'theme-forest', name: 'Tema Bosque', description: 'Un tema verde y tranquilo inspirado en la naturaleza.', cost: 100, type: 'theme', value: 'theme-forest', icon: '🌳' },
     { id: 'frame-gold', name: 'Marco Dorado', description: 'Un marco dorado brillante para tu avatar.', cost: 250, type: 'avatar_frame', value: 'border-amber-400', icon: '🖼️' },
     { id: 'frame-silver', name: 'Marco Plateado', description: 'Un marco plateado elegante para tu avatar.', cost: 150, type: 'avatar_frame', value: 'border-slate-400', icon: '🖼️' },
-    { id: 'hat-cowboy', name: 'Sombrero de Vaquero', description: 'Un sombrero de vaquero para tu mascota IA.', cost: 500, type: 'pet_accessory', value: 'hat-cowboy', icon: '🤠' },
-    { id: 'hat-wizard', name: 'Sombrero de Mago', description: 'Un sombrero de mago místico para tu mascota.', cost: 750, type: 'pet_accessory', value: 'hat-wizard', icon: '🧙' },
-    { id: 'glasses-sun', name: 'Gafas de Sol', description: 'Un par de gafas de sol para tu mascota.', cost: 300, type: 'pet_accessory', value: 'glasses-sun', icon: '😎' },
-    { id: 'scarf-gryffindor', name: 'Bufanda Mágica', description: 'Una bufanda de lana para los días de frío.', cost: 400, type: 'pet_accessory', value: 'scarf-gryffindor', icon: '🧣' },
+    { id: 'pet-bed', name: 'Cama Cómoda', description: 'Una cama suave y cómoda para que tu compañero descanse.', cost: 300, type: 'pet_accessory', value: 'bed', icon: '🛏️' },
+    { id: 'pet-bowl', name: 'Cuenco de Lujo', description: 'Un cuenco brillante para la comida y el agua de tu mascota.', cost: 200, type: 'pet_accessory', value: 'bowl', icon: '🥣' },
+    { id: 'pet-toy', name: 'Pelota de Juguete', description: 'Una pelota colorida para que tu compañero se divierta.', cost: 150, type: 'pet_accessory', value: 'toy', icon: '🎾' },
 ];
+
+    

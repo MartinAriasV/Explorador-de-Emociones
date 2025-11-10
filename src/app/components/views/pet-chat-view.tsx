@@ -1,6 +1,7 @@
+
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -74,49 +75,31 @@ const getRecentFeelingsContext = (
   return { contextString, displayFeelings };
 };
 
-const accessoryPositions: { [key: string]: React.CSSProperties } = {
-    'hat-cowboy': { top: '-25px', transform: 'translateX(-50%) rotate(-15deg)', left: '40%', fontSize: '2.5rem' },
-    'hat-wizard': { top: '-30px', transform: 'translateX(-50%)', left: '50%', fontSize: '3rem' },
-    'glasses-sun': { top: '8px', left: '50%', transform: 'translateX(-50%)', fontSize: '2.5rem' },
-    'scarf-gryffindor': { bottom: '-5px', left: '50%', transform: 'translateX(-50%)', fontSize: '2.5rem' },
+const PetAccessory = ({ item }: { item: ShopItem }) => {
+    if (!item) return null;
+  
+    const baseClasses = "text-5xl absolute";
+    let positionClass = "";
+  
+    switch(item.value) {
+      case 'bed':
+        positionClass = "bottom-0 -right-4";
+        break;
+      case 'bowl':
+        positionClass = "bottom-1 left-0";
+        break;
+      case 'toy':
+        positionClass = "bottom-1 right-2";
+        break;
+    }
+  
+    return (
+      <div className={cn(baseClasses, positionClass)}>
+        {item.icon}
+      </div>
+    );
 };
-
-function PetAvatar({
-  pet,
-  equippedAccessories,
-}: {
-  pet: SpiritAnimal;
-  equippedAccessories: { [key: string]: string } | undefined;
-}) {
-  const accessories = equippedAccessories
-    ? (Object.entries(equippedAccessories)
-        .map(([id, icon]) => ({
-          id,
-          icon,
-          item: SHOP_ITEMS.find((i) => i.id === id),
-        }))
-        .filter((item) => item.item) as {
-        id: string;
-        icon: string;
-        item: ShopItem;
-      }[])
-    : [];
-
-  return (
-    <div className="relative w-16 h-16 flex items-center justify-center">
-      <span className="text-6xl">{pet.icon}</span>
-      {accessories.map(({ id, icon, item }) => (
-        <span
-          key={id}
-          className="absolute"
-          style={{ ...accessoryPositions[item.value] }}
-        >
-          {icon}
-        </span>
-      ))}
-    </div>
-  );
-}
+  
 
 export function PetChatView({
   pet,
@@ -198,6 +181,11 @@ export function PetChatView({
     }
   };
 
+  const purchasedAccessories = useMemo(() => {
+      if (!userProfile?.purchasedItemIds) return [];
+      return SHOP_ITEMS.filter(item => item.type === 'pet_accessory' && userProfile.purchasedItemIds.includes(item.id));
+  }, [userProfile]);
+
   if (!pet) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8 rounded-lg bg-muted/50">
@@ -221,10 +209,7 @@ export function PetChatView({
         >
           <ArrowLeft />
         </Button>
-        <PetAvatar
-          pet={pet}
-          equippedAccessories={userProfile?.equippedPetAccessories}
-        />
+        <div className="text-5xl">{pet.icon}</div>
         <div>
           <CardTitle className="text-2xl font-bold text-primary">
             {pet.name}
@@ -234,8 +219,20 @@ export function PetChatView({
           </p>
         </div>
       </CardHeader>
-      <CardContent className="flex-grow overflow-hidden">
-        <ScrollArea className="h-full" ref={scrollAreaRef}>
+      <CardContent className="flex-grow overflow-hidden flex flex-col gap-4">
+
+        <div className="bg-muted/50 rounded-lg p-4 flex-shrink-0 flex items-center justify-center">
+            <div className="relative w-48 h-32">
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2">
+                    <span className="text-8xl drop-shadow-lg">{pet.icon}</span>
+                </div>
+                {purchasedAccessories.map(item => (
+                    <PetAccessory key={item.id} item={item} />
+                ))}
+            </div>
+        </div>
+
+        <ScrollArea className="h-full flex-grow" ref={scrollAreaRef}>
           <div className="p-4 space-y-4">
             {messages.map((msg, index) => (
               <div
@@ -246,11 +243,8 @@ export function PetChatView({
                 )}
               >
                 {msg.sender === 'pet' && (
-                  <div className="w-16 h-16 flex-shrink-0">
-                    <PetAvatar
-                      pet={pet}
-                      equippedAccessories={userProfile?.equippedPetAccessories}
-                    />
+                  <div className="w-10 h-10 flex-shrink-0 text-3xl">
+                     {pet.icon}
                   </div>
                 )}
                 <div
@@ -279,11 +273,8 @@ export function PetChatView({
               )}
             {isLoading && (
               <div className="flex items-end gap-2 justify-start">
-                <div className="w-16 h-16 flex-shrink-0">
-                  <PetAvatar
-                    pet={pet}
-                    equippedAccessories={userProfile?.equippedPetAccessories}
-                  />
+                <div className="w-10 h-10 flex-shrink-0 text-3xl">
+                    {pet.icon}
                 </div>
                 <div className="p-3 rounded-lg bg-muted">
                   <div className="flex items-center gap-1.5">
@@ -320,3 +311,5 @@ export function PetChatView({
     </Card>
   );
 }
+
+    
