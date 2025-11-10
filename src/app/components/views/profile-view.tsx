@@ -343,5 +343,3 @@ export function ProfileView({
     </Card>
   );
 }
-
-    
