@@ -70,13 +70,15 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
   const equippedFrameId = userProfile.equippedItems?.['avatar_frame'];
   const equippedFrame = SHOP_ITEMS.find(item => item.id === equippedFrameId);
 
-  let frameStyle = '';
-  let avatarStyle = 'h-12 w-12';
+  let frameStyle: string;
+  let avatarStyle: string;
 
   if (equippedFrame) {
     frameStyle = cn('rounded-full transition-colors p-1', equippedFrame.value);
+    avatarStyle = 'h-12 w-12';
   } else {
-    avatarStyle = cn(avatarStyle, 'border-2 border-primary/20');
+    frameStyle = '';
+    avatarStyle = cn('h-12 w-12', 'border-2 border-primary/20');
   }
 
   return (
