@@ -42,7 +42,6 @@ interface Message {
   sender: 'user' | 'pet';
 }
 
-// Debounce function
 function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
   let timeout: NodeJS.Timeout;
 
@@ -82,8 +81,8 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
         let newX = e.clientX - containerRect.left - dragOffset.current.x;
         let newY = e.clientY - containerRect.top - dragOffset.current.y;
 
-        const itemWidth = 64; // Approximate width
-        const itemHeight = 64; // Approximate height
+        const itemWidth = 64; 
+        const itemHeight = 64; 
         newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
         newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
 
@@ -304,7 +303,7 @@ export function PetChatView({
     if (!activeBackground) return {};
     const styleKey = activeBackground.value;
     return backgroundStyles[styleKey] || {};
-  }, [activeBackground]);
+}, [activeBackground]);
 
 
   if (!pet || isProfileLoading) {
@@ -443,5 +442,7 @@ export function PetChatView({
     </Card>
   );
 }
+
+    
 
     

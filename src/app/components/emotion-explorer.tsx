@@ -578,7 +578,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
 
   const renderView = () => {
     return (
-      <div className="animate-fade-in-up">
+      <div className="animate-fade-in-up h-full">
         {(() => {
           switch (view) {
             case 'diary':
@@ -663,7 +663,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-screen bg-background">
+      <div className="flex h-screen w-screen bg-background md:pl-[--sidebar-width-icon]">
         <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} />
         <main className="flex-1 flex flex-col overflow-hidden">
           <header className="p-2 md:hidden flex items-center border-b">
@@ -747,5 +747,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     </SidebarProvider>
   );
 }
+
+    
 
     
