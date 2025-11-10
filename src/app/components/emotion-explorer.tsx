@@ -33,6 +33,7 @@ import { calculateDailyStreak, cn } from '@/lib/utils';
 import type { User } from 'firebase/auth';
 import { PetChatView } from './views/pet-chat-view';
 import useLocalStorage from '@/hooks/use-local-storage';
+import anime from 'animejs';
 
 interface EmotionExplorerProps {
   user: User;
@@ -243,6 +244,35 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         }
       }
   }, [user, firestore, userProfile]);
+
+  useEffect(() => {
+    if (newlyUnlockedReward) {
+      const icon = document.getElementById('reward-icon');
+      const name = document.getElementById('reward-name');
+      const rarity = document.getElementById('reward-rarity');
+      const title = document.getElementById('reward-title');
+
+      if (icon) {
+        anime({
+          targets: icon,
+          translateY: [-100, 0],
+          opacity: [0, 1],
+          scale: [0.5, 1],
+          elasticity: 600,
+          duration: 800,
+        });
+      }
+      if (title && name && rarity) {
+          anime({
+              targets: [title, name, rarity],
+              translateY: [20, 0],
+              opacity: [0, 1],
+              delay: anime.stagger(100, {start: 300}),
+              duration: 500,
+          })
+      }
+    }
+  }, [newlyUnlockedReward]);
 
   const handleShare = () => {
     checkAndUnlockRewards('share');
@@ -706,19 +736,19 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
       <AlertDialog open={!!newlyUnlockedReward}>
         <AlertDialogContent className={`p-0 overflow-hidden border-4 ${newlyUnlockedReward ? rarityBorderStyles[newlyUnlockedReward.animal.rarity] : 'border-transparent'}`}>
           <AlertDialogHeader className="p-6 pb-0">
-            <AlertDialogTitle className="flex items-center justify-center text-center gap-2 text-2xl font-bold">
+            <AlertDialogTitle id="reward-title" className="flex items-center justify-center text-center gap-2 text-2xl font-bold">
               <Crown className="w-8 h-8 text-amber-400" />
               ¡Recompensa Desbloqueada!
             </AlertDialogTitle>
           </AlertDialogHeader>
           <div className="flex flex-col items-center gap-2 pt-4 pb-8 text-center bg-background/50">
-              <div className="relative w-32 h-32 flex items-center justify-center">
+              <div id="reward-icon-container" className="relative w-32 h-32 flex items-center justify-center">
                   <div className={`absolute inset-0 bg-gradient-to-t ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity]?.replace('text-','from-') : ''}/20 to-transparent rounded-full blur-2xl`}></div>
-                  <span className="text-8xl drop-shadow-lg">{newlyUnlockedReward?.animal.icon}</span>
+                  <span id="reward-icon" className="text-8xl drop-shadow-lg">{newlyUnlockedReward?.animal.icon}</span>
               </div>
-              <span className={`block font-bold text-3xl ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity] : ''}`}>{newlyUnlockedReward?.animal.name}</span>
+              <span id="reward-name" className={`block font-bold text-3xl ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity] : ''}`}>{newlyUnlockedReward?.animal.name}</span>
               <p className="block text-sm text-muted-foreground max-w-xs">{newlyUnlockedReward?.animal.description}</p>
-              <p className={`block text-xs font-semibold uppercase tracking-wider ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity] : ''}`}>{newlyUnlockedReward?.animal.rarity}</p>
+              <p id="reward-rarity" className={`block text-xs font-semibold uppercase tracking-wider ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity] : ''}`}>{newlyUnlockedReward?.animal.rarity}</p>
           </div>
           <AlertDialogFooter className="bg-muted/40 p-4 border-t">
               <AlertDialogAction onClick={() => { setNewlyUnlockedReward(null); setView('sanctuary'); }} className="bg-accent text-accent-foreground hover:bg-accent/90 w-full">
@@ -747,7 +777,3 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     </SidebarProvider>
   );
 }
-
-    
-
-    
