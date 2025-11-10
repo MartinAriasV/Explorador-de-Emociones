@@ -69,15 +69,20 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
   
   const equippedFrameId = userProfile.equippedItems?.['avatar_frame'];
   const equippedFrame = SHOP_ITEMS.find(item => item.id === equippedFrameId);
-  const frameStyle = equippedFrame ? equippedFrame.value : 'border-2 border-primary/20';
+  
+  const frameWrapperClasses = equippedFrame 
+    ? cn('rounded-full p-1 transition-colors', equippedFrame.value) 
+    : '';
+
+  const avatarClasses = equippedFrame ? '' : 'border-2 border-primary/20';
 
 
   return (
     <Sidebar collapsible="icon" className="shadow-lg animate-fade-in">
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-            <div className={cn("rounded-full transition-colors", frameStyle)}>
-                <Avatar className='h-12 w-12'>
+            <div className={frameWrapperClasses}>
+                <Avatar className={cn('h-12 w-12', avatarClasses)}>
                     {userProfile.avatarType === 'generated' ? (
                     <AvatarImage src={userProfile.avatar} alt={userProfile.name} />
                     ) : (
