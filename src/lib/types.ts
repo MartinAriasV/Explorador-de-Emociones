@@ -89,6 +89,7 @@ export type ShopItem = {
   type: ShopItemType;
   value: string; // e.g. 'theme-ocean', 'border-amber-400', 'bed'
   icon: string; // Emoji or identifier for the item
+  imageUrl?: string;
 };
 
 export type PetAccessory = {
@@ -97,3 +98,5 @@ export type PetAccessory = {
     icon: string;
     category: 'head' | 'neck' | 'body';
 };
+
+    

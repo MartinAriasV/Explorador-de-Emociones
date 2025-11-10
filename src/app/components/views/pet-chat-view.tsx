@@ -238,24 +238,6 @@ const getRecentFeelingsContext = (
   return { contextString, displayFeelings };
 };
 
-const backgroundStyles: { [key: string]: React.CSSProperties } = {
-    'living-room': {
-        backgroundColor: '#f0e6dd',
-        backgroundImage: 'linear-gradient(to right, #e3d5c5 1px, transparent 1px), linear-gradient(to bottom, #e3d5c5 1px, transparent 1px), radial-gradient(circle at 10% 20%, rgba(255, 235, 205, 0.4) 0%, transparent 40%), radial-gradient(circle at 90% 80%, rgba(210, 180, 140, 0.4) 0%, transparent 40%)',
-        backgroundSize: '50px 50px, 50px 50px, 200px 200px, 300px 300px',
-    },
-    'garden': {
-        backgroundColor: '#e6f0e6',
-        backgroundImage: 'radial-gradient(circle at 100% 0, #d4edda 0%, #e6f0e6 40%)',
-    },
-    'bedroom': {
-        backgroundColor: '#1a202c',
-        backgroundImage: 'radial-gradient(circle at 10px 10px, rgba(255, 255, 255, 0.1) 1px, transparent 1px), radial-gradient(circle at 50px 50px, rgba(255, 255, 255, 0.08) 1px, transparent 1px), radial-gradient(circle at 100px 20px, rgba(255, 255, 255, 0.05) 1px, transparent 1px)',
-        backgroundSize: '150px 150px',
-    }
-};
-
-
 export function PetChatView({
   pet,
   user,
@@ -282,7 +264,7 @@ export function PetChatView({
   );
   
   const [accessoryPositions, setAccessoryPositions] = useState(userProfile?.petAccessoryPositions || {});
-  const [petPosition, setPetPosition] = useState(userProfile?.petPosition || { x: 200, y: 100 });
+  const [petPosition, setPetPosition] = useState(userProfile?.petPosition || { x: 200, y: 150 });
 
 
   useEffect(() => {
@@ -395,9 +377,14 @@ export function PetChatView({
   }, [userProfile]);
 
   const currentBackgroundStyle = useMemo(() => {
-    if (!activeBackground || !activeBackground.value) return {};
-    const styleKey = activeBackground.value;
-    return backgroundStyles[styleKey] || {};
+    if (activeBackground?.value) {
+      return {
+        backgroundImage: `url('/backgrounds/${activeBackground.value}.png')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      };
+    }
+    return { backgroundColor: 'hsl(var(--muted) / 0.5)' };
 }, [activeBackground]);
 
 
@@ -439,7 +426,7 @@ export function PetChatView({
             <div ref={roomContainerRef} className="relative rounded-lg flex-shrink-0 overflow-hidden h-64 border-2" >
                 <div 
                     className="absolute inset-0 transition-all duration-500"
-                    style={Object.keys(currentBackgroundStyle).length > 0 ? currentBackgroundStyle : { backgroundColor: 'hsl(var(--muted) / 0.5)' }}
+                    style={currentBackgroundStyle}
                 ></div>
                 
                  <DraggablePet
@@ -540,3 +527,5 @@ export function PetChatView({
     </div>
   );
 }
+
+    

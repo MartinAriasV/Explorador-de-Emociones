@@ -128,6 +128,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         ascentHighScore: 0,
         activePetId: 'loyal-dog',
         petAccessoryPositions: {},
+        petPosition: { x: 200, y: 150 },
         activePetBackgroundId: null,
       };
       await setDoc(userDocRef, newProfile);
@@ -782,3 +783,5 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     </SidebarProvider>
   );
 }
+
+    
