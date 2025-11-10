@@ -219,7 +219,7 @@ export function PetChatView({
         if (userProfileRef) {
             updateDocumentNonBlocking(userProfileRef, { petAccessoryPositions: newPositions });
         }
-    }, 500),
+    }, 1000),
     [userProfileRef]
   );
 
@@ -302,7 +302,7 @@ export function PetChatView({
 
   const currentBackgroundStyle = useMemo(() => {
     if (!activeBackground) return {};
-    const styleKey = activeBackground.value.replace('bg-', '');
+    const styleKey = activeBackground.value;
     return backgroundStyles[styleKey] || {};
   }, [activeBackground]);
 
@@ -321,7 +321,7 @@ export function PetChatView({
   }
 
   return (
-    <Card className="w-full h-full shadow-lg flex flex-col max-w-3xl mx-auto">
+    <Card className="w-full h-full shadow-lg flex flex-col max-w-3xl mx-auto p-4 md:p-6">
       <CardHeader className="flex flex-row items-center gap-4">
         <Button
           variant="ghost"
@@ -443,3 +443,5 @@ export function PetChatView({
     </Card>
   );
 }
+
+    

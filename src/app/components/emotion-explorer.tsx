@@ -128,7 +128,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         equippedItems: {},
         ascentHighScore: 0,
         activePetId: 'loyal-dog',
-        equippedPetAccessories: {},
+        petAccessoryPositions: {},
         activePetBackgroundId: null,
       };
       await setDoc(userDocRef, newProfile);
@@ -670,7 +670,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
              <MobileMenuButton />
              <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
           </header>
-          <div className="flex-1 p-4 md:p-6 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto">
             {renderView()}
           </div>
         </main>
@@ -747,3 +747,5 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     </SidebarProvider>
   );
 }
+
+    
