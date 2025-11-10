@@ -122,9 +122,84 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
         <div
             ref={itemRef}
             className="absolute text-5xl cursor-grab w-16 h-16 flex items-center justify-center"
-            onMouseDown={handleMouseDown}
         >
             {item.icon}
+        </div>
+    );
+};
+
+interface DraggablePetProps {
+    pet: SpiritAnimal;
+    initialPosition: { x: number; y: number };
+    onPositionChange: (pos: { x: number; y: number }) => void;
+    containerRef: React.RefObject<HTMLDivElement>;
+}
+
+const DraggablePet: React.FC<DraggablePetProps> = ({ pet, initialPosition, onPositionChange, containerRef }) => {
+    const itemRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const currentItem = itemRef.current;
+        if (currentItem) {
+            anime({
+                targets: currentItem,
+                translateX: initialPosition.x,
+                translateY: initialPosition.y,
+                duration: 0,
+            });
+        }
+    }, [initialPosition]);
+
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        if (!itemRef.current || !containerRef.current) return;
+        
+        const currentItem = itemRef.current;
+        anime.remove(currentItem); 
+
+        const containerRect = containerRef.current.getBoundingClientRect();
+        
+        const onMouseMove = (moveEvent: MouseEvent) => {
+            let newX = moveEvent.clientX - containerRect.left - (currentItem.offsetWidth / 2);
+            let newY = moveEvent.clientY - containerRect.top - (currentItem.offsetHeight / 2);
+
+            newX = Math.max(0, Math.min(newX, containerRect.width - currentItem.offsetWidth));
+            newY = Math.max(0, Math.min(newY, containerRect.height - currentItem.offsetHeight));
+
+            anime({
+                targets: currentItem,
+                translateX: newX,
+                translateY: newY,
+                duration: 0,
+                easing: 'linear'
+            });
+        };
+
+        const onMouseUp = (upEvent: MouseEvent) => {
+            let finalX = upEvent.clientX - containerRect.left - (currentItem.offsetWidth / 2);
+            let finalY = upEvent.clientY - containerRect.top - (currentItem.offsetHeight / 2);
+            
+            finalX = Math.max(0, Math.min(finalX, containerRect.width - currentItem.offsetWidth));
+            finalY = Math.max(0, Math.min(finalY, containerRect.height - currentItem.offsetHeight));
+
+            onPositionChange({ x: finalX, y: finalY });
+            
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+
+        e.preventDefault();
+    }, [containerRef, onPositionChange]);
+    
+    return (
+        <div
+            ref={itemRef}
+            className="absolute text-7xl cursor-grab w-24 h-24 flex items-center justify-center bg-white/10 rounded-full"
+            onMouseDown={handleMouseDown}
+        >
+            <span className="drop-shadow-lg">{pet.icon}</span>
         </div>
     );
 };
@@ -207,14 +282,19 @@ export function PetChatView({
   );
   
   const [accessoryPositions, setAccessoryPositions] = useState(userProfile?.petAccessoryPositions || {});
+  const [petPosition, setPetPosition] = useState(userProfile?.petPosition || { x: 200, y: 100 });
+
 
   useEffect(() => {
     if (userProfile?.petAccessoryPositions) {
       setAccessoryPositions(userProfile.petAccessoryPositions);
     }
-  }, [userProfile?.petAccessoryPositions]);
+    if (userProfile?.petPosition) {
+        setPetPosition(userProfile.petPosition);
+    }
+  }, [userProfile?.petAccessoryPositions, userProfile?.petPosition]);
   
-  const debouncedUpdatePositions = useCallback(
+  const debouncedUpdateAccessoryPositions = useCallback(
     debounce((newPositions) => {
         if (userProfileRef) {
             updateDocumentNonBlocking(userProfileRef, { petAccessoryPositions: newPositions });
@@ -222,14 +302,29 @@ export function PetChatView({
     }, 1000),
     [userProfileRef]
   );
+  
+  const debouncedUpdatePetPosition = useCallback(
+    debounce((newPosition) => {
+        if (userProfileRef) {
+            updateDocumentNonBlocking(userProfileRef, { petPosition: newPosition });
+        }
+    }, 1000),
+    [userProfileRef]
+  );
 
-  const handlePositionChange = useCallback((itemId: string, pos: { x: number; y: number }) => {
+
+  const handleAccessoryPositionChange = useCallback((itemId: string, pos: { x: number; y: number }) => {
     setAccessoryPositions(prev => {
         const newPositions = { ...prev, [itemId]: pos };
-        debouncedUpdatePositions(newPositions);
+        debouncedUpdateAccessoryPositions(newPositions);
         return newPositions;
     });
-  }, [debouncedUpdatePositions]);
+  }, [debouncedUpdateAccessoryPositions]);
+
+  const handlePetPositionChange = useCallback((pos: { x: number; y: number }) => {
+    setPetPosition(pos);
+    debouncedUpdatePetPosition(pos);
+  }, [debouncedUpdatePetPosition]);
 
 
   useEffect(() => {
@@ -346,15 +441,20 @@ export function PetChatView({
                     className="absolute inset-0 transition-all duration-500"
                     style={Object.keys(currentBackgroundStyle).length > 0 ? currentBackgroundStyle : { backgroundColor: 'hsl(var(--muted) / 0.5)' }}
                 ></div>
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-                    <span className="text-8xl drop-shadow-lg z-0 relative">{pet.icon}</span>
-                </div>
+                
+                 <DraggablePet
+                    pet={pet}
+                    initialPosition={petPosition}
+                    onPositionChange={handlePetPositionChange}
+                    containerRef={roomContainerRef}
+                />
+
                 {purchasedAccessories.map(item => (
                     <DraggableItem
                         key={item.id}
                         item={item}
                         initialPosition={accessoryPositions[item.id] || { x: Math.random() * 200, y: Math.random() * 100 }}
-                        onPositionChange={handlePositionChange}
+                        onPositionChange={handleAccessoryPositionChange}
                         containerRef={roomContainerRef}
                     />
                 ))}

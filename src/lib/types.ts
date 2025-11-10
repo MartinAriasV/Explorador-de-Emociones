@@ -30,6 +30,7 @@ export type UserProfile = {
   ascentHighScore?: number;
   activePetId: string | null;
   petAccessoryPositions?: { [itemId: string]: { x: number; y: number } };
+  petPosition?: { x: number; y: number };
   activePetBackgroundId?: string | null;
 };
 
