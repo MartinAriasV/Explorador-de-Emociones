@@ -61,14 +61,9 @@ interface DraggableItemProps {
 const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, onPositionChange, containerRef }) => {
     const [position, setPosition] = useState(initialPosition);
     const [isDragging, setIsDragging] = useState(false);
-    const dragOffset = useRef({ x: 0, y: 0 });
 
     const handleMouseDown = (e: React.MouseEvent) => {
         setIsDragging(true);
-        dragOffset.current = {
-            x: e.clientX - position.x,
-            y: e.clientY - position.y
-        };
         e.preventDefault();
         e.stopPropagation();
     };
@@ -78,34 +73,36 @@ const DraggableItem: React.FC<DraggableItemProps> = ({ item, initialPosition, on
         
         const containerRect = containerRef.current.getBoundingClientRect();
         
-        let newX = e.clientX - dragOffset.current.x;
-        let newY = e.clientY - dragOffset.current.y;
+        setPosition(prevPos => {
+            let newX = prevPos.x + e.movementX;
+            let newY = prevPos.y + e.movementY;
+            
+            const itemWidth = 64; 
+            const itemHeight = 64;
 
-        const itemWidth = 64; 
-        const itemHeight = 64;
-        
-        newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
-        newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
+            newX = Math.max(0, Math.min(newX, containerRect.width - itemWidth));
+            newY = Math.max(0, Math.min(newY, containerRect.height - itemHeight));
 
-        setPosition({ x: newX, y: newY });
+            return { x: newX, y: newY };
+        });
+
     }, [isDragging, containerRef]);
 
     const handleMouseUp = useCallback(() => {
-        if (!isDragging) return;
         setIsDragging(false);
-    }, [isDragging]);
+    }, []);
 
     useEffect(() => {
         if (isDragging) {
-            window.addEventListener('mousemove', handleMouseMove);
-            window.addEventListener('mouseup', handleMouseUp);
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
         } else {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
         }
         return () => {
-            window.removeEventListener('mousemove', handleMouseMove);
-            window.removeEventListener('mouseup', handleMouseUp);
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
         };
     }, [isDragging, handleMouseMove, handleMouseUp]);
 
@@ -363,7 +360,7 @@ export function PetChatView({
                         <DraggableItem
                             key={item.id}
                             item={item}
-                            initialPosition={accessoryPositions[item.id] || { x: Math.random() * (roomContainerRef.current?.clientWidth || 300) - 32, y: Math.random() * (roomContainerRef.current?.clientHeight || 200) - 32 }}
+                            initialPosition={accessoryPositions[item.id] || { x: Math.random() * ((roomContainerRef.current?.clientWidth || 300) - 64), y: Math.random() * ((roomContainerRef.current?.clientHeight || 200) - 64) }}
                             onPositionChange={handlePositionChange}
                             containerRef={roomContainerRef}
                         />
