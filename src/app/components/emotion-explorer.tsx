@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, createRef, useCallback, useMemo } from 'react';
@@ -26,7 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useFirebase, useCollection, useMemoFirebase, useDoc, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc, runTransaction, arrayUnion, increment } from 'firebase/firestore';
+import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc, runTransaction, arrayUnion } from 'firebase/firestore';
 import { addDocumentNonBlocking, setDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { calculateDailyStreak, cn } from '@/lib/utils';
 import type { User } from 'firebase/auth';
@@ -241,16 +242,35 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   };
 
   const addPoints = async (amount: number) => {
-    if (!user || !firestore) return;
+    if (!user || !firestore || !userProfile) return;
     const userDocRef = doc(firestore, 'users', user.uid);
-    updateDocumentNonBlocking(userDocRef, {
-      points: increment(amount)
-    });
-    toast({
-      title: `¡Has ganado ${amount} puntos!`,
-      description: "¡Sigue así!",
-    });
+    try {
+        await runTransaction(firestore, async (transaction) => {
+            const userDoc = await transaction.get(userDocRef);
+            if (!userDoc.exists()) {
+                throw "User profile does not exist!";
+            }
+            const currentPoints = userDoc.data().points || 0;
+            const newPoints = currentPoints + amount;
+            transaction.update(userDocRef, { points: newPoints });
+        });
+        toast({
+            title: `¡Has ganado ${amount} puntos!`,
+            description: "¡Sigue así!",
+        });
+    } catch (e) {
+        console.error("Failed to add points:", e);
+        errorEmitter.emit(
+            'permission-error',
+            new FirestorePermissionError({
+                path: userDocRef.path,
+                operation: 'update',
+                requestResourceData: { points: `+${amount}` },
+            })
+        );
+    }
   };
+  
 
     const addDiaryEntry = async (entryData: Omit<DiaryEntry, 'id' | 'userId'>, trigger: 'addEntry' | 'recoverDay' = 'addEntry') => {
         if (!user || !firestore) return;
@@ -313,7 +333,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
       const currentHighScore = profileData.ascentHighScore || 0;
       const newPoints = (profileData.points || 0) + score;
 
-      const updates: Partial<UserProfile> = {
+      const updates: {points: number, ascentHighScore?: number} = {
         points: newPoints,
       };
 
@@ -323,7 +343,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
       
       transaction.update(userDocRef, updates);
       
-      return { isNewHighScore: score > currentHighScore, newPoints: updates.points };
+      return { isNewHighScore: score > currentHighScore };
     }).then(({ isNewHighScore }) => {
         if (isNewHighScore) {
             toast({ title: `¡Nuevo récord!`, description: `Has conseguido ${score} puntos.` });
@@ -331,15 +351,21 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
             toast({ title: '¡Buen juego!', description: `Has ganado ${score} puntos.` });
         }
     }).catch((error) => {
+        const profileData = userProfile || { ascentHighScore: 0 };
+        const currentHighScore = profileData.ascentHighScore || 0;
+        const requestData: {points: string, ascentHighScore?: number} = {
+            points: `+${score}`
+        };
+        if (score > currentHighScore) {
+            requestData.ascentHighScore = score;
+        }
+
         errorEmitter.emit(
             'permission-error',
             new FirestorePermissionError({
                 path: userDocRef.path,
                 operation: 'update',
-                requestResourceData: {
-                    points: `increment(${score})`,
-                    ascentHighScore: score,
-                },
+                requestResourceData: requestData
             })
         );
     });
@@ -707,5 +733,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     </SidebarProvider>
   );
 }
+
+    
 
     
