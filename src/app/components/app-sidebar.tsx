@@ -9,7 +9,6 @@ import { useFirebase } from '@/firebase';
 import { calculateDailyStreak } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
-import useLocalStorage from '@/hooks/use-local-storage';
 import { SHOP_ITEMS } from '@/lib/constants';
 
 interface AppSidebarProps {
@@ -18,6 +17,8 @@ interface AppSidebarProps {
   userProfile: UserProfile | null;
   diaryEntries: DiaryEntry[];
   refs: { [key: string]: React.RefObject<HTMLLIElement> };
+  theme: 'dark' | 'light';
+  setTheme: (theme: 'dark' | 'light') => void;
 }
 
 const navItems = [
@@ -35,17 +36,11 @@ const navItems = [
   { id: 'profile', icon: UserCircle, text: 'Mi Perfil', refKey: 'profileRef' },
 ] as const;
 
-export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs }: AppSidebarProps) {
+export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs, theme, setTheme }: AppSidebarProps) {
   const { setOpenMobile } = useSidebar();
   const { auth } = useFirebase();
   const dailyStreak = calculateDailyStreak(diaryEntries);
-  const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
-
-  useEffect(() => {
-    document.documentElement.classList.remove('light', 'dark');
-    document.documentElement.classList.add(theme);
-  }, [theme]);
-
+  
   const handleItemClick = (newView: View) => {
     setView(newView);
     setOpenMobile(false);

@@ -22,21 +22,22 @@ function AppGate() {
   const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
 
   useEffect(() => {
-    // This logic handles app-wide theme changes.
     const equippedTheme = userProfile?.equippedItems?.['theme'];
+    
+    // This logic handles app-wide THEME changes (ocean, forest), not dark/light mode
     const themeItem = SHOP_ITEMS.find(item => item.id === equippedTheme);
     
     document.documentElement.classList.remove('theme-ocean', 'theme-forest');
-    if (themeItem) {
+
+    if (themeItem && themeItem.type === 'theme') {
       document.documentElement.classList.add(themeItem.value);
     }
-    
+
     if (equippedTheme === 'theme-forest') {
-      document.body.classList.add('bg-forest-gradient');
+        document.body.classList.add('bg-forest-gradient');
     } else {
-      document.body.classList.remove('bg-forest-gradient');
+        document.body.classList.remove('bg-forest-gradient');
     }
-    
   }, [userProfile]);
   
   if (isUserLoading) {

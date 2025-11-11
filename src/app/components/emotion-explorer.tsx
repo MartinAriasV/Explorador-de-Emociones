@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, createRef, useCallback, useMemo } from 'react';
@@ -29,7 +28,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useFirebase, useCollection, useMemoFirebase, useDoc, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc, runTransaction, arrayUnion } from 'firebase/firestore';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { calculateDailyStreak, cn, normalizeDate } from '@/lib/utils';
+import { calculateDailyStreak, cn } from '@/lib/utils';
 import type { User } from 'firebase/auth';
 import { PetChatView } from './views/pet-chat-view';
 import useLocalStorage from '@/hooks/use-local-storage';
@@ -702,7 +701,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   return (
     <SidebarProvider>
       <div className="flex h-screen w-screen bg-background">
-        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} />
+        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme}/>
         <SidebarInset>
           <header className="p-2 md:hidden flex items-center border-b">
              <MobileMenuButton />
