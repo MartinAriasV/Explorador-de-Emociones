@@ -37,8 +37,6 @@ function AppGate() {
       document.body.classList.remove('bg-forest-gradient');
     }
     
-    // This logic handles sidebar-only dark/light mode.
-    // It's handled within the AppSidebar component itself.
   }, [userProfile]);
   
   if (isUserLoading) {
