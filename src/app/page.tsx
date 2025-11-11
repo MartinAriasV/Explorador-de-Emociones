@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { Suspense, useEffect } from 'react';
@@ -23,23 +22,23 @@ function AppGate() {
   const { data: userProfile } = useDoc<UserProfile>(userProfileRef);
 
   useEffect(() => {
+    // This logic handles app-wide theme changes.
     const equippedTheme = userProfile?.equippedItems?.['theme'];
     const themeItem = SHOP_ITEMS.find(item => item.id === equippedTheme);
     
     document.documentElement.classList.remove('theme-ocean', 'theme-forest');
-
     if (themeItem) {
       document.documentElement.classList.add(themeItem.value);
     }
-  }, [userProfile]);
-
-  useEffect(() => {
-    const equippedTheme = userProfile?.equippedItems?.['theme'];
-    if(equippedTheme === 'theme-forest'){
-        document.body.classList.add('bg-forest-gradient');
+    
+    if (equippedTheme === 'theme-forest') {
+      document.body.classList.add('bg-forest-gradient');
     } else {
-        document.body.classList.remove('bg-forest-gradient');
+      document.body.classList.remove('bg-forest-gradient');
     }
+    
+    // This logic handles sidebar-only dark/light mode.
+    // It's handled within the AppSidebar component itself.
   }, [userProfile]);
   
   if (isUserLoading) {

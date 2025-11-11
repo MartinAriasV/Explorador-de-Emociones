@@ -164,6 +164,7 @@ const Sidebar = React.forwardRef<
     side?: "left" | "right"
     variant?: "sidebar" | "floating" | "inset"
     collapsible?: "offcanvas" | "icon" | "none"
+    theme?: "light" | "dark"
   }
 >(
   (
@@ -171,6 +172,7 @@ const Sidebar = React.forwardRef<
       side = "left",
       variant = "sidebar",
       collapsible = "offcanvas",
+      theme = "light",
       className,
       children,
       ...props
@@ -184,7 +186,8 @@ const Sidebar = React.forwardRef<
         <div
           className={cn(
             "flex h-full w-[--sidebar-width] flex-col bg-sidebar text-sidebar-foreground",
-            className
+            className,
+            theme
           )}
           ref={ref}
           {...props}
@@ -200,7 +203,7 @@ const Sidebar = React.forwardRef<
           <SheetContent
             data-sidebar="sidebar"
             data-mobile="true"
-            className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+            className={cn("w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden", theme)}
             style={
               {
                 "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -218,7 +221,7 @@ const Sidebar = React.forwardRef<
     return (
       <div
         ref={ref}
-        className={cn("group peer hidden md:block", className)}
+        className={cn("group peer hidden md:block", className, theme)}
         data-state={state}
         data-collapsible={state === "collapsed" ? collapsible : ""}
         data-variant={variant}

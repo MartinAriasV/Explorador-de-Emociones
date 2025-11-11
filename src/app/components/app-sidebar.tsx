@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -42,11 +41,6 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
   const dailyStreak = calculateDailyStreak(diaryEntries);
   const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
 
-  useEffect(() => {
-    document.documentElement.classList.remove('light', 'dark');
-    document.documentElement.classList.add(theme);
-  }, [theme]);
-
   const handleItemClick = (newView: View) => {
     setView(newView);
     setOpenMobile(false);
@@ -54,7 +48,7 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
   
   if (!userProfile) {
     return (
-        <Sidebar collapsible="icon" className="shadow-lg animate-fade-in">
+        <Sidebar collapsible="icon" className="shadow-lg animate-fade-in" theme={theme}>
              <SidebarHeader className="p-4">
                  <div className="flex items-center gap-3">
                     <Avatar className="h-12 w-12 bg-muted" />
@@ -79,7 +73,7 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
   }
 
   return (
-    <Sidebar collapsible="icon" className="shadow-lg animate-fade-in">
+    <Sidebar collapsible="icon" className="shadow-lg animate-fade-in" theme={theme}>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
            <div className={frameClass}>
