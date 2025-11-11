@@ -28,12 +28,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useFirebase, useCollection, useMemoFirebase, useDoc, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc, runTransaction, arrayUnion } from 'firebase/firestore';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { calculateDailyStreak, cn } from '@/lib/utils';
+import { calculateDailyStreak, cn, normalizeDate } from '@/lib/utils';
 import type { User } from 'firebase/auth';
 import { PetChatView } from './views/pet-chat-view';
 import useLocalStorage from '@/hooks/use-local-storage';
 import anime from 'animejs';
 import { Player } from '@lottiefiles/react-lottie-player';
+import { CollectionView } from './views/collection-view';
 
 interface EmotionExplorerProps {
   user: User;
@@ -115,7 +116,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     const docSnap = await getDoc(userDocRef);
 
     if (!docSnap.exists()) {
-      console.log("No profile found for user, creating one...");
+      console.log("Creando nuevo perfil de usuario...");
       const newProfile: UserProfile = {
         id: user.uid,
         name: user.displayName || user.email?.split('@')[0] || "Viajero Anónimo",
@@ -124,13 +125,10 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         avatarType: 'emoji',
         unlockedAnimalIds: ['loyal-dog'],
         points: 0,
+        currentStreak: 0,
+        entryCount: 0,
         purchasedItemIds: [],
-        equippedItems: {},
-        ascentHighScore: 0,
         activePetId: 'loyal-dog',
-        petAccessoryPositions: {},
-        petPosition: { x: 200, y: 150 },
-        activeRoomBackgroundId: null,
       };
       await setDoc(userDocRef, newProfile);
       await addInitialEmotions(user.uid);
@@ -185,15 +183,14 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
       const currentDiaryEntries = diarySnapshot.docs.map(d => d.data() as DiaryEntry);
       
       const emotionSnapshot = await getDocs(emotionsCollection);
-      const currentEmotions = emotionSnapshot.docs.map(d => d.data() as Emotion);
+      const emotionCount = emotionSnapshot.size;
 
       const previouslyUnlocked = new Set(freshProfile.unlockedAnimalIds || []);
       let newUnlockedIds = [...(freshProfile.unlockedAnimalIds || [])];
       let justUnlockedReward: Reward | null = null;
       
       const dailyStreak = calculateDailyStreak(currentDiaryEntries);
-      const entryCount = currentDiaryEntries.length;
-      const emotionCount = currentEmotions.length;
+      const entryCount = freshProfile.entryCount || 0;
 
       for (const reward of REWARDS) {
         if (previouslyUnlocked.has(reward.animal.id)) continue;
@@ -309,41 +306,46 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   };
   
 
-    const addDiaryEntry = async (entryData: Omit<DiaryEntry, 'id' | 'userId'>, trigger: 'addEntry' | 'recoverDay' = 'addEntry') => {
-        if (!user || !firestore) return;
-
-        try {
-            await runTransaction(firestore, async (transaction) => {
-                const userDocRef = doc(firestore, 'users', user.uid);
-                const newDiaryEntryRef = doc(collection(firestore, 'users', user.uid, 'diaryEntries'));
-
-                const userDoc = await transaction.get(userDocRef);
-                if (!userDoc.exists()) {
-                    throw "User profile does not exist!";
-                }
-
-                const profileData = userDoc.data() as UserProfile;
-                const newPoints = (profileData.points || 0) + 10;
-
-                transaction.set(newDiaryEntryRef, { ...entryData, userId: user.uid, id: newDiaryEntryRef.id });
-                transaction.update(userDocRef, { points: newPoints });
-            });
-            
-            toast({
-                title: "¡Entrada Guardada!",
-                description: `Has ganado 10 puntos. ¡Sigue así!`,
-            });
-            
-            await checkAndUnlockRewards(trigger);
-
-        } catch (error) {
-            console.error("Transaction failed: ", error);
-            toast({
-                variant: "destructive",
-                title: "Error al guardar",
-                description: "No se pudo guardar la entrada. Inténtalo de nuevo.",
-            });
+  const addDiaryEntry = async (entryData: Omit<DiaryEntry, 'id' | 'userId'>, trigger: 'addEntry' | 'recoverDay' = 'addEntry') => {
+    if (!user || !firestore) return;
+    try {
+      await runTransaction(firestore, async (transaction) => {
+        const userDocRef = doc(firestore, 'users', user.uid);
+        const newDiaryEntryRef = doc(collection(firestore, 'users', user.uid, 'diaryEntries'));
+        const userDoc = await transaction.get(userDocRef);
+        if (!userDoc.exists()) throw new Error("El perfil del usuario no existe.");
+        
+        const profileData = userDoc.data() as UserProfile;
+        
+        const newPoints = (profileData.points || 0) + 10;
+        
+        let newCurrentStreak = 1;
+        const newEntryDateNorm = normalizeDate(entryData.date);
+        if (profileData.lastEntryDate) {
+          const lastEntryDateNorm = normalizeDate(profileData.lastEntryDate);
+          const oneDay = 1000 * 60 * 60 * 24;
+          const diffDays = Math.round((newEntryDateNorm - lastEntryDateNorm) / oneDay);
+          if (diffDays === 1) {
+            newCurrentStreak = (profileData.currentStreak || 0) + 1;
+          } else if (diffDays === 0) {
+            newCurrentStreak = profileData.currentStreak || 1;
+          }
         }
+        
+        transaction.set(newDiaryEntryRef, { ...entryData, userId: user.uid, id: newDiaryEntryRef.id });
+        transaction.update(userDocRef, { 
+          points: newPoints,
+          currentStreak: newCurrentStreak,
+          lastEntryDate: entryData.date,
+          entryCount: (profileData.entryCount || 0) + 1
+        });
+      });
+      toast({ title: "¡Entrada Guardada!", description: `Has ganado 10 puntos. ¡Sigue así!`});
+      await checkAndUnlockRewards(trigger);
+    } catch (error: any) {
+      console.error("Error en la transacción de la entrada del diario: ", error);
+      toast({ variant: "destructive", title: "Error al guardar", description: error.message || "No se pudo guardar la entrada."});
+    }
   };
   
   const handleQuizComplete = (success: boolean, date: Date | null) => {
@@ -419,7 +421,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     updateDocumentNonBlocking(userProfileRef, profile);
   };
 
-    const saveEmotion = async (emotionData: Omit<Emotion, 'id' | 'userId'> & { id?: string }) => {
+  const saveEmotion = async (emotionData: Omit<Emotion, 'id' | 'userId'> & { id?: string }) => {
     if (!user) return;
     
     if (emotionsList && emotionsList.some(e => e.name.toLowerCase() === emotionData.name.toLowerCase() && e.id !== emotionData.id)) {
@@ -447,7 +449,6 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     } else {
       const newDocRef = doc(emotionsCollection);
       const finalData = {...dataToSave, id: newDocRef.id};
-      // Use setDoc for new emotions
       await setDoc(newDocRef, finalData);
       toast({ title: "Emoción Añadida", description: `"${finalData.name}" ha sido añadida a tu emocionario.` });
     }
@@ -457,7 +458,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     }
   };
 
-    const deleteEmotion = async (emotionId: string) => {
+  const deleteEmotion = async (emotionId: string) => {
     if (!user) return;
   
     const batch = writeBatch(firestore);
@@ -651,8 +652,11 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
             case 'sanctuary':
               return <SanctuaryView 
                         userProfile={userProfile} 
+                        setUserProfile={setUserProfile} 
                         onSelectPet={handleSelectPet}
                       />;
+             case 'collection':
+                return <CollectionView userProfile={userProfile!} onSelectPet={handleSelectPet} setView={setView} />
             case 'pet-chat':
               return <PetChatView 
                         pet={activePet} 
@@ -661,7 +665,6 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
                         diaryEntries={diaryEntries || []}
                         emotionsList={emotionsList || []}
                         userProfile={userProfile}
-                        purchasedItems={purchasedItems}
                      />;
             case 'shop':
                 return <ShopView 
@@ -673,7 +676,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
             case 'share':
               return <ShareView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} userProfile={userProfile!} onShare={handleShare} />;
             case 'profile':
-              return <ProfileView {...commonProps} setUserProfile={setUserProfile} purchasedItems={purchasedItems} />;
+              return <ProfileView {...commonProps} setUserProfile={setUserProfile} />;
             default:
               return <DiaryView 
                         emotionsList={emotionsList || []} 
@@ -765,8 +768,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
               <p id="reward-rarity" className={`block text-xs font-semibold uppercase tracking-wider ${newlyUnlockedReward ? rarityTextStyles[newlyUnlockedReward.animal.rarity] : ''}`}>{newlyUnlockedReward?.animal.rarity}</p>
           </div>
           <AlertDialogFooter className="bg-muted/40 p-4 border-t">
-              <AlertDialogAction onClick={() => { setNewlyUnlockedReward(null); setView('sanctuary'); }} className="bg-accent text-accent-foreground hover:bg-accent/90 w-full">
-                ¡Genial! Ver en mi Santuario
+              <AlertDialogAction onClick={() => { setNewlyUnlockedReward(null); setView('collection'); }} className="bg-accent text-accent-foreground hover:bg-accent/90 w-full">
+                ¡Genial! Ver en mi Colección
               </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

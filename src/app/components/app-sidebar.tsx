@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from '@/components/ui/sidebar';
 import type { UserProfile, View, DiaryEntry } from '@/lib/types';
-import { BookOpen, Smile, Sparkles, Heart, BarChart, Share2, UserCircle, Menu, Flame, LogOut, Moon, Sun, PawPrint, Gamepad2, MessageCircle, Star, Store } from 'lucide-react';
+import { BookOpen, Smile, Sparkles, Heart, BarChart, Share2, UserCircle, Menu, Flame, LogOut, Moon, Sun, PawPrint, Gamepad2, MessageCircle, Star, Store, Shield } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useFirebase } from '@/firebase';
 import { calculateDailyStreak } from '@/lib/utils';
@@ -27,7 +27,7 @@ const navItems = [
   { id: 'discover', icon: Sparkles, text: 'Descubrir', refKey: 'discoverRef' },
   { id: 'games', icon: Gamepad2, text: 'Juegos', refKey: 'gamesRef' },
   { id: 'streak', icon: Flame, text: 'Racha', refKey: 'streakRef' },
-  { id: 'sanctuary', icon: PawPrint, text: 'Mi Santuario', refKey: 'sanctuaryRef' },
+  { id: 'collection', icon: Shield, text: 'Colección', refKey: 'collectionRef' },
   { id: 'pet-chat', icon: MessageCircle, text: 'Compañero IA', refKey: 'petChatRef' },
   { id: 'shop', icon: Store, text: 'Tienda', refKey: 'shopRef' },
   { id: 'calm', icon: Heart, text: 'Rincón de la Calma', refKey: 'calmRef' },
@@ -61,13 +61,12 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
     );
   }
   
-  const equippedFrameId = userProfile.equippedItems?.['avatar_frame'];
+  const equippedFrameId = userProfile.activeAvatarFrameId;
   const equippedFrame = SHOP_ITEMS.find(item => item.id === equippedFrameId);
 
   let frameClass = equippedFrame ? cn('rounded-full border-4', equippedFrame.value) : '';
   let avatarClass = 'h-12 w-12';
   
-  // If no frame is equipped, apply default border to avatar itself
   if (!equippedFrame) {
       avatarClass = cn(avatarClass, 'border-2 border-primary/20');
   }
