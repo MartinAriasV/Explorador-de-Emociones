@@ -98,7 +98,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
         <CardDescription>Personaliza tu apariencia y equipa los artículos que has comprado en la tienda.</CardDescription>
       </CardHeader>
       
-      <div className="flex-grow grid md:grid-cols-3 gap-6 min-h-0">
+      <div className="grid md:grid-cols-3 gap-6 flex-grow min-h-0">
         <div className="md:col-span-1 flex flex-col gap-6">
           <Card className="flex-grow flex flex-col items-center justify-center p-6 text-center shadow-lg">
               <div className={cn("relative transition-all", frameClass)}>
@@ -124,7 +124,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
         </div>
 
         <Card className="md:col-span-2 shadow-lg flex flex-col">
-          <Tabs defaultValue="avatar" className="w-full flex-grow flex flex-col">
+          <Tabs defaultValue="avatar" className="w-full flex flex-col flex-grow">
             <TabsList className="grid w-full grid-cols-4 h-auto p-1 mx-4 mt-4 flex-shrink-0">
               <TabsTrigger value="avatar">Avatar</TabsTrigger>
               <TabsTrigger value="frames">Marcos</TabsTrigger>
@@ -132,27 +132,27 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
               <TabsTrigger value="themes">Temas</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="avatar" className="flex-grow p-4 min-h-0 overflow-hidden">
-                <ScrollArea className="h-full pr-2">
-                  <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 lg:grid-cols-7 gap-2">
-                    {AVATAR_EMOJIS.map((emoji, index) => (
-                      <button
-                        type="button"
-                        key={`emoji-${index}`}
-                        onClick={() => selectAvatar(emoji, 'emoji')}
-                        className={cn(
-                          'text-4xl p-2 rounded-lg transition-all flex items-center justify-center aspect-square',
-                          localAvatar === emoji && localAvatarType === 'emoji' ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
-                        )}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </div>
-                </ScrollArea>
+            <TabsContent value="avatar" className="flex-grow p-4 min-h-0">
+              <ScrollArea className="h-full pr-2">
+                <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 lg:grid-cols-7 gap-2">
+                  {AVATAR_EMOJIS.map((emoji, index) => (
+                    <button
+                      type="button"
+                      key={`emoji-${index}`}
+                      onClick={() => selectAvatar(emoji, 'emoji')}
+                      className={cn(
+                        'text-4xl p-2 rounded-lg transition-all flex items-center justify-center aspect-square',
+                        localAvatar === emoji && localAvatarType === 'emoji' ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
+                      )}
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="frames" className="flex-grow p-4 min-h-0 overflow-hidden">
+            <TabsContent value="frames" className="flex-grow p-4 min-h-0">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                   {avatarFrames.map((item) => (
@@ -180,60 +180,60 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
               </ScrollArea>
             </TabsContent>
             
-            <TabsContent value="backgrounds" className="flex-grow p-4 min-h-0 overflow-hidden">
-                <ScrollArea className="h-full pr-2">
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-                    {roomBackgrounds.map((item) => (
-                        <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setSelectedRoomBackgroundId(item.id === 'bg_default' ? null : item.id)}
-                        className={cn(
-                            'flex flex-col gap-2 rounded-lg border-2 p-2 items-center justify-center transition-all aspect-square relative',
-                            (!selectedRoomBackgroundId && item.id === 'bg_default') || selectedRoomBackgroundId === item.id 
-                            ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
-                            : 'hover:bg-muted/50 bg-card'
-                        )}
-                        >
-                          <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
-                          <span className="text-xs font-semibold truncate text-center">{item.name}</span>
-                          {((!selectedRoomBackgroundId && item.id === 'bg_default') || selectedRoomBackgroundId === item.id) && (
-                            <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
-                              <Check className="w-3 h-3" />
-                            </div>
-                          )}
-                        </button>
-                    ))}
-                    </div>
-                </ScrollArea>
+            <TabsContent value="backgrounds" className="flex-grow p-4 min-h-0">
+              <ScrollArea className="h-full pr-2">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                  {roomBackgrounds.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setSelectedRoomBackgroundId(item.id === 'bg_default' ? null : item.id)}
+                      className={cn(
+                        'flex flex-col gap-2 rounded-lg border-2 p-2 items-center justify-center transition-all aspect-square relative',
+                        (!selectedRoomBackgroundId && item.id === 'bg_default') || selectedRoomBackgroundId === item.id 
+                          ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
+                          : 'hover:bg-muted/50 bg-card'
+                      )}
+                    >
+                      <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
+                      <span className="text-xs font-semibold truncate text-center">{item.name}</span>
+                      {((!selectedRoomBackgroundId && item.id === 'bg_default') || selectedRoomBackgroundId === item.id) && (
+                        <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
+                          <Check className="w-3 h-3" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="themes" className="flex-grow p-4 min-h-0 overflow-hidden">
-                <ScrollArea className="h-full pr-2">
-                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-                    {appThemes.map((item) => (
-                        <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setSelectedAppThemeId(item.id)}
-                        className={cn(
-                            'flex flex-col gap-2 rounded-lg border-2 p-2 items-center justify-center transition-all aspect-square relative',
-                            selectedAppThemeId === item.id 
-                            ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
-                            : 'hover:bg-muted/50 bg-card'
-                        )}
-                        >
-                          <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
-                          <span className="text-xs font-semibold truncate text-center">{item.name}</span>
-                          {selectedAppThemeId === item.id && (
-                            <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
-                              <Check className="w-3 h-3" />
-                            </div>
-                          )}
-                        </button>
-                    ))}
-                    </div>
-                </ScrollArea>
+            <TabsContent value="themes" className="flex-grow p-4 min-h-0">
+              <ScrollArea className="h-full pr-2">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                  {appThemes.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setSelectedAppThemeId(item.id)}
+                      className={cn(
+                        'flex flex-col gap-2 rounded-lg border-2 p-2 items-center justify-center transition-all aspect-square relative',
+                        selectedAppThemeId === item.id 
+                          ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
+                          : 'hover:bg-muted/50 bg-card'
+                      )}
+                    >
+                      <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
+                      <span className="text-xs font-semibold truncate text-center">{item.name}</span>
+                      {selectedAppThemeId === item.id && (
+                        <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
+                          <Check className="w-3 h-3" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
             </TabsContent>
           </Tabs>
         </Card>
@@ -241,5 +241,3 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
     </div>
   );
 }
-
-    
