@@ -16,10 +16,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 interface ProfileViewProps {
   userProfile: UserProfile | null;
   setUserProfile: (profile: Partial<Omit<UserProfile, 'id'>>) => void;
-  purchasedItems: ShopItem[];
 }
 
-export function ProfileView({ userProfile, setUserProfile, purchasedItems }: ProfileViewProps) {
+export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
   const { toast } = useToast();
   
   const [localName, setLocalName] = useState(userProfile?.name || '');
@@ -98,6 +97,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
       </CardHeader>
       
       <div className="grid md:grid-cols-3 gap-6 flex-grow min-h-0">
+        {/* Columna Izquierda: Vista Previa y Guardar */}
         <div className="md:col-span-1 flex flex-col gap-6">
           <Card className="flex-grow flex flex-col items-center justify-center p-6 text-center shadow-lg">
               <div className={cn("relative transition-all", frameClass)}>
@@ -116,12 +116,13 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
                 className="text-2xl font-bold text-center border-none focus-visible:ring-0 focus-visible:ring-offset-0 mt-6 bg-transparent"
               />
           </Card>
-          <Button onClick={handleSave} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-lg py-6 font-bold">
+          <Button onClick={handleSave} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-lg py-6 font-bold flex-shrink-0">
             {saved ? <Check className="mr-2 h-5 w-5" /> : <Save className="mr-2 h-5 w-5" />}
             {saved ? '¡Guardado!' : 'Guardar Cambios'}
           </Button>
         </div>
 
+        {/* Columna Derecha: Pestañas de Selección */}
         <Card className="md:col-span-2 shadow-lg flex flex-col min-h-0">
           <Tabs defaultValue="avatar" className="w-full flex flex-col flex-grow">
             <TabsList className="grid w-full grid-cols-4 h-auto p-1 mx-4 mt-4 flex-shrink-0">
@@ -131,7 +132,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
               <TabsTrigger value="themes">Temas</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="avatar" className="flex-grow p-4 min-h-0 overflow-hidden">
+            <TabsContent value="avatar" className="flex-grow p-4 min-h-0">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 lg:grid-cols-7 gap-2">
                   {AVATAR_EMOJIS.map((emoji, index) => (
@@ -151,7 +152,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="frames" className="flex-grow p-4 min-h-0 overflow-hidden">
+            <TabsContent value="frames" className="flex-grow p-4 min-h-0">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                   {avatarFrames.map((item) => (
@@ -179,7 +180,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
               </ScrollArea>
             </TabsContent>
             
-            <TabsContent value="backgrounds" className="flex-grow p-4 min-h-0 overflow-hidden">
+            <TabsContent value="backgrounds" className="flex-grow p-4 min-h-0">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                   {roomBackgrounds.map((item) => (
@@ -207,7 +208,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="themes" className="flex-grow p-4 min-h-0 overflow-hidden">
+            <TabsContent value="themes" className="flex-grow p-4 min-h-0">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                   {appThemes.map((item) => (
@@ -240,3 +241,4 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
     </div>
   );
 }
+    
