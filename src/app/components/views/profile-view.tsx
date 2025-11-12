@@ -10,25 +10,25 @@ import { cn } from '@/lib/utils';
 import { Check, Save } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface ProfileViewProps {
   userProfile: UserProfile | null;
   setUserProfile: (profile: Partial<Omit<UserProfile, 'id'>>) => void;
+  purchasedItems: ShopItem[];
 }
 
-export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
+export function ProfileView({ userProfile, setUserProfile, purchasedItems }: ProfileViewProps) {
   const { toast } = useToast();
   
   const [localName, setLocalName] = useState(userProfile?.name || '');
   const [localAvatar, setLocalAvatar] = useState(userProfile?.avatar || '😊');
   const [localAvatarType, setLocalAvatarType] = useState(userProfile?.avatarType || 'emoji');
   
-  const [selectedAvatarFrameId, setSelectedAvatarFrameId] = useState(userProfile?.activeAvatarFrameId || null);
-  const [selectedRoomBackgroundId, setSelectedRoomBackgroundId] = useState(userProfile?.activeRoomBackgroundId || null);
-  const [selectedAppThemeId, setSelectedAppThemeId] = useState(userProfile?.activeAppThemeId || 'theme_original');
+  const [selectedAvatarFrameId, setSelectedAvatarFrameId] = useState(userProfile?.equippedItems?.['avatar_frame'] || null);
+  const [selectedRoomBackgroundId, setSelectedRoomBackgroundId] = useState(userProfile?.equippedItems?.['room_background'] || null);
+  const [selectedAppThemeId, setSelectedAppThemeId] = useState(userProfile?.equippedItems?.['theme'] || 'theme_original');
 
   const [saved, setSaved] = useState(false);
 
@@ -37,9 +37,9 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
       setLocalName(userProfile.name);
       setLocalAvatar(userProfile.avatar);
       setLocalAvatarType(userProfile.avatarType);
-      setSelectedAvatarFrameId(userProfile.activeAvatarFrameId || null);
-      setSelectedRoomBackgroundId(userProfile.activeRoomBackgroundId || null);
-      setSelectedAppThemeId(userProfile.activeAppThemeId || 'theme_original');
+      setSelectedAvatarFrameId(userProfile.equippedItems?.['avatar_frame'] || null);
+      setSelectedRoomBackgroundId(userProfile.equippedItems?.['room_background'] || null);
+      setSelectedAppThemeId(userProfile.equippedItems?.['theme'] || 'theme_original');
     }
   }, [userProfile]);
 
@@ -53,9 +53,12 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
       name: localName, 
       avatar: localAvatar, 
       avatarType: localAvatarType,
-      activeRoomBackgroundId: selectedRoomBackgroundId,
-      activeAvatarFrameId: selectedAvatarFrameId,
-      activeAppThemeId: selectedAppThemeId
+      equippedItems: {
+        ...userProfile?.equippedItems,
+        'avatar_frame': selectedAvatarFrameId,
+        'room_background': selectedRoomBackgroundId,
+        'theme': selectedAppThemeId
+      }
     });
     
     setSaved(true);
@@ -122,7 +125,7 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
           </Button>
         </div>
 
-        <Card className="md:col-span-2 shadow-lg flex flex-col">
+        <Card className="md:col-span-2 shadow-lg flex flex-col min-h-0">
           <Tabs defaultValue="avatar" className="w-full flex flex-col flex-grow">
             <TabsList className="grid w-full grid-cols-4 h-auto p-1 mx-4 mt-4 flex-shrink-0">
               <TabsTrigger value="avatar">Avatar</TabsTrigger>
