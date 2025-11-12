@@ -704,7 +704,9 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
              <MobileMenuButton />
              <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
           </header>
-          {renderView()}
+          <div className="flex-1 min-h-0">
+            {renderView()}
+          </div>
         </SidebarInset>
       </div>
       
