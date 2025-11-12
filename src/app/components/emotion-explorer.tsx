@@ -126,12 +126,12 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         unlockedAnimalIds: ['loyal-dog'],
         points: 0,
         purchasedItemIds: [],
-        equippedItems: {},
-        ascentHighScore: 0,
         activePetId: 'loyal-dog',
-        petAccessoryPositions: {},
-        petPosition: { x: 200, y: 150 },
+        activeAppThemeId: 'theme_original',
+        itemPositions: [],
+        activeAvatarFrameId: null,
         activeRoomBackgroundId: null,
+        currentStreak: 0,
       };
       await setDoc(userDocRef, newProfile);
       await addInitialEmotions(user.uid);
@@ -662,7 +662,6 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
                         diaryEntries={diaryEntries || []}
                         emotionsList={emotionsList || []}
                         userProfile={userProfile}
-                        purchasedItems={purchasedItems}
                      />;
             case 'shop':
                 return <ShopView 

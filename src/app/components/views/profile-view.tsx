@@ -26,9 +26,9 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
   const [localAvatar, setLocalAvatar] = useState(userProfile?.avatar || '😊');
   const [localAvatarType, setLocalAvatarType] = useState(userProfile?.avatarType || 'emoji');
   
-  const [activeFrameId, setActiveFrameId] = useState(userProfile?.equippedItems?.['avatar_frame'] || null);
-  const [activeBackgroundId, setActiveBackgroundId] = useState(userProfile?.equippedItems?.['room_background'] || null);
-  const [activeThemeId, setActiveThemeId] = useState(userProfile?.equippedItems?.['theme'] || 'theme_original');
+  const [activeFrameId, setActiveFrameId] = useState(userProfile?.activeAvatarFrameId || null);
+  const [activeBackgroundId, setActiveBackgroundId] = useState(userProfile?.activeRoomBackgroundId || null);
+  const [activeThemeId, setActiveThemeId] = useState(userProfile?.activeAppThemeId || 'theme_original');
 
   const [saved, setSaved] = useState(false);
 
@@ -37,9 +37,9 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
       setLocalName(userProfile.name);
       setLocalAvatar(userProfile.avatar);
       setLocalAvatarType(userProfile.avatarType);
-      setActiveFrameId(userProfile.equippedItems?.['avatar_frame'] || null);
-      setActiveBackgroundId(userProfile.equippedItems?.['room_background'] || null);
-      setActiveThemeId(userProfile.equippedItems?.['theme'] || 'theme_original');
+      setActiveFrameId(userProfile.activeAvatarFrameId || null);
+      setActiveBackgroundId(userProfile.activeRoomBackgroundId || null);
+      setActiveThemeId(userProfile.activeAppThemeId || 'theme_original');
     }
   }, [userProfile]);
 
@@ -53,12 +53,9 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
       name: localName, 
       avatar: localAvatar, 
       avatarType: localAvatarType,
-      equippedItems: {
-        ...userProfile?.equippedItems,
-        'avatar_frame': activeFrameId,
-        'room_background': activeBackgroundId,
-        'theme': activeThemeId,
-      }
+      activeAvatarFrameId: activeFrameId,
+      activeRoomBackgroundId: activeBackgroundId,
+      activeAppThemeId: activeThemeId
     });
     
     setSaved(true);
@@ -123,16 +120,16 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
           </Button>
         </div>
 
-        <Card className="md:w-2/3 shadow-lg flex flex-col flex-grow min-h-0 overflow-hidden">
-          <Tabs defaultValue="avatar" className="w-full flex flex-col flex-grow">
-            <TabsList className="grid w-full grid-cols-4 h-auto p-1 mx-4 mt-4 flex-shrink-0">
+        <Card className="md:w-2/3 shadow-lg flex flex-col flex-grow min-h-0 overflow-hidden p-4">
+          <Tabs defaultValue="avatar" className="w-full flex flex-col flex-grow h-full">
+            <TabsList className="grid w-full grid-cols-4 h-auto p-1 flex-shrink-0">
               <TabsTrigger value="avatar">Avatar</TabsTrigger>
               <TabsTrigger value="frames">Marcos</TabsTrigger>
               <TabsTrigger value="backgrounds">Fondos</TabsTrigger>
               <TabsTrigger value="themes">Temas</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="avatar" className="flex-grow p-4 min-h-0">
+            <TabsContent value="avatar" className="flex-grow p-0 pt-4 min-h-0">
                 <ScrollArea className="h-full">
                   <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 lg:grid-cols-7 gap-2">
                     {AVATAR_EMOJIS.map((emoji, index) => (
@@ -152,7 +149,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
                 </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="frames" className="flex-grow p-4 min-h-0">
+            <TabsContent value="frames" className="flex-grow p-0 pt-4 min-h-0">
                 <ScrollArea className="h-full">
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                     {purchasedFrames.map((item) => (
@@ -180,7 +177,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
                 </ScrollArea>
             </TabsContent>
             
-            <TabsContent value="backgrounds" className="flex-grow p-4 min-h-0">
+            <TabsContent value="backgrounds" className="flex-grow p-0 pt-4 min-h-0">
                 <ScrollArea className="h-full">
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                     {purchasedBackgrounds.map((item) => (
@@ -208,7 +205,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
                 </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="themes" className="flex-grow p-4 min-h-0">
+            <TabsContent value="themes" className="flex-grow p-0 pt-4 min-h-0">
                 <ScrollArea className="h-full">
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                     {purchasedThemes.map((item) => (
