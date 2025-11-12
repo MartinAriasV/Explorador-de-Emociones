@@ -97,7 +97,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
       
       <div className="flex flex-col md:flex-row gap-6 flex-grow min-h-0">
         <div className="md:w-1/3 flex flex-col gap-6">
-          <Card className="flex-grow flex flex-col items-center justify-center p-6 text-center shadow-lg">
+          <Card className="flex flex-col items-center justify-center p-6 text-center shadow-lg">
               <div className={cn("relative transition-all", frameClass)}>
                   <Avatar className="h-40 w-40 text-7xl">
                       {localAvatarType === 'generated' ? (

@@ -496,7 +496,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   const handlePurchaseItem = async (item: ShopItem) => {
       if (!user || !userProfile || !firestore) return;
 
-      if (userProfile.purchasedItemIds?.includes(item.id)) {
+      if ((userProfile.purchasedItemIds || []).includes(item.id)) {
         toast({ variant: "default", title: "Artículo ya comprado", description: "Ya posees este artículo." });
         return;
       }
@@ -710,7 +710,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
              <MobileMenuButton />
              <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
           </header>
-          <div className="flex-1 flex flex-col p-4 md:p-6 min-h-0 overflow-y-auto">
+          <div className="flex-1 flex flex-col p-4 md:p-6 min-h-0">
             {renderView()}
           </div>
         </SidebarInset>
