@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, useSidebar } from '@/components/ui/sidebar';
 import type { UserProfile, View, DiaryEntry } from '@/lib/types';
 import { BookOpen, Smile, Sparkles, Heart, BarChart, Share2, UserCircle, Menu, Flame, LogOut, Moon, Sun, PawPrint, Gamepad2, MessageCircle, Star, Store, Shield } from 'lucide-react';
@@ -9,7 +9,9 @@ import { useFirebase } from '@/firebase';
 import { calculateDailyStreak } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import { Switch } from '@/components/ui/switch';
+import useLocalStorage from '@/hooks/use-local-storage';
 import { SHOP_ITEMS } from '@/lib/constants';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface AppSidebarProps {
   view: View;
@@ -17,8 +19,6 @@ interface AppSidebarProps {
   userProfile: UserProfile | null;
   diaryEntries: DiaryEntry[];
   refs: { [key: string]: React.RefObject<HTMLLIElement> };
-  theme: 'dark' | 'light';
-  setTheme: (theme: 'dark' | 'light') => void;
 }
 
 const navItems = [
@@ -28,6 +28,7 @@ const navItems = [
   { id: 'games', icon: Gamepad2, text: 'Juegos', refKey: 'gamesRef' },
   { id: 'streak', icon: Flame, text: 'Racha', refKey: 'streakRef' },
   { id: 'collection', icon: Shield, text: 'Colección', refKey: 'collectionRef' },
+  { id: 'sanctuary', icon: PawPrint, text: 'Mi Habitación', refKey: 'sanctuaryRef' },
   { id: 'pet-chat', icon: MessageCircle, text: 'Compañero IA', refKey: 'petChatRef' },
   { id: 'shop', icon: Store, text: 'Tienda', refKey: 'shopRef' },
   { id: 'calm', icon: Heart, text: 'Rincón de la Calma', refKey: 'calmRef' },
@@ -36,11 +37,17 @@ const navItems = [
   { id: 'profile', icon: UserCircle, text: 'Mi Perfil', refKey: 'profileRef' },
 ] as const;
 
-export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs, theme, setTheme }: AppSidebarProps) {
+export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs }: AppSidebarProps) {
   const { setOpenMobile } = useSidebar();
   const { auth } = useFirebase();
   const dailyStreak = calculateDailyStreak(diaryEntries);
-  
+  const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
+
+  useEffect(() => {
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(theme);
+  }, [theme]);
+
   const handleItemClick = (newView: View) => {
     setView(newView);
     setOpenMobile(false);
@@ -73,7 +80,7 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
 
   return (
     <Sidebar collapsible="icon" className="shadow-lg animate-fade-in">
-      <SidebarHeader className="p-4">
+      <SidebarHeader className="p-4 flex-shrink-0">
         <div className="flex items-center gap-3">
            <div className={frameClass}>
               <Avatar className={avatarClass}>
@@ -101,22 +108,26 @@ export function AppSidebar({ view, setView, userProfile, diaryEntries = [], refs
            </div>
         </div>
       </SidebarHeader>
-      <SidebarMenu className="flex-1 p-4">
-        {navItems.map((item) => (
-          <SidebarMenuItem key={item.id} ref={refs[item.refKey]}>
-            <SidebarMenuButton
-              onClick={() => handleItemClick(item.id)}
-              isActive={view === item.id}
-              className="text-base"
-              tooltip={item.text}
-            >
-              <item.icon className="h-5 w-5" />
-              <span>{item.text}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        ))}
-      </SidebarMenu>
-      <SidebarMenu className="p-4 mt-auto space-y-2">
+      
+      <ScrollArea className="flex-grow min-h-0">
+        <SidebarMenu className="p-4">
+          {navItems.map((item) => (
+            <SidebarMenuItem key={item.id} ref={refs[item.refKey]}>
+              <SidebarMenuButton
+                onClick={() => handleItemClick(item.id)}
+                isActive={view === item.id}
+                className="text-base"
+                tooltip={item.text}
+              >
+                <item.icon className="h-5 w-5" />
+                <span>{item.text}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </ScrollArea>
+
+      <SidebarMenu className="p-4 mt-auto space-y-2 flex-shrink-0">
         <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center px-2">
             <div className="flex items-center gap-2 text-sm text-muted-foreground group-data-[collapsible=icon]:hidden">
                 <Moon className="h-5 w-5" />
