@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 interface ProfileViewProps {
   userProfile: UserProfile | null;
   setUserProfile: (profile: Partial<Omit<UserProfile, 'id'>>) => void;
+  purchasedItems: ShopItem[];
 }
 
 export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
@@ -70,17 +71,17 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
 
   const purchasedItemIds = new Set(userProfile?.purchasedItemIds || []);
   
-  const avatarFrames = [
+  const avatarFrames: (ShopItem | {id: string, name: string, iconUrl: string, type: string})[] = [
     { id: 'frame_none', name: 'Ninguno', iconUrl: 'https://openmoji.org/data/color/svg/274C.svg', type: 'avatar_frame' },
     ...SHOP_ITEMS.filter(item => item.type === 'avatar_frame' && purchasedItemIds.has(item.id))
   ];
   
-  const roomBackgrounds = [
+  const roomBackgrounds: (ShopItem | {id: string, name: string, iconUrl: string, type: string})[] = [
     { id: 'bg_default', name: 'Por Defecto', iconUrl: 'https://openmoji.org/data/color/svg/1F3E0.svg', type: 'room_background' },
     ...SHOP_ITEMS.filter(item => item.type === 'room_background' && purchasedItemIds.has(item.id))
   ];
 
-  const appThemes = [
+  const appThemes: (ShopItem | {id: string, name: string, iconUrl: string, type: string})[] = [
     { id: 'theme_original', name: 'Original', iconUrl: 'https://openmoji.org/data/color/svg/1F3A8.svg', type: 'theme' },
     ...SHOP_ITEMS.filter(item => item.type === 'theme' && purchasedItemIds.has(item.id))
   ];
@@ -98,7 +99,6 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
       </CardHeader>
       
       <div className="flex-grow grid md:grid-cols-3 gap-6 min-h-0">
-        {/* Columna de Vista Previa */}
         <div className="md:col-span-1 flex flex-col gap-6">
           <Card className="flex-grow flex flex-col items-center justify-center p-6 text-center shadow-lg">
               <div className={cn("relative transition-all", frameClass)}>
@@ -123,7 +123,6 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
           </Button>
         </div>
 
-        {/* Columna de Opciones */}
         <Card className="md:col-span-2 shadow-lg flex flex-col min-h-0">
           <Tabs defaultValue="avatar" className="w-full flex-grow flex flex-col">
             <TabsList className="grid w-full grid-cols-4 h-auto p-1 mx-4 mt-4">
@@ -196,13 +195,13 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
                             : 'hover:bg-muted/50 bg-card'
                         )}
                         >
-                        <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
-                        <span className="text-xs font-semibold truncate text-center">{item.name}</span>
-                        {((!selectedRoomBackgroundId && item.id === 'bg_default') || selectedRoomBackgroundId === item.id) && (
+                          <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
+                          <span className="text-xs font-semibold truncate text-center">{item.name}</span>
+                          {((!selectedRoomBackgroundId && item.id === 'bg_default') || selectedRoomBackgroundId === item.id) && (
                             <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
-                            <Check className="w-3 h-3" />
+                              <Check className="w-3 h-3" />
                             </div>
-                        )}
+                          )}
                         </button>
                     ))}
                     </div>
@@ -224,13 +223,13 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
                             : 'hover:bg-muted/50 bg-card'
                         )}
                         >
-                        <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
-                        <span className="text-xs font-semibold truncate text-center">{item.name}</span>
-                        {selectedAppThemeId === item.id && (
+                          <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
+                          <span className="text-xs font-semibold truncate text-center">{item.name}</span>
+                          {selectedAppThemeId === item.id && (
                             <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
-                            <Check className="w-3 h-3" />
+                              <Check className="w-3 h-3" />
                             </div>
-                        )}
+                          )}
                         </button>
                     ))}
                     </div>
