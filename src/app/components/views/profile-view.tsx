@@ -16,18 +16,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 interface ProfileViewProps {
   userProfile: UserProfile | null;
   setUserProfile: (profile: Partial<Omit<UserProfile, 'id'>>) => void;
+  purchasedItems: ShopItem[];
 }
 
-export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
+export function ProfileView({ userProfile, setUserProfile, purchasedItems }: ProfileViewProps) {
   const { toast } = useToast();
   
   const [localName, setLocalName] = useState(userProfile?.name || '');
   const [localAvatar, setLocalAvatar] = useState(userProfile?.avatar || '😊');
   const [localAvatarType, setLocalAvatarType] = useState(userProfile?.avatarType || 'emoji');
   
-  const [selectedAvatarFrameId, setSelectedAvatarFrameId] = useState(userProfile?.activeAvatarFrameId || null);
-  const [selectedRoomBackgroundId, setSelectedRoomBackgroundId] = useState(userProfile?.activeRoomBackgroundId || null);
-  const [selectedAppThemeId, setSelectedAppThemeId] = useState(userProfile?.activeAppThemeId || 'theme_original');
+  const [activeFrameId, setActiveFrameId] = useState(userProfile?.equippedItems?.['avatar_frame'] || null);
+  const [activeBackgroundId, setActiveBackgroundId] = useState(userProfile?.equippedItems?.['room_background'] || null);
+  const [activeThemeId, setActiveThemeId] = useState(userProfile?.equippedItems?.['theme'] || 'theme_original');
 
   const [saved, setSaved] = useState(false);
 
@@ -36,9 +37,9 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
       setLocalName(userProfile.name);
       setLocalAvatar(userProfile.avatar);
       setLocalAvatarType(userProfile.avatarType);
-      setSelectedAvatarFrameId(userProfile.activeAvatarFrameId || null);
-      setSelectedRoomBackgroundId(userProfile.activeRoomBackgroundId || null);
-      setSelectedAppThemeId(userProfile.activeAppThemeId || 'theme_original');
+      setActiveFrameId(userProfile.equippedItems?.['avatar_frame'] || null);
+      setActiveBackgroundId(userProfile.equippedItems?.['room_background'] || null);
+      setActiveThemeId(userProfile.equippedItems?.['theme'] || 'theme_original');
     }
   }, [userProfile]);
 
@@ -52,9 +53,12 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
       name: localName, 
       avatar: localAvatar, 
       avatarType: localAvatarType,
-      activeAvatarFrameId: selectedAvatarFrameId,
-      activeRoomBackgroundId: selectedRoomBackgroundId,
-      activeAppThemeId: selectedAppThemeId
+      equippedItems: {
+        ...userProfile?.equippedItems,
+        'avatar_frame': activeFrameId,
+        'room_background': activeBackgroundId,
+        'theme': activeThemeId,
+      }
     });
     
     setSaved(true);
@@ -66,25 +70,23 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
     setLocalAvatar(avatar);
     setLocalAvatarType(type);
   };
-
-  const purchasedItemIds = new Set(userProfile?.purchasedItemIds || []);
   
-  const avatarFrames: (ShopItem | {id: string, name: string, iconUrl: string, type: string})[] = [
-    { id: 'frame_none', name: 'Ninguno', iconUrl: 'https://openmoji.org/data/color/svg/274C.svg', type: 'avatar_frame' },
-    ...SHOP_ITEMS.filter(item => item.type === 'avatar_frame' && purchasedItemIds.has(item.id))
+  const purchasedFrames: (ShopItem | {id: string, name: string, iconUrl: string})[] = [
+    { id: 'frame_none', name: 'Ninguno', iconUrl: 'https://openmoji.org/data/color/svg/274C.svg' },
+    ...purchasedItems.filter(item => item.type === 'avatar_frame')
   ];
   
-  const roomBackgrounds: (ShopItem | {id: string, name: string, iconUrl: string, type: string})[] = [
-    { id: 'bg_default', name: 'Por Defecto', iconUrl: 'https://openmoji.org/data/color/svg/1F3E0.svg', type: 'room_background' },
-    ...SHOP_ITEMS.filter(item => item.type === 'room_background' && purchasedItemIds.has(item.id))
+  const purchasedBackgrounds: (ShopItem | {id: string, name: string, iconUrl: string})[] = [
+    { id: 'bg_default', name: 'Por Defecto', iconUrl: 'https://openmoji.org/data/color/svg/1F3E0.svg' },
+    ...purchasedItems.filter(item => item.type === 'room_background')
   ];
 
-  const appThemes: (ShopItem | {id: string, name: string, iconUrl: string, type: string})[] = [
-    { id: 'theme_original', name: 'Original', iconUrl: 'https://openmoji.org/data/color/svg/1F3A8.svg', type: 'theme' },
-    ...SHOP_ITEMS.filter(item => item.type === 'theme' && purchasedItemIds.has(item.id))
+  const purchasedThemes: (ShopItem | {id: string, name: string, iconUrl: string})[] = [
+    { id: 'theme_original', name: 'Original', iconUrl: 'https://openmoji.org/data/color/svg/1F3A8.svg' },
+    ...purchasedItems.filter(item => item.type === 'theme')
   ];
 
-  const selectedFrameItem = SHOP_ITEMS.find(item => item.id === selectedAvatarFrameId);
+  const selectedFrameItem = SHOP_ITEMS.find(item => item.id === activeFrameId);
   const frameClass = selectedFrameItem ? cn('rounded-full border-8', selectedFrameItem.value) : 'border-4 border-transparent';
 
   if (!userProfile) return <p>Cargando perfil...</p>;
@@ -97,7 +99,6 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
       </CardHeader>
       
       <div className="flex flex-col md:flex-row gap-6 flex-grow min-h-0">
-        {/* Columna Izquierda: Vista Previa y Guardar */}
         <div className="md:w-1/3 flex flex-col gap-6">
           <Card className="flex-grow flex flex-col items-center justify-center p-6 text-center shadow-lg">
               <div className={cn("relative transition-all", frameClass)}>
@@ -122,7 +123,6 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
           </Button>
         </div>
 
-        {/* Columna Derecha: Pestañas de Selección */}
         <Card className="md:w-2/3 shadow-lg flex flex-col min-h-0">
           <Tabs defaultValue="avatar" className="w-full flex flex-col flex-grow">
             <TabsList className="grid w-full grid-cols-4 h-auto p-1 mx-4 mt-4 flex-shrink-0">
@@ -132,7 +132,7 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
               <TabsTrigger value="themes">Temas</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="avatar" className="flex-grow p-4 min-h-0">
+            <TabsContent value="avatar" className="flex-grow p-4 min-h-0 overflow-hidden">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 lg:grid-cols-7 gap-2">
                   {AVATAR_EMOJIS.map((emoji, index) => (
@@ -152,24 +152,24 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="frames" className="flex-grow p-4 min-h-0">
+            <TabsContent value="frames" className="flex-grow p-4 min-h-0 overflow-hidden">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-                  {avatarFrames.map((item) => (
+                  {purchasedFrames.map((item) => (
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => setSelectedAvatarFrameId(item.id === 'frame_none' ? null : item.id)}
+                      onClick={() => setActiveFrameId(item.id === 'frame_none' ? null : item.id)}
                       className={cn(
                         'flex flex-col gap-2 rounded-lg border-2 p-2 items-center justify-center transition-all aspect-square relative',
-                        (!selectedAvatarFrameId && item.id === 'frame_none') || selectedAvatarFrameId === item.id 
+                        (!activeFrameId && item.id === 'frame_none') || activeFrameId === item.id 
                           ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
                           : 'hover:bg-muted/50 bg-card'
                       )}
                     >
                       <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
                       <span className="text-xs font-semibold truncate text-center">{item.name}</span>
-                      {((!selectedAvatarFrameId && item.id === 'frame_none') || selectedAvatarFrameId === item.id) && (
+                      {((!activeFrameId && item.id === 'frame_none') || activeFrameId === item.id) && (
                         <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
                           <Check className="w-3 h-3" />
                         </div>
@@ -180,24 +180,24 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
               </ScrollArea>
             </TabsContent>
             
-            <TabsContent value="backgrounds" className="flex-grow p-4 min-h-0">
+            <TabsContent value="backgrounds" className="flex-grow p-4 min-h-0 overflow-hidden">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-                  {roomBackgrounds.map((item) => (
+                  {purchasedBackgrounds.map((item) => (
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => setSelectedRoomBackgroundId(item.id === 'bg_default' ? null : item.id)}
+                      onClick={() => setActiveBackgroundId(item.id === 'bg_default' ? null : item.id)}
                       className={cn(
                         'flex flex-col gap-2 rounded-lg border-2 p-2 items-center justify-center transition-all aspect-square relative',
-                        (!selectedRoomBackgroundId && item.id === 'bg_default') || selectedRoomBackgroundId === item.id 
+                        (!activeBackgroundId && item.id === 'bg_default') || activeBackgroundId === item.id 
                           ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
                           : 'hover:bg-muted/50 bg-card'
                       )}
                     >
                       <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
                       <span className="text-xs font-semibold truncate text-center">{item.name}</span>
-                      {((!selectedRoomBackgroundId && item.id === 'bg_default') || selectedRoomBackgroundId === item.id) && (
+                      {((!activeBackgroundId && item.id === 'bg_default') || activeBackgroundId === item.id) && (
                         <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
                           <Check className="w-3 h-3" />
                         </div>
@@ -208,24 +208,24 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="themes" className="flex-grow p-4 min-h-0">
+            <TabsContent value="themes" className="flex-grow p-4 min-h-0 overflow-hidden">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-                  {appThemes.map((item) => (
+                  {purchasedThemes.map((item) => (
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => setSelectedAppThemeId(item.id)}
+                      onClick={() => setActiveThemeId(item.id)}
                       className={cn(
                         'flex flex-col gap-2 rounded-lg border-2 p-2 items-center justify-center transition-all aspect-square relative',
-                        selectedAppThemeId === item.id 
+                        activeThemeId === item.id 
                           ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
                           : 'hover:bg-muted/50 bg-card'
                       )}
                     >
                       <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
                       <span className="text-xs font-semibold truncate text-center">{item.name}</span>
-                      {selectedAppThemeId === item.id && (
+                      {activeThemeId === item.id && (
                         <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
                           <Check className="w-3 h-3" />
                         </div>
