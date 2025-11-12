@@ -614,82 +614,76 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     const commonProps = {
       userProfile: userProfile!,
     };
-    return (
-      <div className="h-full">
-        {(() => {
-          switch (view) {
-            case 'diary':
-              return <DiaryView 
-                        emotionsList={emotionsList || []} 
-                        diaryEntries={diaryEntries || []} 
-                        addDiaryEntry={addDiaryEntry}
-                        updateDiaryEntry={updateDiaryEntry}
-                        deleteDiaryEntry={deleteDiaryEntry}
-                        setView={setView} 
-                      />;
-            case 'emocionario':
-              return <EmocionarioView 
-                        emotionsList={emotionsList || []} 
-                        addEmotion={saveEmotion} 
-                        onEditEmotion={handleEditEmotion} 
-                        onDeleteEmotion={deleteEmotion}
-                        editingEmotion={editingEmotion}
-                        onCancelEdit={handleCancelEdit}
-                     />;
-            case 'discover':
-              return <DiscoverView onAddPredefinedEmotion={saveEmotion} />;
-            case 'games':
-                return <GamesView 
-                           {...commonProps}
-                           emotionsList={emotionsList || []}
-                           addPoints={addPoints} 
-                           user={user} 
-                           onAscentGameEnd={handleAscentGameEnd}
-                       />;
-            case 'calm':
-              return <CalmView />;
-            case 'streak':
-              return <StreakView diaryEntries={diaryEntries || []} onRecoverDay={startQuiz} />;
-            case 'sanctuary':
-              return <SanctuaryView 
-                        userProfile={userProfile} 
-                        onSelectPet={handleSelectPet}
-                      />;
-            case 'pet-chat':
-              return <PetChatView 
-                        pet={activePet} 
-                        user={user} 
-                        setView={setView} 
-                        diaryEntries={diaryEntries || []}
-                        emotionsList={emotionsList || []}
-                        userProfile={userProfile}
-                     />;
-            case 'shop':
-                return <ShopView 
-                          {...commonProps}
-                          onPurchaseItem={handlePurchaseItem}
-                        />;
-            case 'report':
-              return <ReportView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} />;
-            case 'share':
-              return <ShareView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} userProfile={userProfile!} onShare={handleShare} />;
-            case 'profile':
-              return <ProfileView {...commonProps} setUserProfile={setUserProfile} purchasedItems={purchasedItems || []} />;
-            case 'collection':
-              return <CollectionView {...commonProps} onSelectPet={handleSelectPet} setView={setView} />;
-            default:
-              return <DiaryView 
-                        emotionsList={emotionsList || []} 
-                        diaryEntries={diaryEntries || []} 
-                        addDiaryEntry={addDiaryEntry}
-                        updateDiaryEntry={updateDiaryEntry}
-                        deleteDiaryEntry={deleteDiaryEntry}
-                        setView={setView} 
-                      />;
-          }
-        })()}
-      </div>
-    );
+    switch (view) {
+      case 'diary':
+        return <DiaryView 
+                  emotionsList={emotionsList || []} 
+                  diaryEntries={diaryEntries || []} 
+                  addDiaryEntry={addDiaryEntry}
+                  updateDiaryEntry={updateDiaryEntry}
+                  deleteDiaryEntry={deleteDiaryEntry}
+                  setView={setView} 
+                />;
+      case 'emocionario':
+        return <EmocionarioView 
+                  emotionsList={emotionsList || []} 
+                  addEmotion={saveEmotion} 
+                  onEditEmotion={handleEditEmotion} 
+                  onDeleteEmotion={deleteEmotion}
+                  editingEmotion={editingEmotion}
+                  onCancelEdit={handleCancelEdit}
+                />;
+      case 'discover':
+        return <DiscoverView onAddPredefinedEmotion={saveEmotion} />;
+      case 'games':
+          return <GamesView 
+                    {...commonProps}
+                    emotionsList={emotionsList || []}
+                    addPoints={addPoints} 
+                    user={user} 
+                    onAscentGameEnd={handleAscentGameEnd}
+                  />;
+      case 'calm':
+        return <CalmView />;
+      case 'streak':
+        return <StreakView diaryEntries={diaryEntries || []} onRecoverDay={startQuiz} />;
+      case 'sanctuary':
+        return <SanctuaryView 
+                  userProfile={userProfile} 
+                  onSelectPet={handleSelectPet}
+                />;
+      case 'pet-chat':
+        return <PetChatView 
+                  pet={activePet} 
+                  user={user} 
+                  setView={setView} 
+                  diaryEntries={diaryEntries || []}
+                  emotionsList={emotionsList || []}
+                  userProfile={userProfile}
+                />;
+      case 'shop':
+          return <ShopView 
+                    {...commonProps}
+                    onPurchaseItem={handlePurchaseItem}
+                  />;
+      case 'report':
+        return <ReportView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} />;
+      case 'share':
+        return <ShareView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} userProfile={userProfile!} onShare={handleShare} />;
+      case 'profile':
+        return <ProfileView {...commonProps} setUserProfile={setUserProfile} purchasedItems={purchasedItems || []} />;
+      case 'collection':
+        return <CollectionView {...commonProps} onSelectPet={handleSelectPet} setView={setView} />;
+      default:
+        return <DiaryView 
+                  emotionsList={emotionsList || []} 
+                  diaryEntries={diaryEntries || []} 
+                  addDiaryEntry={addDiaryEntry}
+                  updateDiaryEntry={updateDiaryEntry}
+                  deleteDiaryEntry={deleteDiaryEntry}
+                  setView={setView} 
+                />;
+    }
   };
   
   if (isLoading || !userProfile) {
@@ -710,9 +704,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
              <MobileMenuButton />
              <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
           </header>
-          <div className="flex-1 flex flex-col p-4 md:p-6 min-h-0">
-            {renderView()}
-          </div>
+          {renderView()}
         </SidebarInset>
       </div>
       

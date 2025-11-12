@@ -89,7 +89,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
   if (!userProfile) return <p>Cargando perfil...</p>;
 
   return (
-    <div className="flex flex-col h-full gap-6">
+    <div className="flex flex-col h-full gap-6 p-4 md:p-6">
       <CardHeader className="p-0 flex-shrink-0">
         <CardTitle className="text-3xl font-bold text-primary">Mi Perfil</CardTitle>
         <CardDescription>Personaliza tu apariencia y equipa los artículos que has comprado en la tienda.</CardDescription>
