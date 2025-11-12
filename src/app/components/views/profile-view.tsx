@@ -241,4 +241,3 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
     </div>
   );
 }
-    
