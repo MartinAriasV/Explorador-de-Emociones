@@ -84,6 +84,14 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     return SHOP_ITEMS.filter(item => userProfile.purchasedItemIds.includes(item.id));
   }, [userProfile]);
 
+  const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
+
+  useEffect(() => {
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(theme);
+  }, [theme]);
+  
+
   const addInitialEmotions = useCallback(async (userId: string) => {
     if (!firestore) return;
     const emotionsCollectionRef = collection(firestore, 'users', userId, 'emotions');
@@ -696,7 +704,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   return (
     <SidebarProvider>
       <div className="flex h-screen w-screen bg-background">
-        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} />
+        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
         <SidebarInset>
           <header className="p-2 md:hidden flex items-center border-b">
              <MobileMenuButton />
@@ -786,3 +794,5 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     </SidebarProvider>
   );
 }
+
+    
