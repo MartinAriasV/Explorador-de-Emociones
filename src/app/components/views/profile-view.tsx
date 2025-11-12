@@ -20,7 +20,7 @@ interface ProfileViewProps {
   purchasedItems: ShopItem[];
 }
 
-export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
+export function ProfileView({ userProfile, setUserProfile, purchasedItems }: ProfileViewProps) {
   const { toast } = useToast();
   
   const [localName, setLocalName] = useState(userProfile?.name || '');
@@ -123,7 +123,7 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
           </Button>
         </div>
 
-        <Card className="md:col-span-2 shadow-lg flex flex-col min-h-0">
+        <Card className="md:col-span-2 shadow-lg flex flex-col">
           <Tabs defaultValue="avatar" className="w-full flex-grow flex flex-col">
             <TabsList className="grid w-full grid-cols-4 h-auto p-1 mx-4 mt-4 flex-shrink-0">
               <TabsTrigger value="avatar">Avatar</TabsTrigger>
@@ -132,7 +132,7 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
               <TabsTrigger value="themes">Temas</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="avatar" className="flex-grow p-4 min-h-0">
+            <TabsContent value="avatar" className="flex-grow p-4 min-h-0 overflow-hidden">
                 <ScrollArea className="h-full pr-2">
                   <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 lg:grid-cols-7 gap-2">
                     {AVATAR_EMOJIS.map((emoji, index) => (
@@ -152,7 +152,7 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
                 </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="frames" className="flex-grow p-4 min-h-0">
+            <TabsContent value="frames" className="flex-grow p-4 min-h-0 overflow-hidden">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                   {avatarFrames.map((item) => (
@@ -180,7 +180,7 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
               </ScrollArea>
             </TabsContent>
             
-            <TabsContent value="backgrounds" className="flex-grow p-4 min-h-0">
+            <TabsContent value="backgrounds" className="flex-grow p-4 min-h-0 overflow-hidden">
                 <ScrollArea className="h-full pr-2">
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                     {roomBackgrounds.map((item) => (
@@ -208,7 +208,7 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
                 </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="themes" className="flex-grow p-4 min-h-0">
+            <TabsContent value="themes" className="flex-grow p-4 min-h-0 overflow-hidden">
                 <ScrollArea className="h-full pr-2">
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                     {appThemes.map((item) => (
@@ -241,3 +241,5 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
     </div>
   );
 }
+
+    
