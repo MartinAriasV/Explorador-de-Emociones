@@ -11,34 +11,32 @@ import { Input } from '@/components/ui/input';
 import type { UserProfile, ShopItem } from '@/lib/types';
 import { AVATAR_EMOJIS, SHOP_ITEMS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import { Check } from 'lucide-react';
+import { Check, Edit, Save } from 'lucide-react';
 import Image from 'next/image';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface ProfileViewProps {
   userProfile: UserProfile | null;
   setUserProfile: (profile: Partial<Omit<UserProfile, 'id'>>) => void;
-  // shopItems se importará de constants
 }
 
 export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
   const { toast } = useToast();
   
-  // Estados locales para rastrear selecciones
   const [localName, setLocalName] = useState(userProfile?.name || '');
   const [localAvatar, setLocalAvatar] = useState(userProfile?.avatar || '😊');
   const [localAvatarType, setLocalAvatarType] = useState(userProfile?.avatarType || 'emoji');
   
-  // ¡ESTOS ERAN LOS QUE FALTABAN!
   const [selectedAvatarFrameId, setSelectedAvatarFrameId] = useState(userProfile?.activeAvatarFrameId || null);
   const [selectedRoomBackgroundId, setSelectedRoomBackgroundId] = useState(userProfile?.activeRoomBackgroundId || null);
   const [selectedAppThemeId, setSelectedAppThemeId] = useState(userProfile?.activeAppThemeId || 'theme_original');
 
   const [saved, setSaved] = useState(false);
 
-  // Sincronizar si el perfil de Firestore cambia
   useEffect(() => {
     if (userProfile) {
       setLocalName(userProfile.name);
@@ -50,21 +48,19 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
     }
   }, [userProfile]);
 
-  // --- Lógica de Guardado (¡ARREGLADA!) ---
   const handleSave = () => {
     if (!localName || !localAvatar) {
       toast({ title: "Faltan campos", description: "Asegúrate de tener un nombre y un avatar.", variant: "destructive"});
       return;
     }
     
-    // Guardar TODO en Firestore
     setUserProfile({ 
       name: localName, 
       avatar: localAvatar, 
       avatarType: localAvatarType,
-      activeRoomBackgroundId: selectedRoomBackgroundId, // <-- ¡Guardado Correctamente!
-      activeAvatarFrameId: selectedAvatarFrameId, // <-- ¡Guardado Correctamente!
-      activeAppThemeId: selectedAppThemeId // <-- ¡Guardado Correctamente!
+      activeRoomBackgroundId: selectedRoomBackgroundId,
+      activeAvatarFrameId: selectedAvatarFrameId,
+      activeAppThemeId: selectedAppThemeId
     });
     
     setSaved(true);
@@ -77,167 +73,177 @@ export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
     setLocalAvatarType(type);
   };
 
-  // --- Filtrar ítems comprados ---
   const purchasedItemIds = new Set(userProfile?.purchasedItemIds || []);
   
-  const avatarFrames: (ShopItem | {id: string, name: string, iconUrl: string, type: string})[] = [
-    { id: 'frame_none', name: 'Ninguno', iconUrl: 'https://openmoji.org/data/color/svg/274C.svg', type: 'avatar_frame' }, // 'X' emoji
+  const avatarFrames = [
+    { id: 'frame_none', name: 'Ninguno', iconUrl: 'https://openmoji.org/data/color/svg/274C.svg', type: 'avatar_frame' },
     ...SHOP_ITEMS.filter(item => item.type === 'avatar_frame' && purchasedItemIds.has(item.id))
   ];
   
-  const roomBackgrounds: (ShopItem | {id: string, name: string, iconUrl: string, type: string})[] = [
-    { id: 'bg_default', name: 'Por Defecto', iconUrl: 'https://openmoji.org/data/color/svg/1F3E0.svg', type: 'room_background' }, // Casa emoji
+  const roomBackgrounds = [
+    { id: 'bg_default', name: 'Por Defecto', iconUrl: 'https://openmoji.org/data/color/svg/1F3E0.svg', type: 'room_background' },
     ...SHOP_ITEMS.filter(item => item.type === 'room_background' && purchasedItemIds.has(item.id))
   ];
 
-  const appThemes: (ShopItem | {id: string, name: string, iconUrl: string, type: string})[] = [
-    { id: 'theme_original', name: 'Original', iconUrl: 'https://openmoji.org/data/color/svg/1F3A8.svg', type: 'theme' }, // Paleta emoji
+  const appThemes = [
+    { id: 'theme_original', name: 'Original', iconUrl: 'https://openmoji.org/data/color/svg/1F3A8.svg', type: 'theme' },
     ...SHOP_ITEMS.filter(item => item.type === 'theme' && purchasedItemIds.has(item.id))
   ];
 
+  const selectedFrameItem = SHOP_ITEMS.find(item => item.id === selectedAvatarFrameId);
+  const frameClass = selectedFrameItem ? cn('rounded-full border-8', selectedFrameItem.value) : 'border-4 border-transparent';
 
-  if (!userProfile) {
-    return <p>Cargando perfil...</p>; // Estado de carga simple
-  }
+  if (!userProfile) return <p>Cargando perfil...</p>;
 
   return (
-    <Card className="w-full max-w-2xl mx-auto h-full shadow-lg flex flex-col">
-      <CardHeader>
-        <CardTitle className="text-2xl font-bold text-primary">Mi Perfil</CardTitle>
+    <div className="w-full h-full flex flex-col gap-6">
+      <CardHeader className="p-0">
+        <CardTitle className="text-3xl font-bold text-primary">Mi Perfil</CardTitle>
         <CardDescription>Personaliza tu apariencia y equipa los artículos que has comprado en la tienda.</CardDescription>
       </CardHeader>
       
-      <CardContent className="flex-grow flex flex-col gap-6 overflow-y-auto p-4 md:p-6">
-        
-        {/* --- Sección de Nombre --- */}
-        <div className="space-y-2">
-          <Label className="text-lg font-semibold">Tu Nombre</Label>
-          <Input
-            value={localName}
-            onChange={(e) => setLocalName(e.target.value)}
-            placeholder="Usuario"
-            className="text-base"
-          />
+      <div className="flex-grow grid md:grid-cols-3 gap-6">
+        {/* Columna de Vista Previa */}
+        <div className="md:col-span-1 flex flex-col gap-6">
+          <Card className="flex-grow flex flex-col items-center justify-center p-6 text-center shadow-lg">
+              <div className={cn("relative transition-all", frameClass)}>
+                  <Avatar className="h-40 w-40 text-7xl">
+                      {localAvatarType === 'generated' ? (
+                          <AvatarImage src={localAvatar} alt={localName} />
+                      ) : (
+                          <AvatarFallback className="bg-primary/10">{localAvatar}</AvatarFallback>
+                      )}
+                  </Avatar>
+              </div>
+              <Input
+                value={localName}
+                onChange={(e) => setLocalName(e.target.value)}
+                placeholder="Tu Nombre"
+                className="text-2xl font-bold text-center border-none focus-visible:ring-0 focus-visible:ring-offset-0 mt-6 bg-transparent"
+              />
+          </Card>
+          <Button onClick={handleSave} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground text-lg py-6 font-bold">
+            {saved ? <Check className="mr-2 h-5 w-5" /> : <Save className="mr-2 h-5 w-5" />}
+            {saved ? '¡Guardado!' : 'Guardar Cambios'}
+          </Button>
         </div>
 
-        {/* --- Sección de Avatar (Emoji) --- */}
-        <div className="flex-grow flex flex-col min-h-0 space-y-2">
-          <Label className="text-lg font-semibold">Elige tu Avatar</Label>
-          <ScrollArea className="flex-grow rounded-lg border p-2 bg-muted/30">
-            <div className="grid grid-cols-8 gap-2">
-              {AVATAR_EMOJIS.map((emoji, index) => (
-                <button
-                  type="button"
-                  key={`emoji-${index}`}
-                  onClick={() => selectAvatar(emoji, 'emoji')}
-                  className={cn(
-                    'text-3xl p-1 rounded-lg transition-all flex items-center justify-center aspect-square',
-                    localAvatar === emoji && localAvatarType === 'emoji' ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
-                  )}
-                >
-                  {emoji}
-                </button>
-              ))}
-              {userProfile.avatarType === 'generated' && (
-                <button
-                  type="button"
-                  onClick={() => selectAvatar(userProfile.avatar, 'generated')}
-                  className={cn(
-                    'relative rounded-lg overflow-hidden transition-all flex items-center justify-center aspect-square',
-                    localAvatar === userProfile.avatar && localAvatarType === 'generated' ? 'ring-2 ring-primary' : 'hover:opacity-80'
-                  )}
-                >
-                  <Image src={userProfile.avatar} alt="Avatar Generado" layout="fill" objectFit="cover" />
-                </button>
-              )}
-            </div>
-          </ScrollArea>
-        </div>
+        {/* Columna de Opciones */}
+        <Card className="md:col-span-2 shadow-lg flex flex-col">
+          <Tabs defaultValue="avatar" className="w-full flex-grow flex flex-col">
+            <TabsList className="grid w-full grid-cols-4 h-auto p-1">
+              <TabsTrigger value="avatar">Avatar</TabsTrigger>
+              <TabsTrigger value="frames">Marcos</TabsTrigger>
+              <TabsTrigger value="backgrounds">Fondos</TabsTrigger>
+              <TabsTrigger value="themes">Temas</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="avatar" className="flex-grow p-4 overflow-hidden">
+                <ScrollArea className="h-full pr-2">
+                  <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-7 lg:grid-cols-8 gap-2">
+                    {AVATAR_EMOJIS.map((emoji, index) => (
+                      <button
+                        type="button"
+                        key={`emoji-${index}`}
+                        onClick={() => selectAvatar(emoji, 'emoji')}
+                        className={cn(
+                          'text-4xl p-2 rounded-lg transition-all flex items-center justify-center aspect-square',
+                          localAvatar === emoji && localAvatarType === 'emoji' ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
+                        )}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
+            </TabsContent>
 
-        {/* --- Sección Marcos de Avatar --- */}
-        <div className="space-y-2">
-          <Label className="text-lg font-semibold">Marcos de Avatar Comprados</Label>
-          <ScrollArea className="w-full whitespace-nowrap">
-            <div className="flex space-x-2 p-2">
-              {avatarFrames.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setSelectedAvatarFrameId(item.id === 'frame_none' ? null : item.id)}
-                  className={cn(
-                    'h-20 w-20 flex-col gap-1 rounded-lg border-2 flex items-center justify-center transition-all shrink-0',
-                    (!selectedAvatarFrameId && item.id === 'frame_none') || selectedAvatarFrameId === item.id 
-                      ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
-                      : 'hover:bg-muted/50 bg-card'
-                  )}
-                >
-                  <img src={item.iconUrl} alt={item.name} className="w-10 h-10" />
-                  <span className="text-xs font-semibold truncate">{item.name}</span>
-                </button>
-              ))}
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </div>
+            <TabsContent value="frames" className="flex-grow p-4 overflow-hidden">
+              <ScrollArea className="h-full">
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                  {avatarFrames.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setSelectedAvatarFrameId(item.id === 'frame_none' ? null : item.id)}
+                      className={cn(
+                        'flex flex-col gap-2 rounded-lg border-2 p-2 items-center justify-center transition-all aspect-square relative',
+                        (!selectedAvatarFrameId && item.id === 'frame_none') || selectedAvatarFrameId === item.id 
+                          ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
+                          : 'hover:bg-muted/50 bg-card'
+                      )}
+                    >
+                      <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
+                      <span className="text-xs font-semibold truncate text-center">{item.name}</span>
+                      {((!selectedAvatarFrameId && item.id === 'frame_none') || selectedAvatarFrameId === item.id) && (
+                        <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
+                          <Check className="w-3 h-3" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </ScrollArea>
+            </TabsContent>
+            
+            <TabsContent value="backgrounds" className="flex-grow p-4 overflow-hidden">
+                <ScrollArea className="h-full">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                    {roomBackgrounds.map((item) => (
+                        <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setSelectedRoomBackgroundId(item.id === 'bg_default' ? null : item.id)}
+                        className={cn(
+                            'flex flex-col gap-2 rounded-lg border-2 p-2 items-center justify-center transition-all aspect-square relative',
+                            (!selectedRoomBackgroundId && item.id === 'bg_default') || selectedRoomBackgroundId === item.id 
+                            ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
+                            : 'hover:bg-muted/50 bg-card'
+                        )}
+                        >
+                        <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
+                        <span className="text-xs font-semibold truncate text-center">{item.name}</span>
+                        {((!selectedRoomBackgroundId && item.id === 'bg_default') || selectedRoomBackgroundId === item.id) && (
+                            <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
+                            <Check className="w-3 h-3" />
+                            </div>
+                        )}
+                        </button>
+                    ))}
+                    </div>
+                </ScrollArea>
+            </TabsContent>
 
-        {/* --- Sección Fondos de Habitación --- */}
-        <div className="space-y-2">
-          <Label className="text-lg font-semibold">Fondos para la Habitación</Label>
-          <ScrollArea className="w-full whitespace-nowrap">
-            <div className="flex space-x-2 p-2">
-              {roomBackgrounds.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setSelectedRoomBackgroundId(item.id === 'bg_default' ? null : item.id)}
-                  className={cn(
-                    'h-20 w-20 flex-col gap-1 rounded-lg border-2 flex items-center justify-center transition-all shrink-0',
-                    (!selectedRoomBackgroundId && item.id === 'bg_default') || selectedRoomBackgroundId === item.id 
-                      ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
-                      : 'hover:bg-muted/50 bg-card'
-                  )}
-                >
-                  <img src={item.iconUrl} alt={item.name} className="w-10 h-10" />
-                  <span className="text-xs font-semibold truncate">{item.name}</span>
-                </button>
-              ))}
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </div>
-        
-        {/* --- Sección Temas de la App --- */}
-        <div className="space-y-2">
-          <Label className="text-lg font-semibold">Temas de la Aplicación</Label>
-          <ScrollArea className="w-full whitespace-nowrap">
-            <div className="flex space-x-2 p-2">
-              {appThemes.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setSelectedAppThemeId(item.id)}
-                  className={cn(
-                    'h-20 w-20 flex-col gap-1 rounded-lg border-2 flex items-center justify-center transition-all shrink-0',
-                    selectedAppThemeId === item.id 
-                      ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
-                      : 'hover:bg-muted/50 bg-card'
-                  )}
-                >
-                  <img src={item.iconUrl} alt={item.name} className="w-10 h-10" />
-                  <span className="text-xs font-semibold truncate">{item.name}</span>
-                </button>
-              ))}
-            </div>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
-        </div>
-        
-        {/* --- Botón de Guardar --- */}
-        <Button onClick={handleSave} className="w-full bg-accent hover:bg-accent/90 text-accent-foreground mt-auto text-base py-6 font-bold">
-          {saved ? <Check className="mr-2 h-4 w-4" /> : null}
-          {saved ? '¡Guardado!' : 'Guardar Cambios'}
-        </Button>
-      </CardContent>
-    </Card>
+            <TabsContent value="themes" className="flex-grow p-4 overflow-hidden">
+                <ScrollArea className="h-full">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                    {appThemes.map((item) => (
+                        <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setSelectedAppThemeId(item.id)}
+                        className={cn(
+                            'flex flex-col gap-2 rounded-lg border-2 p-2 items-center justify-center transition-all aspect-square relative',
+                            selectedAppThemeId === item.id 
+                            ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
+                            : 'hover:bg-muted/50 bg-card'
+                        )}
+                        >
+                        <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
+                        <span className="text-xs font-semibold truncate text-center">{item.name}</span>
+                        {selectedAppThemeId === item.id && (
+                            <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
+                            <Check className="w-3 h-3" />
+                            </div>
+                        )}
+                        </button>
+                    ))}
+                    </div>
+                </ScrollArea>
+            </TabsContent>
+          </Tabs>
+        </Card>
+      </div>
+    </div>
   );
 }
