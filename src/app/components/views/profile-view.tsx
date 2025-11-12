@@ -8,7 +8,7 @@ import type { UserProfile, ShopItem } from '@/lib/types';
 import { AVATAR_EMOJIS, SHOP_ITEMS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Check, Save } from 'lucide-react';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
