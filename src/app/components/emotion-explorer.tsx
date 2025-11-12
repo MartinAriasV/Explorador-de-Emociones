@@ -132,6 +132,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         activeAvatarFrameId: null,
         activeRoomBackgroundId: null,
         currentStreak: 0,
+        ascentHighScore: 0,
       };
       await setDoc(userDocRef, newProfile);
       await addInitialEmotions(user.uid);
@@ -703,13 +704,13 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   return (
     <SidebarProvider>
       <div className="flex h-screen w-screen bg-background">
-        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme} />
-        <SidebarInset>
+        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} />
+        <SidebarInset className="flex flex-col">
           <header className="p-2 md:hidden flex items-center border-b">
              <MobileMenuButton />
              <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
           </header>
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 h-full">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 min-h-0">
             {renderView()}
           </div>
         </SidebarInset>
