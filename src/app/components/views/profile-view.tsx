@@ -132,100 +132,108 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
               <TabsTrigger value="themes">Temas</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="avatar" className="flex-grow p-4 min-h-0 overflow-y-auto">
-              <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 lg:grid-cols-7 gap-2">
-                {AVATAR_EMOJIS.map((emoji, index) => (
-                  <button
-                    type="button"
-                    key={`emoji-${index}`}
-                    onClick={() => selectAvatar(emoji, 'emoji')}
-                    className={cn(
-                      'text-4xl p-2 rounded-lg transition-all flex items-center justify-center aspect-square',
-                      localAvatar === emoji && localAvatarType === 'emoji' ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
-                    )}
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
+            <TabsContent value="avatar" className="flex-grow p-4 min-h-0">
+                <ScrollArea className="h-full">
+                  <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 lg:grid-cols-7 gap-2">
+                    {AVATAR_EMOJIS.map((emoji, index) => (
+                      <button
+                        type="button"
+                        key={`emoji-${index}`}
+                        onClick={() => selectAvatar(emoji, 'emoji')}
+                        className={cn(
+                          'text-4xl p-2 rounded-lg transition-all flex items-center justify-center aspect-square',
+                          localAvatar === emoji && localAvatarType === 'emoji' ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'
+                        )}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="frames" className="flex-grow p-4 min-h-0 overflow-y-auto">
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-                  {purchasedFrames.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setActiveFrameId(item.id === 'frame_none' ? null : item.id)}
-                      className={cn(
-                        'flex flex-col gap-2 rounded-lg border-2 p-2 items-center justify-center transition-all aspect-square relative',
-                        (!activeFrameId && item.id === 'frame_none') || activeFrameId === item.id 
-                          ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
-                          : 'hover:bg-muted/50 bg-card'
-                      )}
-                    >
-                      <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
-                      <span className="text-xs font-semibold truncate text-center">{item.name}</span>
-                      {((!activeFrameId && item.id === 'frame_none') || activeFrameId === item.id) && (
-                        <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
-                          <Check className="w-3 h-3" />
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
+            <TabsContent value="frames" className="flex-grow p-4 min-h-0">
+                <ScrollArea className="h-full">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                    {purchasedFrames.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setActiveFrameId(item.id === 'frame_none' ? null : item.id)}
+                        className={cn(
+                          'flex flex-col gap-2 rounded-lg border-2 p-2 items-center justify-center transition-all aspect-square relative',
+                          (!activeFrameId && item.id === 'frame_none') || activeFrameId === item.id 
+                            ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
+                            : 'hover:bg-muted/50 bg-card'
+                        )}
+                      >
+                        <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
+                        <span className="text-xs font-semibold truncate text-center">{item.name}</span>
+                        {((!activeFrameId && item.id === 'frame_none') || activeFrameId === item.id) && (
+                          <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
+                            <Check className="w-3 h-3" />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
             </TabsContent>
             
-            <TabsContent value="backgrounds" className="flex-grow p-4 min-h-0 overflow-y-auto">
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-                  {purchasedBackgrounds.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setActiveBackgroundId(item.id === 'bg_default' ? null : item.id)}
-                      className={cn(
-                        'flex flex-col gap-2 rounded-lg border-2 p-2 items-center justify-center transition-all aspect-square relative',
-                        (!activeBackgroundId && item.id === 'bg_default') || activeBackgroundId === item.id 
-                          ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
-                          : 'hover:bg-muted/50 bg-card'
-                      )}
-                    >
-                      <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
-                      <span className="text-xs font-semibold truncate text-center">{item.name}</span>
-                      {((!activeBackgroundId && item.id === 'bg_default') || activeBackgroundId === item.id) && (
-                        <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
-                          <Check className="w-3 h-3" />
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
+            <TabsContent value="backgrounds" className="flex-grow p-4 min-h-0">
+                <ScrollArea className="h-full">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                    {purchasedBackgrounds.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setActiveBackgroundId(item.id === 'bg_default' ? null : item.id)}
+                        className={cn(
+                          'flex flex-col gap-2 rounded-lg border-2 p-2 items-center justify-center transition-all aspect-square relative',
+                          (!activeBackgroundId && item.id === 'bg_default') || activeBackgroundId === item.id 
+                            ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
+                            : 'hover:bg-muted/50 bg-card'
+                        )}
+                      >
+                        <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
+                        <span className="text-xs font-semibold truncate text-center">{item.name}</span>
+                        {((!activeBackgroundId && item.id === 'bg_default') || activeBackgroundId === item.id) && (
+                          <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
+                            <Check className="w-3 h-3" />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="themes" className="flex-grow p-4 min-h-0 overflow-y-auto">
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-                  {purchasedThemes.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => setActiveThemeId(item.id)}
-                      className={cn(
-                        'flex flex-col gap-2 rounded-lg border-2 p-2 items-center justify-center transition-all aspect-square relative',
-                        activeThemeId === item.id 
-                          ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
-                          : 'hover:bg-muted/50 bg-card'
-                      )}
-                    >
-                      <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
-                      <span className="text-xs font-semibold truncate text-center">{item.name}</span>
-                      {activeThemeId === item.id && (
-                        <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
-                          <Check className="w-3 h-3" />
-                        </div>
-                      )}
-                    </button>
-                  ))}
-                </div>
+            <TabsContent value="themes" className="flex-grow p-4 min-h-0">
+                <ScrollArea className="h-full">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                    {purchasedThemes.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => setActiveThemeId(item.id)}
+                        className={cn(
+                          'flex flex-col gap-2 rounded-lg border-2 p-2 items-center justify-center transition-all aspect-square relative',
+                          activeThemeId === item.id 
+                            ? 'ring-4 ring-primary/30 border-primary bg-primary/10' 
+                            : 'hover:bg-muted/50 bg-card'
+                        )}
+                      >
+                        <img src={item.iconUrl} alt={item.name} className="w-12 h-12" />
+                        <span className="text-xs font-semibold truncate text-center">{item.name}</span>
+                        {activeThemeId === item.id && (
+                          <div className="absolute top-1 right-1 bg-primary text-primary-foreground rounded-full p-0.5">
+                            <Check className="w-3 h-3" />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
             </TabsContent>
           </Tabs>
         </Card>

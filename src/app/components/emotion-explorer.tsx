@@ -666,7 +666,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
             case 'share':
               return <ShareView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} userProfile={userProfile!} onShare={handleShare} />;
             case 'profile':
-              return <ProfileView {...commonProps} setUserProfile={setUserProfile} purchasedItems={purchasedItems} />;
+              return <ProfileView {...commonProps} setUserProfile={setUserProfile} purchasedItems={purchasedItems || []} />;
             case 'collection':
               return <CollectionView {...commonProps} onSelectPet={handleSelectPet} setView={setView} />;
             default:
