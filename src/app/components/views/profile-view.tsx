@@ -73,17 +73,17 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
   
   const purchasedFrames: (ShopItem | {id: string, name: string, iconUrl: string})[] = [
     { id: 'frame_none', name: 'Ninguno', iconUrl: 'https://openmoji.org/data/color/svg/274C.svg' },
-    ...purchasedItems.filter(item => item.type === 'avatar_frame')
+    ...(purchasedItems || []).filter(item => item.type === 'avatar_frame')
   ];
   
   const purchasedBackgrounds: (ShopItem | {id: string, name: string, iconUrl: string})[] = [
     { id: 'bg_default', name: 'Por Defecto', iconUrl: 'https://openmoji.org/data/color/svg/1F3E0.svg' },
-    ...purchasedItems.filter(item => item.type === 'room_background')
+    ...(purchasedItems || []).filter(item => item.type === 'room_background')
   ];
 
   const purchasedThemes: (ShopItem | {id: string, name: string, iconUrl: string})[] = [
     { id: 'theme_original', name: 'Original', iconUrl: 'https://openmoji.org/data/color/svg/1F3A8.svg' },
-    ...purchasedItems.filter(item => item.type === 'theme')
+    ...(purchasedItems || []).filter(item => item.type === 'theme')
   ];
 
   const selectedFrameItem = SHOP_ITEMS.find(item => item.id === activeFrameId);
@@ -241,4 +241,3 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
     </div>
   );
 }
-    
