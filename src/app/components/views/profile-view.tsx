@@ -122,7 +122,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
 
         <Card className="md:w-2/3 shadow-lg flex flex-col flex-grow min-h-0 overflow-hidden p-4">
           <Tabs defaultValue="avatar" className="w-full flex flex-col flex-grow h-full">
-            <TabsList className="grid w-full grid-cols-4 h-auto p-1 flex-shrink-0">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto p-1 flex-shrink-0">
               <TabsTrigger value="avatar">Avatar</TabsTrigger>
               <TabsTrigger value="frames">Marcos</TabsTrigger>
               <TabsTrigger value="backgrounds">Fondos</TabsTrigger>
@@ -151,7 +151,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
 
             <TabsContent value="frames" className="flex-grow p-0 pt-4 min-h-0">
                 <ScrollArea className="h-full">
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {purchasedFrames.map((item) => (
                       <button
                         key={item.id}
@@ -179,7 +179,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
             
             <TabsContent value="backgrounds" className="flex-grow p-0 pt-4 min-h-0">
                 <ScrollArea className="h-full">
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {purchasedBackgrounds.map((item) => (
                       <button
                         key={item.id}
@@ -207,7 +207,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
 
             <TabsContent value="themes" className="flex-grow p-0 pt-4 min-h-0">
                 <ScrollArea className="h-full">
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {purchasedThemes.map((item) => (
                       <button
                         key={item.id}
