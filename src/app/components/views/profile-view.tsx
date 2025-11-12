@@ -98,8 +98,8 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
         <CardDescription>Personaliza tu apariencia y equipa los artículos que has comprado en la tienda.</CardDescription>
       </CardHeader>
       
-      <div className="grid md:grid-cols-3 gap-6 flex-grow min-h-0">
-        <div className="md:col-span-1 flex flex-col gap-6">
+      <div className="flex flex-col md:flex-row gap-6 flex-grow min-h-0">
+        <div className="md:w-1/3 flex flex-col gap-6">
           <Card className="flex-grow flex flex-col items-center justify-center p-6 text-center shadow-lg">
               <div className={cn("relative transition-all", frameClass)}>
                   <Avatar className="h-40 w-40 text-7xl">
@@ -123,7 +123,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
           </Button>
         </div>
 
-        <Card className="md:col-span-2 shadow-lg flex flex-col min-h-0">
+        <Card className="md:w-2/3 shadow-lg flex flex-col min-h-0">
           <Tabs defaultValue="avatar" className="w-full flex flex-col flex-grow">
             <TabsList className="grid w-full grid-cols-4 h-auto p-1 mx-4 mt-4 flex-shrink-0">
               <TabsTrigger value="avatar">Avatar</TabsTrigger>
@@ -132,7 +132,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
               <TabsTrigger value="themes">Temas</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="avatar" className="flex-grow p-4 min-h-0 overflow-hidden">
+            <TabsContent value="avatar" className="flex-grow p-4 min-h-0">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 lg:grid-cols-7 gap-2">
                   {AVATAR_EMOJIS.map((emoji, index) => (
@@ -152,7 +152,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="frames" className="flex-grow p-4 min-h-0 overflow-hidden">
+            <TabsContent value="frames" className="flex-grow p-4 min-h-0">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                   {purchasedFrames.map((item) => (
@@ -180,7 +180,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
               </ScrollArea>
             </TabsContent>
             
-            <TabsContent value="backgrounds" className="flex-grow p-4 min-h-0 overflow-hidden">
+            <TabsContent value="backgrounds" className="flex-grow p-4 min-h-0">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                   {purchasedBackgrounds.map((item) => (
@@ -208,7 +208,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="themes" className="flex-grow p-4 min-h-0 overflow-hidden">
+            <TabsContent value="themes" className="flex-grow p-4 min-h-0">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                   {purchasedThemes.map((item) => (
@@ -241,5 +241,3 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
     </div>
   );
 }
-
-    
