@@ -26,9 +26,9 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
   const [localAvatar, setLocalAvatar] = useState(userProfile?.avatar || '😊');
   const [localAvatarType, setLocalAvatarType] = useState(userProfile?.avatarType || 'emoji');
   
-  const [selectedAvatarFrameId, setSelectedAvatarFrameId] = useState(userProfile?.equippedItems?.['avatar_frame'] || null);
-  const [selectedRoomBackgroundId, setSelectedRoomBackgroundId] = useState(userProfile?.equippedItems?.['room_background'] || null);
-  const [selectedAppThemeId, setSelectedAppThemeId] = useState(userProfile?.equippedItems?.['theme'] || 'theme_original');
+  const [selectedAvatarFrameId, setSelectedAvatarFrameId] = useState(userProfile?.activeAvatarFrameId || null);
+  const [selectedRoomBackgroundId, setSelectedRoomBackgroundId] = useState(userProfile?.activeRoomBackgroundId || null);
+  const [selectedAppThemeId, setSelectedAppThemeId] = useState(userProfile?.activeAppThemeId || 'theme_original');
 
   const [saved, setSaved] = useState(false);
 
@@ -37,9 +37,9 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
       setLocalName(userProfile.name);
       setLocalAvatar(userProfile.avatar);
       setLocalAvatarType(userProfile.avatarType);
-      setSelectedAvatarFrameId(userProfile.equippedItems?.['avatar_frame'] || null);
-      setSelectedRoomBackgroundId(userProfile.equippedItems?.['room_background'] || null);
-      setSelectedAppThemeId(userProfile.equippedItems?.['theme'] || 'theme_original');
+      setSelectedAvatarFrameId(userProfile.activeAvatarFrameId || null);
+      setSelectedRoomBackgroundId(userProfile.activeRoomBackgroundId || null);
+      setSelectedAppThemeId(userProfile.activeAppThemeId || 'theme_original');
     }
   }, [userProfile]);
 
@@ -53,12 +53,9 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
       name: localName, 
       avatar: localAvatar, 
       avatarType: localAvatarType,
-      equippedItems: {
-        ...userProfile?.equippedItems,
-        'avatar_frame': selectedAvatarFrameId,
-        'room_background': selectedRoomBackgroundId,
-        'theme': selectedAppThemeId
-      }
+      activeAvatarFrameId: selectedAvatarFrameId,
+      activeRoomBackgroundId: selectedRoomBackgroundId,
+      activeAppThemeId: selectedAppThemeId
     });
     
     setSaved(true);
@@ -134,7 +131,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
               <TabsTrigger value="themes">Temas</TabsTrigger>
             </TabsList>
             
-            <TabsContent value="avatar" className="flex-grow p-4 min-h-0">
+            <TabsContent value="avatar" className="flex-grow p-4 min-h-0 overflow-hidden">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-5 lg:grid-cols-7 gap-2">
                   {AVATAR_EMOJIS.map((emoji, index) => (
@@ -154,7 +151,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="frames" className="flex-grow p-4 min-h-0">
+            <TabsContent value="frames" className="flex-grow p-4 min-h-0 overflow-hidden">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                   {avatarFrames.map((item) => (
@@ -182,7 +179,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
               </ScrollArea>
             </TabsContent>
             
-            <TabsContent value="backgrounds" className="flex-grow p-4 min-h-0">
+            <TabsContent value="backgrounds" className="flex-grow p-4 min-h-0 overflow-hidden">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                   {roomBackgrounds.map((item) => (
@@ -210,7 +207,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="themes" className="flex-grow p-4 min-h-0">
+            <TabsContent value="themes" className="flex-grow p-4 min-h-0 overflow-hidden">
               <ScrollArea className="h-full pr-2">
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                   {appThemes.map((item) => (
