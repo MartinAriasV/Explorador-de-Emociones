@@ -17,10 +17,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 interface ProfileViewProps {
   userProfile: UserProfile | null;
   setUserProfile: (profile: Partial<Omit<UserProfile, 'id'>>) => void;
-  purchasedItems: ShopItem[];
 }
 
-export function ProfileView({ userProfile, setUserProfile, purchasedItems }: ProfileViewProps) {
+export function ProfileView({ userProfile, setUserProfile }: ProfileViewProps) {
   const { toast } = useToast();
   
   const [localName, setLocalName] = useState(userProfile?.name || '');
