@@ -28,7 +28,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useFirebase, useCollection, useMemoFirebase, useDoc, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, writeBatch, query, where, getDocs, setDoc, getDoc, updateDoc, deleteDoc, runTransaction, arrayUnion } from 'firebase/firestore';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { calculateDailyStreak, cn, normalizeDate } from '@/lib/utils';
+import { calculateDailyStreak, cn } from '@/lib/utils';
 import type { User } from 'firebase/auth';
 import { PetChatView } from './views/pet-chat-view';
 import useLocalStorage from '@/hooks/use-local-storage';
@@ -84,14 +84,6 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     return SHOP_ITEMS.filter(item => userProfile.purchasedItemIds.includes(item.id));
   }, [userProfile]);
 
-  const [theme, setTheme] = useLocalStorage<'dark' | 'light'>('theme', 'light');
-
-  useEffect(() => {
-    document.documentElement.classList.remove('light', 'dark');
-    document.documentElement.classList.add(theme);
-  }, [theme]);
-  
-
   const addInitialEmotions = useCallback(async (userId: string) => {
     if (!firestore) return;
     const emotionsCollectionRef = collection(firestore, 'users', userId, 'emotions');
@@ -116,7 +108,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     const docSnap = await getDoc(userDocRef);
 
     if (!docSnap.exists()) {
-      console.log("Creando nuevo perfil de usuario...");
+      console.log("No profile found for user, creating one...");
       const newProfile: UserProfile = {
         id: user.uid,
         name: user.displayName || user.email?.split('@')[0] || "Viajero Anónimo",
@@ -125,10 +117,13 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         avatarType: 'emoji',
         unlockedAnimalIds: ['loyal-dog'],
         points: 0,
-        currentStreak: 0,
-        entryCount: 0,
         purchasedItemIds: [],
+        equippedItems: {},
+        ascentHighScore: 0,
         activePetId: 'loyal-dog',
+        petAccessoryPositions: {},
+        petPosition: { x: 200, y: 150 },
+        activeRoomBackgroundId: null,
       };
       await setDoc(userDocRef, newProfile);
       await addInitialEmotions(user.uid);
@@ -183,14 +178,15 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
       const currentDiaryEntries = diarySnapshot.docs.map(d => d.data() as DiaryEntry);
       
       const emotionSnapshot = await getDocs(emotionsCollection);
-      const emotionCount = emotionSnapshot.size;
+      const currentEmotions = emotionSnapshot.docs.map(d => d.data() as Emotion);
 
       const previouslyUnlocked = new Set(freshProfile.unlockedAnimalIds || []);
       let newUnlockedIds = [...(freshProfile.unlockedAnimalIds || [])];
       let justUnlockedReward: Reward | null = null;
       
       const dailyStreak = calculateDailyStreak(currentDiaryEntries);
-      const entryCount = freshProfile.entryCount || 0;
+      const entryCount = currentDiaryEntries.length;
+      const emotionCount = currentEmotions.length;
 
       for (const reward of REWARDS) {
         if (previouslyUnlocked.has(reward.animal.id)) continue;
@@ -306,46 +302,41 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   };
   
 
-  const addDiaryEntry = async (entryData: Omit<DiaryEntry, 'id' | 'userId'>, trigger: 'addEntry' | 'recoverDay' = 'addEntry') => {
-    if (!user || !firestore) return;
-    try {
-      await runTransaction(firestore, async (transaction) => {
-        const userDocRef = doc(firestore, 'users', user.uid);
-        const newDiaryEntryRef = doc(collection(firestore, 'users', user.uid, 'diaryEntries'));
-        const userDoc = await transaction.get(userDocRef);
-        if (!userDoc.exists()) throw new Error("El perfil del usuario no existe.");
-        
-        const profileData = userDoc.data() as UserProfile;
-        
-        const newPoints = (profileData.points || 0) + 10;
-        
-        let newCurrentStreak = 1;
-        const newEntryDateNorm = normalizeDate(entryData.date);
-        if (profileData.lastEntryDate) {
-          const lastEntryDateNorm = normalizeDate(profileData.lastEntryDate);
-          const oneDay = 1000 * 60 * 60 * 24;
-          const diffDays = Math.round((newEntryDateNorm - lastEntryDateNorm) / oneDay);
-          if (diffDays === 1) {
-            newCurrentStreak = (profileData.currentStreak || 0) + 1;
-          } else if (diffDays === 0) {
-            newCurrentStreak = profileData.currentStreak || 1;
-          }
+    const addDiaryEntry = async (entryData: Omit<DiaryEntry, 'id' | 'userId'>, trigger: 'addEntry' | 'recoverDay' = 'addEntry') => {
+        if (!user || !firestore) return;
+
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                const userDocRef = doc(firestore, 'users', user.uid);
+                const newDiaryEntryRef = doc(collection(firestore, 'users', user.uid, 'diaryEntries'));
+
+                const userDoc = await transaction.get(userDocRef);
+                if (!userDoc.exists()) {
+                    throw "User profile does not exist!";
+                }
+
+                const profileData = userDoc.data() as UserProfile;
+                const newPoints = (profileData.points || 0) + 10;
+
+                transaction.set(newDiaryEntryRef, { ...entryData, userId: user.uid, id: newDiaryEntryRef.id });
+                transaction.update(userDocRef, { points: newPoints });
+            });
+            
+            toast({
+                title: "¡Entrada Guardada!",
+                description: `Has ganado 10 puntos. ¡Sigue así!`,
+            });
+            
+            await checkAndUnlockRewards(trigger);
+
+        } catch (error) {
+            console.error("Transaction failed: ", error);
+            toast({
+                variant: "destructive",
+                title: "Error al guardar",
+                description: "No se pudo guardar la entrada. Inténtalo de nuevo.",
+            });
         }
-        
-        transaction.set(newDiaryEntryRef, { ...entryData, userId: user.uid, id: newDiaryEntryRef.id });
-        transaction.update(userDocRef, { 
-          points: newPoints,
-          currentStreak: newCurrentStreak,
-          lastEntryDate: entryData.date,
-          entryCount: (profileData.entryCount || 0) + 1
-        });
-      });
-      toast({ title: "¡Entrada Guardada!", description: `Has ganado 10 puntos. ¡Sigue así!`});
-      await checkAndUnlockRewards(trigger);
-    } catch (error: any) {
-      console.error("Error en la transacción de la entrada del diario: ", error);
-      toast({ variant: "destructive", title: "Error al guardar", description: error.message || "No se pudo guardar la entrada."});
-    }
   };
   
   const handleQuizComplete = (success: boolean, date: Date | null) => {
@@ -421,7 +412,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     updateDocumentNonBlocking(userProfileRef, profile);
   };
 
-  const saveEmotion = async (emotionData: Omit<Emotion, 'id' | 'userId'> & { id?: string }) => {
+    const saveEmotion = async (emotionData: Omit<Emotion, 'id' | 'userId'> & { id?: string }) => {
     if (!user) return;
     
     if (emotionsList && emotionsList.some(e => e.name.toLowerCase() === emotionData.name.toLowerCase() && e.id !== emotionData.id)) {
@@ -449,6 +440,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     } else {
       const newDocRef = doc(emotionsCollection);
       const finalData = {...dataToSave, id: newDocRef.id};
+      // Use setDoc for new emotions
       await setDoc(newDocRef, finalData);
       toast({ title: "Emoción Añadida", description: `"${finalData.name}" ha sido añadida a tu emocionario.` });
     }
@@ -458,7 +450,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     }
   };
 
-  const deleteEmotion = async (emotionId: string) => {
+    const deleteEmotion = async (emotionId: string) => {
     if (!user) return;
   
     const batch = writeBatch(firestore);
@@ -652,11 +644,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
             case 'sanctuary':
               return <SanctuaryView 
                         userProfile={userProfile} 
-                        setUserProfile={setUserProfile} 
                         onSelectPet={handleSelectPet}
                       />;
-             case 'collection':
-                return <CollectionView userProfile={userProfile!} onSelectPet={handleSelectPet} setView={setView} />
             case 'pet-chat':
               return <PetChatView 
                         pet={activePet} 
@@ -665,6 +654,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
                         diaryEntries={diaryEntries || []}
                         emotionsList={emotionsList || []}
                         userProfile={userProfile}
+                        purchasedItems={purchasedItems}
                      />;
             case 'shop':
                 return <ShopView 
@@ -676,7 +666,9 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
             case 'share':
               return <ShareView diaryEntries={diaryEntries || []} emotionsList={emotionsList || []} userProfile={userProfile!} onShare={handleShare} />;
             case 'profile':
-              return <ProfileView {...commonProps} setUserProfile={setUserProfile} />;
+              return <ProfileView {...commonProps} setUserProfile={setUserProfile} purchasedItems={purchasedItems} />;
+            case 'collection':
+              return <CollectionView {...commonProps} onSelectPet={handleSelectPet} setView={setView} />;
             default:
               return <DiaryView 
                         emotionsList={emotionsList || []} 
@@ -704,13 +696,13 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
   return (
     <SidebarProvider>
       <div className="flex h-screen w-screen bg-background">
-        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} theme={theme} setTheme={setTheme}/>
+        <AppSidebar view={view} setView={setView} userProfile={userProfile} diaryEntries={diaryEntries || []} refs={tourRefs} />
         <SidebarInset>
           <header className="p-2 md:hidden flex items-center border-b">
              <MobileMenuButton />
              <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
           </header>
-          <div className="flex-1 overflow-y-auto p-4 md:p-6">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 h-full">
             {renderView()}
           </div>
         </SidebarInset>

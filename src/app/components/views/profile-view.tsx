@@ -92,14 +92,14 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
   if (!userProfile) return <p>Cargando perfil...</p>;
 
   return (
-    <div className="w-full h-full flex flex-col gap-6">
+    <div className="flex flex-col gap-6 h-full">
       <CardHeader className="p-0 flex-shrink-0">
         <CardTitle className="text-3xl font-bold text-primary">Mi Perfil</CardTitle>
         <CardDescription>Personaliza tu apariencia y equipa los artículos que has comprado en la tienda.</CardDescription>
       </CardHeader>
       
-      <div className="flex flex-col md:flex-row gap-6 flex-grow min-h-0">
-        <div className="md:w-1/3 flex flex-col gap-6">
+      <div className="grid md:grid-cols-3 gap-6 flex-grow min-h-0">
+        <div className="md:col-span-1 flex flex-col gap-6">
           <Card className="flex-grow flex flex-col items-center justify-center p-6 text-center shadow-lg">
               <div className={cn("relative transition-all", frameClass)}>
                   <Avatar className="h-40 w-40 text-7xl">
@@ -123,7 +123,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
           </Button>
         </div>
 
-        <Card className="md:w-2/3 shadow-lg flex flex-col min-h-0">
+        <Card className="md:col-span-2 shadow-lg flex flex-col overflow-hidden">
           <Tabs defaultValue="avatar" className="w-full flex flex-col flex-grow">
             <TabsList className="grid w-full grid-cols-4 h-auto p-1 mx-4 mt-4 flex-shrink-0">
               <TabsTrigger value="avatar">Avatar</TabsTrigger>
