@@ -123,7 +123,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
           </Button>
         </div>
 
-        <Card className="md:w-2/3 shadow-lg flex flex-col flex-grow min-h-0">
+        <Card className="md:w-2/3 shadow-lg flex flex-col flex-grow min-h-0 overflow-hidden">
           <Tabs defaultValue="avatar" className="w-full flex flex-col flex-grow">
             <TabsList className="grid w-full grid-cols-4 h-auto p-1 mx-4 mt-4 flex-shrink-0">
               <TabsTrigger value="avatar">Avatar</TabsTrigger>
@@ -241,5 +241,3 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
     </div>
   );
 }
-
-    
