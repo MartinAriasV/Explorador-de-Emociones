@@ -98,7 +98,7 @@ export function ProfileView({ userProfile, setUserProfile, purchasedItems }: Pro
         <CardDescription>Personaliza tu apariencia y equipa los artículos que has comprado en la tienda.</CardDescription>
       </CardHeader>
       
-      <div className="flex flex-col md:grid md:grid-cols-3 gap-6 flex-grow min-h-0">
+      <div className="grid md:grid-cols-3 gap-6 flex-grow min-h-0">
         <div className="md:col-span-1 flex flex-col gap-6">
           <Card className="flex-grow flex flex-col items-center justify-center p-6 text-center shadow-lg">
               <div className={cn("relative transition-all", frameClass)}>
