@@ -710,7 +710,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
              <MobileMenuButton />
              <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
           </header>
-          <div className="flex-1 p-4 md:p-6 min-h-0 overflow-y-auto">
+          <div className="flex-1 flex flex-col p-4 md:p-6 min-h-0 overflow-y-auto">
             {renderView()}
           </div>
         </SidebarInset>
@@ -794,5 +794,3 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
     </SidebarProvider>
   );
 }
-
-    
