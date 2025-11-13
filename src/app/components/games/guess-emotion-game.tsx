@@ -7,20 +7,17 @@ import { QUIZ_QUESTIONS, PREDEFINED_EMOTIONS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { CheckCircle, XCircle, Zap } from 'lucide-react';
+import { CheckCircle, XCircle, Zap, Check, X } from 'lucide-react';
 
 const shuffleArray = <T,>(array: T[]): T[] => {
   let currentIndex = array.length;
   let randomIndex;
   const newArray = [...array];
 
-  // While there remain elements to shuffle.
   while (currentIndex !== 0) {
-    // Pick a remaining element.
     randomIndex = Math.floor(Math.random() * currentIndex);
     currentIndex--;
 
-    // And swap it with the current element.
     [newArray[currentIndex], newArray[randomIndex]] = [
       newArray[randomIndex],
       newArray[currentIndex],
@@ -38,7 +35,8 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
   const [options, setOptions] = useState<Emotion[]>([]);
   const [selectedAnswer, setSelectedAnswer] = useState<Emotion | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
-  const [score, setScore] = useState(0);
+  const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [incorrectAnswers, setIncorrectAnswers] = useState(0);
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
   const [difficultyIndex, setDifficultyIndex] = useState(0);
   const [questionHistory, setQuestionHistory] = useState<string[]>([]);
@@ -46,49 +44,42 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
 
   const allUserEmotions = useMemo(() => {
     const emotionMap = new Map<string, Emotion>();
-    PREDEFINED_EMOTIONS.forEach(p => emotionMap.set(p.name.toLowerCase(), { ...p, id: p.name, userProfileId: 'system', isCustom: false } as Emotion));
+    PREDEFINED_EMOTIONS.forEach(p => emotionMap.set(p.name.toLowerCase(), { ...p, id: p.name, userId: 'system', isCustom: false } as Emotion));
     emotionsList.forEach(e => emotionMap.set(e.name.toLowerCase(), e));
     return Array.from(emotionMap.values());
   }, [emotionsList]);
   
   const allPredefinedEmotions = useMemo(() => {
-      return PREDEFINED_EMOTIONS.map(p => ({ ...p, id: p.name, userProfileId: 'system', isCustom: false } as Emotion));
+      return PREDEFINED_EMOTIONS.map(p => ({ ...p, id: p.name, userId: 'system', isCustom: false } as Emotion));
   }, []);
-
 
   const generateQuestion = useCallback(() => {
     const currentDifficulty = difficulties[difficultyIndex];
     
-    // Attempt to find a unique question of the current difficulty
-    let possibleQuestions = QUIZ_QUESTIONS.filter(q => {
-        const difficultyMatch = q.difficulty === currentDifficulty;
-        const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
-        const notInHistory = !questionHistory.includes(q.question);
-        return difficultyMatch && answerExists && notInHistory;
-    });
+    let possibleQuestions = QUIZ_QUESTIONS.filter(q => 
+        q.difficulty === currentDifficulty &&
+        !questionHistory.includes(q.question) &&
+        allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase())
+    );
 
-    // If no unique questions of current difficulty, try any difficulty
     if (possibleQuestions.length === 0) {
-        possibleQuestions = QUIZ_QUESTIONS.filter(q => {
-             const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
-             const notInHistory = !questionHistory.includes(q.question);
-             return answerExists && notInHistory;
-        });
-    }
-
-    // If ALL questions have been asked, reset history and start over
-    if (possibleQuestions.length === 0) {
-        setQuestionHistory([]); // Reset history
         possibleQuestions = QUIZ_QUESTIONS.filter(q => 
+            !questionHistory.includes(q.question) &&
             allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase())
         );
     }
     
     if (possibleQuestions.length === 0) {
-        // This should now be extremely unlikely
+        setQuestionHistory([]);
+        possibleQuestions = QUIZ_QUESTIONS.filter(q =>
+            allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase())
+        );
+    }
+
+    if (possibleQuestions.length === 0) {
         console.error("No valid quiz questions could be generated even after fallback.");
         setCurrentQuestion(null);
-        setIsPlaying(false); // Stop the game if there's a critical error
+        setIsPlaying(false);
         return;
     }
 
@@ -96,8 +87,6 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     const correctEmotion = allPredefinedEmotions.find(e => e.name.toLowerCase() === randomQuestion.correctAnswer.toLowerCase());
 
     if (!correctEmotion) {
-        console.error(`Could not find correct emotion "${randomQuestion.correctAnswer}" in predefined list.`);
-        // Try to generate a different question to avoid recursion loop
         generateQuestion();
         return;
     }
@@ -112,8 +101,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
 
     setQuestionHistory(prev => [...prev, randomQuestion.question]);
 
-  }, [difficultyIndex, allUserEmotions, allPredefinedEmotions, questionHistory]);
-
+  }, [difficultyIndex, allUserEmotions, allPredefinedEmotions, questionHistory, generateQuestion]);
 
   useEffect(() => {
     if (isPlaying && questionsAnswered < QUESTIONS_PER_GAME) {
@@ -129,9 +117,10 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     setIsAnswered(true);
 
     if (answer.name.toLowerCase() === currentQuestion?.correctAnswer.toLowerCase()) {
-      setScore(prev => prev + 1);
+      setCorrectAnswers(prev => prev + 1);
       setDifficultyIndex(prev => Math.min(prev + 1, difficulties.length - 1));
     } else {
+      setIncorrectAnswers(prev => prev + 1);
       setDifficultyIndex(prev => Math.max(prev - 1, 0));
     }
   };
@@ -141,7 +130,8 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
   };
 
   const startGame = () => {
-    setScore(0);
+    setCorrectAnswers(0);
+    setIncorrectAnswers(0);
     setQuestionsAnswered(0);
     setDifficultyIndex(0);
     setQuestionHistory([]);
@@ -166,10 +156,17 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
             <h2 className="text-2xl font-bold text-primary">Adivina la Emoción</h2>
             <p className="text-muted-foreground my-4 max-w-md">Lee la situación y elige la emoción que mejor la describe. ¡Demuestra tu inteligencia emocional!</p>
             {questionsAnswered >= QUESTIONS_PER_GAME && (
-                <>
-                    <p className="text-lg my-2">¡Partida terminada!</p>
-                    <p className="text-5xl font-bold mb-6">{score} / {QUESTIONS_PER_GAME}</p>
-                </>
+                <div className="my-4">
+                    <p className="text-lg font-semibold">¡Partida terminada!</p>
+                    <div className="flex justify-center items-center gap-6 mt-2">
+                        <div className="flex items-center gap-2 text-2xl font-bold text-green-600">
+                            <Check className="h-7 w-7"/> {correctAnswers}
+                        </div>
+                        <div className="flex items-center gap-2 text-2xl font-bold text-destructive">
+                            <X className="h-7 w-7"/> {incorrectAnswers}
+                        </div>
+                    </div>
+                </div>
             )}
             <Button onClick={startGame} size="lg">
                 <Zap className="mr-2" />
@@ -181,7 +178,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
   
   if (questionsAnswered >= QUESTIONS_PER_GAME) {
     setIsPlaying(false);
-    return null; // Will be re-rendered into the start screen
+    return null;
   }
   
   if (!currentQuestion) {
@@ -196,7 +193,14 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     <div className="flex flex-col items-center justify-center h-full gap-6">
       <div className="text-center w-full max-w-2xl">
         <div className="flex justify-between items-center">
-            <p className="text-sm font-semibold text-primary">Puntuación: {score} / {questionsAnswered}</p>
+            <div className="flex items-center gap-4">
+                <div className="flex items-center gap-1.5 font-bold text-green-600">
+                    <Check className="h-5 w-5"/> {correctAnswers}
+                </div>
+                <div className="flex items-center gap-1.5 font-bold text-destructive">
+                    <X className="h-5 w-5"/> {incorrectAnswers}
+                </div>
+            </div>
             <p className="text-sm font-semibold text-accent">Dificultad: {currentQuestion.difficulty}</p>
         </div>
         <p className="text-lg mt-4">¿Qué emoción describe mejor esta situación?</p>
