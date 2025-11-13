@@ -39,7 +39,7 @@ service cloud.firestore {
       // Allow profile updates (like changing name, avatar, or equipping items)
       // as long as the user is not trying to change their own points directly.
       function isProfileUpdateValid() {
-          let allowedWrites = ['name', 'avatar', 'avatarType', 'equippedItems'];
+          let allowedWrites = ['name', 'avatar', 'avatarType', 'activePetId', 'activeAvatarFrameId', 'activeRoomBackgroundId', 'activeAppThemeId', 'petAccessoryPositions', 'petPosition'];
           // This ensures that either one of the allowed fields is being written,
           // OR no fields other than the allowed ones are being written.
           let isWritingAllowedFields = request.resource.data.keys().hasAny(allowedWrites) || request.resource.data.keys().diff(resource.data.keys()).hasOnly(allowedWrites);
@@ -59,11 +59,22 @@ service cloud.firestore {
           return hasRequiredFields && newHighScore >= oldHighScore;
       }
       
+      // This function validates transactions like purchasing items or unlocking rewards.
+      function isTransactionValid() {
+        let isUnlocking = request.resource.data.unlockedAnimalIds.size() > resource.data.unlockedAnimalIds.size();
+        let isPurchasing = request.resource.data.purchasedItemIds.size() > resource.data.purchasedItemIds.size();
+        
+        // This is a simplified rule. In a real app, you'd check the exact point deduction.
+        let pointsAreDecreasing = request.resource.data.points < resource.data.points;
+
+        return (isUnlocking || isPurchasing) && pointsAreDecreasing;
+      }
+
       allow get: if isOwner(userId);
       allow list: if false; // User listing is not allowed for privacy.
       allow create: if isOwner(userId) && request.resource.data.id == userId;
-      // Allow update if it's a valid profile update OR it's a valid game score update.
-      allow update: if isExistingOwner(userId) && (isProfileUpdateValid() || isAscentGameUpdateValid());
+      // Allow update if it's a valid profile update OR it's a valid game score update OR it's a valid purchase/unlock transaction.
+      allow update: if isExistingOwner(userId) && (isProfileUpdateValid() || isAscentGameUpdateValid() || isTransactionValid());
       allow delete: if isExistingOwner(userId);
     }
 

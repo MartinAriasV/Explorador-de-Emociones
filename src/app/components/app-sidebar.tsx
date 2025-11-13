@@ -27,7 +27,7 @@ const navItems = [
   { id: 'discover', icon: Sparkles, text: 'Descubrir', refKey: 'discoverRef' },
   { id: 'games', icon: Gamepad2, text: 'Juegos', refKey: 'gamesRef' },
   { id: 'streak', icon: Flame, text: 'Racha', refKey: 'streakRef' },
-  { id: 'collection', icon: Shield, text: 'Colección', refKey: 'collectionRef' },
+  { id: 'collection', icon: Shield, text: 'Mi Colección', refKey: 'collectionRef' },
   { id: 'sanctuary', icon: PawPrint, text: 'Mi Habitación', refKey: 'sanctuaryRef' },
   { id: 'pet-chat', icon: MessageCircle, text: 'Compañero IA', refKey: 'petChatRef' },
   { id: 'shop', icon: Store, text: 'Tienda', refKey: 'shopRef' },

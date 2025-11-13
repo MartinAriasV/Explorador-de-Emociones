@@ -128,7 +128,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         purchasedItemIds: [],
         activePetId: 'loyal-dog',
         activeAppThemeId: 'theme_original',
-        itemPositions: [],
+        petAccessoryPositions: {},
+        petPosition: { x: 200, y: 150 },
         activeAvatarFrameId: null,
         activeRoomBackgroundId: null,
         currentStreak: 0,
@@ -637,8 +638,8 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
         return <DiscoverView onAddPredefinedEmotion={saveEmotion} />;
       case 'games':
           return <GamesView 
-                    {...commonProps}
-                    emotionsList={emotionsList || []}
+                    emotionsList={emotionsList || []} 
+                    userProfile={userProfile!} 
                     addPoints={addPoints} 
                     user={user} 
                     onAscentGameEnd={handleAscentGameEnd}
@@ -704,7 +705,7 @@ export default function EmotionExplorer({ user }: EmotionExplorerProps) {
              <MobileMenuButton />
              <h1 className="text-lg font-bold text-primary ml-2">Diario de Emociones</h1>
           </header>
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6">
             {renderView()}
           </div>
         </SidebarInset>

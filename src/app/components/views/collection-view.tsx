@@ -1,7 +1,4 @@
-//
-// 📍 ARCHIVO: src/app/components/views/collection-view.tsx
-// (Crea este nuevo archivo y pégale este código)
-//
+
 "use client";
 
 import React from 'react';
@@ -12,7 +9,8 @@ import type { SpiritAnimal, UserProfile, View } from '@/lib/types';
 import { SPIRIT_ANIMALS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { MessageCircle, Lock } from 'lucide-react';
+import { MessageCircle, Lock, Star } from 'lucide-react';
+import { Player } from '@lottiefiles/react-lottie-player';
 
 interface CollectionViewProps {
   userProfile: UserProfile;
@@ -20,7 +18,6 @@ interface CollectionViewProps {
   setView: (view: View) => void;
 }
 
-// (Puedes copiar estos estilos de rarity de emotion-explorer.tsx si quieres)
 const rarityTextStyles: { [key: string]: string } = {
   'Común': 'text-gray-500 dark:text-gray-400',
   'Poco Común': 'text-green-600 dark:text-green-400',
@@ -42,28 +39,39 @@ function AnimalCard({ animal, isUnlocked, isActive, onSelectPet }: { animal: Spi
       <DialogTrigger asChild>
         <Card
           className={cn(
-            "flex flex-col items-center justify-center p-6 aspect-square transition-all duration-300 border-4 cursor-pointer",
+            "flex flex-col items-center justify-center p-6 aspect-square transition-all duration-300 border-4 cursor-pointer relative",
             isUnlocked 
               ? cn('shadow-lg hover:shadow-2xl hover:scale-105', rarityBorderStyles[animal.rarity]) 
               : 'bg-muted/50 border-dashed border-muted-foreground/30',
             isActive && 'ring-4 ring-primary ring-offset-2'
           )}
         >
+           {isActive && (
+            <div className="absolute top-2 right-2 bg-primary text-primary-foreground px-2 py-1 text-xs font-bold rounded-full flex items-center gap-1 z-10">
+                <Star className="h-3 w-3" />
+                Activo
+            </div>
+          )}
           <div className="flex-grow flex flex-col items-center justify-center text-center gap-2">
             {isUnlocked ? (
               <>
-                <span className="text-7xl drop-shadow-lg">{animal.icon}</span>
+                <Player
+                    src={animal.lottieUrl}
+                    autoplay
+                    loop
+                    style={{ width: '100px', height: '100px' }}
+                />
                 <h3 className="text-xl font-bold text-foreground">{animal.name}</h3>
               </>
             ) : (
               <>
-                <span className="text-7xl grayscale opacity-40"><Lock /></span>
+                <Lock className="w-16 h-16 text-muted-foreground/50"/>
                 <h3 className="text-xl font-bold text-muted-foreground">Bloqueado</h3>
               </>
             )}
           </div>
           <p className={cn(
-            "font-semibold text-sm",
+            "font-semibold text-sm uppercase tracking-wider",
             isUnlocked ? rarityTextStyles[animal.rarity] : 'text-muted-foreground'
           )}>
             {animal.rarity}
@@ -72,18 +80,21 @@ function AnimalCard({ animal, isUnlocked, isActive, onSelectPet }: { animal: Spi
       </DialogTrigger>
       <DialogContent>
         <DialogHeader className="items-center text-center">
-          <span className={cn("text-7xl mb-4", !isUnlocked && "grayscale opacity-50")}>{animal.icon}</span>
+          {isUnlocked ? (
+            <Player src={animal.lottieUrl} autoplay loop style={{width: '120px', height: '120px'}} />
+          ) : (
+            <Lock className="w-20 h-20 text-muted-foreground/30 mb-4" />
+          )}
           <DialogTitle className={cn("text-3xl font-bold", isUnlocked ? rarityTextStyles[animal.rarity] : "text-muted-foreground")}>
             {animal.name}
           </DialogTitle>
           <DialogDescription asChild>
             <div className="pt-2 space-y-4">
-              {isUnlocked ? (
-                <>
-                  <div className="space-y-1">
-                    <span className="block font-bold text-lg text-primary">{animal.emotion}</span>
-                    <span className="block text-sm text-muted-foreground mt-1">{animal.description}</span>
-                  </div>
+              <div className="space-y-1">
+                <span className="block font-bold text-lg text-primary">{isUnlocked ? animal.emotion : '¿Cómo desbloquear?'}</span>
+                <span className="block text-sm text-muted-foreground mt-1">{isUnlocked ? animal.description : animal.unlockHint}</span>
+              </div>
+              {isUnlocked && (
                   <Button onClick={() => onSelectPet(animal)} className="w-full text-lg py-6" disabled={isActive}>
                     {isActive ? "¡Ya es tu compañero!" : (
                       <>
@@ -92,12 +103,6 @@ function AnimalCard({ animal, isUnlocked, isActive, onSelectPet }: { animal: Spi
                       </>
                     )}
                   </Button>
-                </>
-              ) : (
-                <div className="space-y-1">
-                  <span className="block font-bold text-lg text-primary">¿Cómo desbloquear?</span>
-                  <span className="block text-sm text-muted-foreground mt-1">{animal.unlockHint}</span>
-                </div>
               )}
             </div>
           </DialogDescription>

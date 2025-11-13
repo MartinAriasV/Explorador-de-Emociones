@@ -15,24 +15,8 @@ import {
   ChatWithPetOutputSchema,
 } from './chat-with-pet-types';
 
-import { initializeApp, getApps, App } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import { FirestorePermissionError } from '@/firebase/errors';
-
-
-let app: App;
-if (!getApps().length) {
-    app = initializeApp();
-} else {
-    app = getApps()[0];
-}
-
-const db = getFirestore(app);
-
-
 export async function chatWithPet(input: ChatWithPetInput): Promise<ChatWithPetOutput> {
-  // We only need message and petName from the input for the flow.
-  // The context will be fetched inside the flow. The userId is used for fetching.
+  // We pass the full client-generated input to the flow now.
   const {response} = await chatWithPetFlow(input);
   return {response};
 }
@@ -45,38 +29,12 @@ const chatWithPetFlow = ai.defineFlow(
   },
   async ({message, petName, recentFeelingsContext, history, userId}) => {
     
-    const diaryEntriesRef = db.collection('users').doc(userId).collection('diaryEntries');
-    let contextString = '';
-
-    try {
-        const snapshot = await diaryEntriesRef.orderBy('date', 'desc').limit(3).get();
-        if (!snapshot.empty) {
-            const entries = snapshot.docs.map(doc => doc.data());
-            contextString = "Contexto de sentimientos recientes: " + entries.map((entry, index) => {
-                // We don't have direct access to the emotion name here without another lookup,
-                // so we'll just use the text. The model can infer the emotion.
-                return `${index + 1}. Pensamiento: "${entry.text}"`;
-            }).join(' ');
-        } else {
-            contextString = "El usuario aún no ha escrito en su diario.";
-        }
-    } catch (error: any) {
-        // If we catch a permissions error, re-throw it as a structured error for better debugging.
-        if (error.code === 'permission-denied') {
-            throw new FirestorePermissionError({
-                path: diaryEntriesRef.path,
-                operation: 'list',
-            });
-        }
-        // For other errors, just log them and continue. The AI can still respond without context.
-        console.error("Error fetching diary entries for RAG context:", error);
-        contextString = "No se pudo cargar el contexto del diario.";
-    }
-
+    // The context is now passed directly from the client, removing the need for firebase-admin.
+    const contextString = recentFeelingsContext || "El usuario aún no ha escrito en su diario o no se pudo cargar el contexto.";
 
     const {output} = await ai.generate({
       model: 'googleai/gemini-2.5-flash',
-      system: `Eres '${petName}' 🐶, un compañero IA amigable, paciente y leal para un niño de 10 años. Tu propósito es ser un amigo que escucha, valida emociones y ofrece ánimo.
+      system: `Eres '${petName}', un compañero IA amigable, paciente y leal para un niño de 10 años. Tu propósito es ser un amigo que escucha, valida emociones y ofrece ánimo.
 
 Contexto del Usuario (te lo daré en cada mensaje): ${contextString}
 

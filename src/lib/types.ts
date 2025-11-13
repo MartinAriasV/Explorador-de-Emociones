@@ -1,3 +1,4 @@
+
 //
 // 📍 ARCHIVO: src/lib/types.ts
 //
@@ -26,7 +27,7 @@ export type ItemPosition = {
   y: number;
 };
 
-export type ShopItemType = 'theme' | 'avatar_frame' | 'room_background' | 'room_furniture' | 'pet_toy' | 'pet_food';
+export type ShopItemType = 'theme' | 'avatar_frame' | 'room_background' | 'pet_accessory';
 
 export type ShopItem = {
   id: string;
@@ -62,19 +63,21 @@ export type UserProfile = {
   // --- ¡CAMPOS DE GAMIFICACIÓN AÑADIDOS! ---
   unlockedAnimalIds: string[]; // Logros (ej. 'colibri-agil')
   points: number; // Moneda de la app
-  currentStreak: number;
-  lastEntryDate?: string; // ISO String
-  entryCount?: number;
   purchasedItemIds: string[]; // Ítems de la tienda (ej. 'bg_jardin')
   
   // --- Campos de Personalización Activos ---
   activePetId: string | null; // ID de la mascota activa (ej. 'perro-leal')
-  activeAvatarFrameId?: string | null;
-  activeRoomBackgroundId?: string | null;
-  activeAppThemeId?: string;
+  activeAvatarFrameId: string | null;
+  activeRoomBackgroundId: string | null;
+  activeAppThemeId: string;
   
   // --- Posiciones de los Muebles ---
-  itemPositions?: ItemPosition[];
+  petAccessoryPositions: { [itemId: string]: { x: number; y: number } };
+  petPosition: { x: number; y: number };
+
+  // --- Progreso de Juegos y Rachas ---
+  ascentHighScore: number;
+  currentStreak: number;
 };
 
 // --- VISTAS AÑADIDAS ---
@@ -124,7 +127,4 @@ export interface QuizQuestion {
 export interface GameProps {
   emotionsList: Emotion[];
   userProfile: UserProfile;
-  addPoints: (amount: number) => Promise<void>;
-  user: User;
-  onAscentGameEnd: (score: number) => Promise<void>;
 }
