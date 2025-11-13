@@ -59,6 +59,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
   const generateQuestion = useCallback(() => {
     const currentDifficulty = difficulties[difficultyIndex];
     
+    // Attempt to find a unique question of the current difficulty
     let possibleQuestions = QUIZ_QUESTIONS.filter(q => {
         const difficultyMatch = q.difficulty === currentDifficulty;
         const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
@@ -66,18 +67,28 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
         return difficultyMatch && answerExists && notInHistory;
     });
 
+    // If no unique questions of current difficulty are found, reset history and try again
     if (possibleQuestions.length === 0) {
+        setQuestionHistory([]);
         possibleQuestions = QUIZ_QUESTIONS.filter(q => {
              const difficultyMatch = q.difficulty === currentDifficulty;
              const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
              return difficultyMatch && answerExists;
         });
-        setQuestionHistory([]); // Reset history if we ran out of unique questions
+    }
+    
+    // If still no questions, widen the search to all difficulties (fallback)
+    if (possibleQuestions.length === 0) {
+        possibleQuestions = QUIZ_QUESTIONS.filter(q => 
+            allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase())
+        );
     }
     
     if (possibleQuestions.length === 0) {
-        console.error("No valid quiz questions could be generated.");
+        // This should now be extremely unlikely
+        console.error("No valid quiz questions could be generated even after fallback.");
         setCurrentQuestion(null);
+        setIsPlaying(false); // Stop the game if there's a critical error
         return;
     }
 
@@ -86,6 +97,8 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
 
     if (!correctEmotion) {
         console.error(`Could not find correct emotion "${randomQuestion.correctAnswer}" in predefined list.`);
+        // Try to generate a different question to avoid recursion loop
+        setQuestionHistory(prev => [...prev, randomQuestion.question]);
         generateQuestion();
         return;
     }
