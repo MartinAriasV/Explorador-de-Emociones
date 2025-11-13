@@ -67,18 +67,18 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
         return difficultyMatch && answerExists && notInHistory;
     });
 
-    // If no unique questions of current difficulty are found, reset history and try again
+    // If no unique questions of current difficulty, try any difficulty
     if (possibleQuestions.length === 0) {
-        setQuestionHistory([]);
         possibleQuestions = QUIZ_QUESTIONS.filter(q => {
-             const difficultyMatch = q.difficulty === currentDifficulty;
              const answerExists = allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase());
-             return difficultyMatch && answerExists;
+             const notInHistory = !questionHistory.includes(q.question);
+             return answerExists && notInHistory;
         });
     }
-    
-    // If still no questions, widen the search to all difficulties (fallback)
+
+    // If ALL questions have been asked, reset history and start over
     if (possibleQuestions.length === 0) {
+        setQuestionHistory([]); // Reset history
         possibleQuestions = QUIZ_QUESTIONS.filter(q => 
             allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase())
         );
@@ -98,7 +98,6 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     if (!correctEmotion) {
         console.error(`Could not find correct emotion "${randomQuestion.correctAnswer}" in predefined list.`);
         // Try to generate a different question to avoid recursion loop
-        setQuestionHistory(prev => [...prev, randomQuestion.question]);
         generateQuestion();
         return;
     }
