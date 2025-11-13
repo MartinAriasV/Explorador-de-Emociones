@@ -57,31 +57,31 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     const currentDifficulty = difficulties[difficultyIndex];
     let localQuestionHistory = [...questionHistory];
 
-    // 1. Try to find a unique question of the current difficulty
-    let possibleQuestions = QUIZ_QUESTIONS.filter(q => 
-        q.difficulty === currentDifficulty &&
-        !localQuestionHistory.includes(q.question) &&
+    // Get all questions that can be generated (the correct answer emotion exists)
+    const allPossibleQuestions = QUIZ_QUESTIONS.filter(q => 
         allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase())
+    );
+
+    // 1. Try to find a unique question of the current difficulty
+    let possibleQuestions = allPossibleQuestions.filter(q => 
+        q.difficulty === currentDifficulty &&
+        !localQuestionHistory.includes(q.question)
     );
 
     // 2. If no unique questions of current difficulty, search all difficulties for a unique question
     if (possibleQuestions.length === 0) {
-        possibleQuestions = QUIZ_QUESTIONS.filter(q => 
-            !localQuestionHistory.includes(q.question) &&
-            allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase())
+        possibleQuestions = allPossibleQuestions.filter(q => 
+            !localQuestionHistory.includes(q.question)
         );
     }
     
     // 3. If still no unique questions, reset history and search again
     if (possibleQuestions.length === 0) {
-        localQuestionHistory = []; // Reset history
-        setQuestionHistory([]); // Update state for next render
-        possibleQuestions = QUIZ_QUESTIONS.filter(q =>
-            q.difficulty === currentDifficulty &&
-            allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase())
-        );
-         if (possibleQuestions.length === 0) {
-            possibleQuestions = QUIZ_QUESTIONS.filter(q => allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase()));
+        localQuestionHistory = [];
+        setQuestionHistory([]); // Update state for next render cycle
+        possibleQuestions = allPossibleQuestions.filter(q => q.difficulty === currentDifficulty);
+        if (possibleQuestions.length === 0) {
+            possibleQuestions = allPossibleQuestions;
         }
     }
 
@@ -97,8 +97,10 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
 
     if (!correctEmotion) {
         // This case should ideally not happen with the checks above, but as a safeguard:
-        generateQuestion();
-        return;
+        console.error("Could not find the correct emotion for the question. Trying again.");
+        // We call the logic again inside here instead of a recursive call.
+        setQuestionHistory(prev => [...prev, randomQuestion.question]); // mark as used to avoid infinite loop
+        return; // This will trigger the useEffect again
     }
 
     const incorrectOptions = shuffleArray(allUserEmotions.filter(e => e.name.toLowerCase() !== correctEmotion.name.toLowerCase())).slice(0, 3);
