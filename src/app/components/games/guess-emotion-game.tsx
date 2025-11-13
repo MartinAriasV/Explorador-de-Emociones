@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
@@ -7,30 +6,16 @@ import { QUIZ_QUESTIONS, PREDEFINED_EMOTIONS } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { CheckCircle, XCircle, Zap, Check, X } from 'lucide-react';
+import { Check, X, Zap } from 'lucide-react';
 
 const shuffleArray = <T,>(array: T[]): T[] => {
-  let currentIndex = array.length;
-  let randomIndex;
-  const newArray = [...array];
-
-  while (currentIndex !== 0) {
-    randomIndex = Math.floor(Math.random() * currentIndex);
-    currentIndex--;
-
-    [newArray[currentIndex], newArray[randomIndex]] = [
-      newArray[randomIndex],
-      newArray[currentIndex],
-    ];
-  }
-
-  return newArray;
+  return [...array].sort(() => Math.random() - 0.5);
 };
 
-const difficulties: QuizQuestion['difficulty'][] = ['Fácil', 'Medio', 'Difícil', 'Experto'];
 const QUESTIONS_PER_GAME = 10;
 
 export function GuessEmotionGame({ emotionsList }: GameProps) {
+  const [gameQuestions, setGameQuestions] = useState<QuizQuestion[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<QuizQuestion | null>(null);
   const [options, setOptions] = useState<Emotion[]>([]);
   const [selectedAnswer, setSelectedAnswer] = useState<Emotion | null>(null);
@@ -38,8 +23,6 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [incorrectAnswers, setIncorrectAnswers] = useState(0);
   const [questionsAnswered, setQuestionsAnswered] = useState(0);
-  const [difficultyIndex, setDifficultyIndex] = useState(0);
-  const [questionHistory, setQuestionHistory] = useState<string[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
 
   const allUserEmotions = useMemo(() => {
@@ -53,74 +36,40 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
       return PREDEFINED_EMOTIONS.map(p => ({ ...p, id: p.name, userId: 'system', isCustom: false } as Emotion));
   }, []);
 
-  const generateQuestion = useCallback(() => {
-    const currentDifficulty = difficulties[difficultyIndex];
-    let localQuestionHistory = [...questionHistory];
-
-    // Get all questions that can be generated (the correct answer emotion exists)
+  const startGame = useCallback(() => {
     const allPossibleQuestions = QUIZ_QUESTIONS.filter(q => 
         allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase())
     );
 
-    // 1. Try to find a unique question of the current difficulty
-    let possibleQuestions = allPossibleQuestions.filter(q => 
-        q.difficulty === currentDifficulty &&
-        !localQuestionHistory.includes(q.question)
-    );
-
-    // 2. If no unique questions of current difficulty, search all difficulties for a unique question
-    if (possibleQuestions.length === 0) {
-        possibleQuestions = allPossibleQuestions.filter(q => 
-            !localQuestionHistory.includes(q.question)
-        );
-    }
-    
-    // 3. If still no unique questions, reset history and search again
-    if (possibleQuestions.length === 0) {
-        localQuestionHistory = [];
-        setQuestionHistory([]); // Update state for next render cycle
-        possibleQuestions = allPossibleQuestions.filter(q => q.difficulty === currentDifficulty);
-        if (possibleQuestions.length === 0) {
-            possibleQuestions = allPossibleQuestions;
-        }
-    }
-
-    if (possibleQuestions.length === 0) {
-        console.error("No valid quiz questions could be generated even after fallback.");
-        setCurrentQuestion(null);
-        setIsPlaying(false);
-        return;
-    }
-
-    const randomQuestion = shuffleArray(possibleQuestions)[0];
-    const correctEmotion = allPredefinedEmotions.find(e => e.name.toLowerCase() === randomQuestion.correctAnswer.toLowerCase());
-
-    if (!correctEmotion) {
-        // This case should ideally not happen with the checks above, but as a safeguard:
-        console.error("Could not find the correct emotion for the question. Trying again.");
-        // We call the logic again inside here instead of a recursive call.
-        setQuestionHistory(prev => [...prev, randomQuestion.question]); // mark as used to avoid infinite loop
-        return; // This will trigger the useEffect again
-    }
-
-    const incorrectOptions = shuffleArray(allUserEmotions.filter(e => e.name.toLowerCase() !== correctEmotion.name.toLowerCase())).slice(0, 3);
-    const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
-
-    setCurrentQuestion(randomQuestion);
-    setOptions(allOptions);
+    setGameQuestions(shuffleArray(allPossibleQuestions).slice(0, QUESTIONS_PER_GAME));
+    setCorrectAnswers(0);
+    setIncorrectAnswers(0);
+    setQuestionsAnswered(0);
     setIsAnswered(false);
     setSelectedAnswer(null);
-
-    setQuestionHistory(prev => [...prev, randomQuestion.question]);
-
-  }, [difficultyIndex, allUserEmotions, allPredefinedEmotions, questionHistory]);
+    setIsPlaying(true);
+  }, [allPredefinedEmotions]);
 
   useEffect(() => {
-    if (isPlaying && questionsAnswered < QUESTIONS_PER_GAME) {
-      generateQuestion();
+    if (isPlaying && questionsAnswered < gameQuestions.length) {
+      const nextQuestion = gameQuestions[questionsAnswered];
+      const correctEmotion = allPredefinedEmotions.find(e => e.name.toLowerCase() === nextQuestion.correctAnswer.toLowerCase());
+      
+      if (correctEmotion) {
+        const incorrectOptions = shuffleArray(allUserEmotions.filter(e => e.name.toLowerCase() !== correctEmotion.name.toLowerCase())).slice(0, 3);
+        const allOptions = shuffleArray([correctEmotion, ...incorrectOptions]);
+        setCurrentQuestion(nextQuestion);
+        setOptions(allOptions);
+        setIsAnswered(false);
+        setSelectedAnswer(null);
+      } else {
+        // Should not happen with pre-filtered questions, but as a fallback, end game.
+        setIsPlaying(false);
+      }
+    } else if (isPlaying && questionsAnswered >= gameQuestions.length) {
+      setIsPlaying(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questionsAnswered, isPlaying]);
+  }, [isPlaying, questionsAnswered, gameQuestions, allPredefinedEmotions, allUserEmotions]);
 
   const handleAnswer = (answer: Emotion) => {
     if (isAnswered) return;
@@ -130,26 +79,13 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
 
     if (answer.name.toLowerCase() === currentQuestion?.correctAnswer.toLowerCase()) {
       setCorrectAnswers(prev => prev + 1);
-      setDifficultyIndex(prev => Math.min(prev + 1, difficulties.length - 1));
     } else {
       setIncorrectAnswers(prev => prev + 1);
-      setDifficultyIndex(prev => Math.max(prev - 1, 0));
     }
   };
 
   const handleNext = () => {
     setQuestionsAnswered(prev => prev + 1);
-  };
-
-  const startGame = () => {
-    setCorrectAnswers(0);
-    setIncorrectAnswers(0);
-    setQuestionsAnswered(0);
-    setDifficultyIndex(0);
-    setQuestionHistory([]);
-    setIsAnswered(false);
-    setSelectedAnswer(null);
-    setIsPlaying(true);
   };
   
   if (allUserEmotions.length < 4) {
@@ -186,11 +122,6 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
             </Button>
         </div>
     );
-  }
-  
-  if (questionsAnswered >= QUESTIONS_PER_GAME) {
-    setIsPlaying(false);
-    return null;
   }
   
   if (!currentQuestion) {
@@ -243,8 +174,6 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
                         isAnswered && !isSelected && !isCorrect && 'opacity-50'
                     )}
                  >
-                    {isAnswered && isSelected && !isCorrect && <XCircle className="mr-2 h-5 w-5" />}
-                    {isAnswered && isCorrect && <CheckCircle className="mr-2 h-5 w-5" />}
                     {option.icon} {option.name}
                  </Button>
             );
@@ -260,7 +189,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
                 {selectedAnswer?.name.toLowerCase() === currentQuestion.correctAnswer.toLowerCase() ? '¡Correcto!' : `Incorrecto. La respuesta era: ${currentQuestion.correctAnswer}`}
             </p>
             <Button onClick={handleNext}>
-                {questionsAnswered >= QUESTIONS_PER_GAME -1 ? 'Ver Resultados' : 'Siguiente Pregunta'}
+                {questionsAnswered >= gameQuestions.length -1 ? 'Ver Resultados' : 'Siguiente Pregunta'}
             </Button>
         </div>
       )}
