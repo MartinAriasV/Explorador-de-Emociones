@@ -55,25 +55,34 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
 
   const generateQuestion = useCallback(() => {
     const currentDifficulty = difficulties[difficultyIndex];
-    
+    let localQuestionHistory = [...questionHistory];
+
+    // 1. Try to find a unique question of the current difficulty
     let possibleQuestions = QUIZ_QUESTIONS.filter(q => 
         q.difficulty === currentDifficulty &&
-        !questionHistory.includes(q.question) &&
+        !localQuestionHistory.includes(q.question) &&
         allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase())
     );
 
+    // 2. If no unique questions of current difficulty, search all difficulties for a unique question
     if (possibleQuestions.length === 0) {
         possibleQuestions = QUIZ_QUESTIONS.filter(q => 
-            !questionHistory.includes(q.question) &&
+            !localQuestionHistory.includes(q.question) &&
             allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase())
         );
     }
     
+    // 3. If still no unique questions, reset history and search again
     if (possibleQuestions.length === 0) {
-        setQuestionHistory([]);
+        localQuestionHistory = []; // Reset history
+        setQuestionHistory([]); // Update state for next render
         possibleQuestions = QUIZ_QUESTIONS.filter(q =>
+            q.difficulty === currentDifficulty &&
             allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase())
         );
+         if (possibleQuestions.length === 0) {
+            possibleQuestions = QUIZ_QUESTIONS.filter(q => allPredefinedEmotions.some(e => e.name.toLowerCase() === q.correctAnswer.toLowerCase()));
+        }
     }
 
     if (possibleQuestions.length === 0) {
@@ -87,6 +96,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
     const correctEmotion = allPredefinedEmotions.find(e => e.name.toLowerCase() === randomQuestion.correctAnswer.toLowerCase());
 
     if (!correctEmotion) {
+        // This case should ideally not happen with the checks above, but as a safeguard:
         generateQuestion();
         return;
     }
@@ -101,7 +111,7 @@ export function GuessEmotionGame({ emotionsList }: GameProps) {
 
     setQuestionHistory(prev => [...prev, randomQuestion.question]);
 
-  }, [difficultyIndex, allUserEmotions, allPredefinedEmotions, questionHistory, generateQuestion]);
+  }, [difficultyIndex, allUserEmotions, allPredefinedEmotions, questionHistory]);
 
   useEffect(() => {
     if (isPlaying && questionsAnswered < QUESTIONS_PER_GAME) {
