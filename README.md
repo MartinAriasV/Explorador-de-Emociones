@@ -8,6 +8,20 @@ Este proyecto fue construido desde cero utilizando **Next.js**, **Firebase (App 
 
 ---
 
+💡 El Origen: ¿Por qué construí esto?
+
+Este proyecto nació de una necesidad personal y real. Mi hijo de 10 años asiste a terapia psicológica, y como tarea, debía anotar sus emociones diarias en un cuaderno.
+
+Este proceso manual se volvió abrumador:
+
+Para él: Era tedioso y poco motivador.
+
+Para mí: Era difícil organizar y transcribir la información.
+
+Para la psicóloga: Era complicado analizar datos escritos a mano sesión tras sesión.
+
+Como desarrollador, vi un "dolor" claro que podía solucionar con tecnología. Creé esta app para transformar esa tarea en una experiencia interactiva, gamificada y útil para los tres.
+
 ## 📸 Galería de la App
 
 | Mi Diario | Chat con Compañero IA | Rincón de la Calma |
